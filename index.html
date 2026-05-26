@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movie Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Caveat:wght@400;600;700&family=Special+Elite&family=Reenie+Beanie&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Special+Elite&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -21,15 +21,18 @@
     --green: #2a7a3b;
     --orange: #e8621a;
     --purple: #7c3aed;
-    --scratch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    --bg: #0d0a07;
+    --bg2: #161008;
+    --text-on-dark: #d4c8b0;
+    --scratch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background-color: var(--paper);
+    background-color: var(--bg);
     background-image: var(--scratch);
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     color: var(--ink);
     min-height: 100vh;
     overflow-x: hidden;
@@ -49,7 +52,7 @@
   }
 
   .logo {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.6rem;
     color: var(--yellow);
     letter-spacing: -1px;
@@ -68,7 +71,7 @@
   }
 
   .nav-btn {
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     color: var(--paper);
@@ -91,16 +94,18 @@
 
   /* HOME PAGE */
   .page-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 2rem;
-    color: var(--ink);
+    color: var(--yellow);
     margin-bottom: 4px;
     line-height: 1.1;
+    text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+    letter-spacing: 1px;
   }
 
   .page-subtitle {
     font-size: 1.1rem;
-    color: #666;
+    color: var(--text-on-dark);
     margin-bottom: 24px;
     font-family: 'Special Elite', monospace;
   }
@@ -121,7 +126,7 @@
 
   .movie-poster-wrap {
     position: relative;
-    height: 200px;
+    height: 420px;
     overflow: hidden;
     background: var(--cream);
     display: flex;
@@ -144,7 +149,7 @@
     position: absolute;
     top: 10px;
     left: 10px;
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 3rem;
     line-height: 1;
     opacity: 0.15;
@@ -155,7 +160,7 @@
   .movie-info { padding: 16px; }
 
   .movie-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.5rem;
     line-height: 1.2;
     margin-bottom: 4px;
@@ -191,7 +196,7 @@
   }
 
   .chip {
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     padding: 3px 10px;
@@ -233,7 +238,7 @@
 
   .ratings-tab {
     flex: 1;
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 8px 4px;
@@ -265,13 +270,13 @@
   }
 
   .rating-movie-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.2rem;
     line-height: 1.2;
   }
 
   .avg-badge {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.4rem;
     padding: 4px 10px;
     border-radius: 6px;
@@ -306,7 +311,7 @@
   }
 
   .member-score {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.1rem;
   }
 
@@ -329,7 +334,7 @@
   }
 
   .rank-num {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 2rem;
     line-height: 1;
     min-width: 36px;
@@ -343,7 +348,7 @@
   .alltime-info { flex: 1; }
 
   .alltime-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.1rem;
     line-height: 1.2;
     margin-bottom: 2px;
@@ -356,7 +361,7 @@
   }
 
   .alltime-score {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.5rem;
     color: var(--red);
   }
@@ -365,7 +370,7 @@
   .bracket-status {
     background: var(--ink);
     color: var(--yellow);
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.1rem;
     text-align: center;
     padding: 10px;
@@ -383,7 +388,7 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #666;
+    color: var(--text-on-dark);
     margin-bottom: 6px;
   }
 
@@ -394,7 +399,7 @@
   }
 
   .voter-btn {
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -433,7 +438,7 @@
 
   .matchup-vs {
     text-align: center;
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1rem;
     color: var(--red);
     margin: -4px 0;
@@ -442,7 +447,7 @@
   .vote-btn {
     width: 100%;
     padding: 14px 16px;
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.2rem;
     border: 3px solid var(--ink);
     border-radius: 8px;
@@ -479,19 +484,20 @@
   }
 
   .admin-sheet {
-    background: var(--paper);
+    background: #1a1208;
     border-radius: 16px 16px 0 0;
-    border: 3px solid var(--ink);
+    border: 3px solid var(--yellow);
     border-bottom: none;
     width: 100%;
     max-width: 480px;
     max-height: 90vh;
     overflow-y: auto;
     padding: 20px 16px 40px;
+    color: var(--text-on-dark);
   }
 
   .admin-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.6rem;
     margin-bottom: 4px;
     color: var(--red);
@@ -499,7 +505,7 @@
 
   .admin-subtitle {
     font-size: 0.9rem;
-    color: #666;
+    color: var(--text-on-dark);
     font-family: 'Special Elite', monospace;
     margin-bottom: 20px;
   }
@@ -509,14 +515,14 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #666;
+    color: var(--text-on-dark);
     margin-bottom: 4px;
     display: block;
   }
 
   .form-input {
     width: 100%;
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1.1rem;
     padding: 10px 12px;
     border: 3px solid var(--ink);
@@ -530,7 +536,7 @@
 
   .btn-primary {
     width: 100%;
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.2rem;
     padding: 12px;
     background: var(--red);
@@ -548,7 +554,7 @@
 
   .btn-secondary {
     width: 100%;
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 10px;
@@ -567,7 +573,7 @@
   }
 
   .admin-section-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.2rem;
     margin-bottom: 12px;
     color: var(--blue);
@@ -581,7 +587,7 @@
   }
 
   .tag {
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     padding: 4px 10px;
@@ -646,7 +652,7 @@
   }
 
   .login-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.8rem;
     color: var(--red);
     text-shadow: 3px 3px 0 var(--yellow);
@@ -678,7 +684,7 @@
   }
 
   .admin-nav-btn {
-    font-family: 'Caveat', cursive;
+    font-family: 'Barlow Condensed', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -699,7 +705,7 @@
   .empty-state {
     text-align: center;
     padding: 40px 20px;
-    color: #aaa;
+    color: var(--text-on-dark);
     font-family: 'Special Elite', monospace;
   }
 
@@ -724,7 +730,7 @@
   }
 
   .winner-title {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 2rem;
     color: var(--ink);
     text-shadow: 3px 3px 0 var(--red);
@@ -778,7 +784,7 @@
     height: 40px;
     border-radius: 8px;
     border: 3px solid var(--ink);
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Black Ops One', cursive;
     font-size: 1.1rem;
     background: var(--cream);
     cursor: pointer;
@@ -1140,7 +1146,7 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
           const accent = movie.accent || '#d63a2f';
           return (
             <div key={movie.id} className="rating-input-card">
-              <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.2rem'}}>{movie.title}</div>
+              <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.2rem'}}>{movie.title}</div>
               <div style={{fontFamily:"'Special Elite', monospace", fontSize:'0.75rem', color:'#888', marginTop:2}}>Rate 1–5 {scale}</div>
               <div className="star-picker">
                 {[1,2,3,4,5].map(n => (
@@ -1564,7 +1570,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {/* MOVIES SECTION */}
         {section === 'movies' && (
           <>
-            <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
+            <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie1Title}
@@ -1587,7 +1593,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <hr className="section-divider" />
 
-            <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
+            <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie2Title}
