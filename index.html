@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Caveat:wght@400;600;700&family=Special+Elite&family=Reenie+Beanie&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1008;
+    --paper: #f5f0e8;
+    --cream: #ede8d8;
+    --red: #d63a2f;
+    --yellow: #f5c518;
+    --blue: #2563b8;
+    --green: #2a7a3b;
+    --orange: #e8621a;
+    --purple: #7c3aed;
+    --scratch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--paper);
+    background-image: var(--scratch);
+    font-family: 'Caveat', cursive;
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .site-header {
+    background: var(--ink);
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 4px solid var(--yellow);
+  }
+
+  .logo {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.6rem;
+    color: var(--yellow);
+    letter-spacing: -1px;
+    line-height: 1;
+    text-shadow: 3px 3px 0 var(--red);
+  }
+
+  .logo span {
+    color: var(--red);
+    text-shadow: 3px 3px 0 var(--yellow);
+  }
+
+  .nav {
+    display: flex;
+    gap: 6px;
+  }
+
+  .nav-btn {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--paper);
+    background: transparent;
+    border: 2px solid transparent;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .nav-btn.active, .nav-btn:hover {
+    border-color: var(--yellow);
+    color: var(--yellow);
+    background: rgba(245,197,24,0.1);
+  }
+
+  /* MAIN */
+  .main { padding: 20px 16px 80px; max-width: 480px; margin: 0 auto; }
+
+  /* HOME PAGE */
+  .page-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 2rem;
+    color: var(--ink);
+    margin-bottom: 4px;
+    line-height: 1.1;
+  }
+
+  .page-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 24px;
+    font-family: 'Special Elite', monospace;
+  }
+
+  .movie-card {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 5px 5px 0 var(--ink);
+    position: relative;
+  }
+
+  .movie-card-accent {
+    height: 6px;
+  }
+
+  .movie-poster-wrap {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .movie-poster-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .poster-placeholder {
+    font-size: 4rem;
+    opacity: 0.3;
+  }
+
+  .movie-number {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 3rem;
+    line-height: 1;
+    opacity: 0.15;
+    color: white;
+    text-shadow: 2px 2px 0 black;
+  }
+
+  .movie-info { padding: 16px; }
+
+  .movie-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .movie-year {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  .movie-desc {
+    font-size: 1rem;
+    line-height: 1.4;
+    color: #444;
+    margin-bottom: 14px;
+  }
+
+  .where-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    margin-bottom: 6px;
+  }
+
+  .streaming-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    font-family: 'Caveat', cursive;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 2px solid var(--ink);
+  }
+
+  .loading-card {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    box-shadow: 5px 5px 0 var(--ink);
+    margin-bottom: 24px;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--cream);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RATINGS PAGE */
+  .ratings-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .ratings-tab {
+    flex: 1;
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 8px 4px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    border-right: 2px solid var(--ink);
+    transition: all 0.15s;
+  }
+
+  .ratings-tab:last-child { border-right: none; }
+  .ratings-tab.active { background: var(--ink); color: var(--yellow); }
+
+  .movie-rating-card {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .rating-card-header {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--cream);
+  }
+
+  .rating-movie-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
+    line-height: 1.2;
+  }
+
+  .avg-badge {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.4rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 2px solid var(--ink);
+    white-space: nowrap;
+  }
+
+  .rating-scale-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    padding: 0 16px 8px;
+  }
+
+  .member-ratings { padding: 0 16px 12px; }
+
+  .member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--cream);
+  }
+
+  .member-row:last-child { border-bottom: none; }
+
+  .member-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .member-score {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.1rem;
+  }
+
+  .stars-display {
+    display: flex;
+    gap: 2px;
+  }
+
+  /* ALL TIME LIST */
+  .alltime-item {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+
+  .rank-num {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 2rem;
+    line-height: 1;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  .rank-1 { color: #b8860b; }
+  .rank-2 { color: #888; }
+  .rank-3 { color: #cd7f32; }
+
+  .alltime-info { flex: 1; }
+
+  .alltime-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  .alltime-meta {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.75rem;
+    color: #888;
+  }
+
+  .alltime-score {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.5rem;
+    color: var(--red);
+  }
+
+  /* BRACKET PAGE */
+  .bracket-status {
+    background: var(--ink);
+    color: var(--yellow);
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.1rem;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 3px solid var(--yellow);
+  }
+
+  .voter-select {
+    margin-bottom: 20px;
+  }
+
+  .voter-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  .voter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .voter-btn {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 2px solid var(--ink);
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .voter-btn.selected {
+    background: var(--ink);
+    color: var(--yellow);
+  }
+
+  .matchup-card {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .matchup-header {
+    padding: 8px 16px;
+    font-family: 'Special Elite', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #999;
+    border-bottom: 2px solid var(--cream);
+  }
+
+  .matchup-options { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+  .matchup-vs {
+    text-align: center;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1rem;
+    color: var(--red);
+    margin: -4px 0;
+  }
+
+  .vote-btn {
+    width: 100%;
+    padding: 14px 16px;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    background: var(--cream);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vote-btn:hover { background: var(--yellow); transform: translateX(3px); }
+  .vote-btn.voted { background: var(--green); color: white; border-color: var(--green); box-shadow: 3px 3px 0 var(--ink); }
+  .vote-btn.lost { opacity: 0.4; }
+
+  .vote-count {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.85rem;
+    background: rgba(0,0,0,0.15);
+    border-radius: 10px;
+    padding: 2px 8px;
+  }
+
+  /* ADMIN */
+  .admin-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,16,8,0.85);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .admin-sheet {
+    background: var(--paper);
+    border-radius: 16px 16px 0 0;
+    border: 3px solid var(--ink);
+    border-bottom: none;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px 16px 40px;
+  }
+
+  .admin-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+    color: var(--red);
+  }
+
+  .admin-subtitle {
+    font-size: 0.9rem;
+    color: #666;
+    font-family: 'Special Elite', monospace;
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    font-family: 'Caveat', cursive;
+    font-size: 1.1rem;
+    padding: 10px 12px;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    background: white;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+
+  .form-input:focus { outline: none; border-color: var(--blue); box-shadow: 3px 3px 0 var(--blue); }
+
+  .btn-primary {
+    width: 100%;
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
+    padding: 12px;
+    background: var(--red);
+    color: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: all 0.15s;
+    margin-bottom: 10px;
+  }
+
+  .btn-primary:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn-primary:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--ink); }
+
+  .btn-secondary {
+    width: 100%;
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 10px;
+    background: white;
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+
+  .admin-section {
+    border-top: 2px dashed var(--ink);
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+
+  .admin-section-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    color: var(--blue);
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .tag {
+    font-family: 'Caveat', cursive;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    background: var(--cream);
+    border: 2px solid var(--ink);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tag-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--red);
+    padding: 0;
+  }
+
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    background: var(--ink);
+    color: var(--yellow);
+    border: 3px solid var(--yellow);
+    border-radius: 50%;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 3px 3px 0 var(--yellow);
+    z-index: 99;
+    transition: all 0.15s;
+  }
+
+  .fab:hover { transform: scale(1.1) rotate(-10deg); }
+
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--ink);
+  }
+
+  .login-card {
+    background: var(--paper);
+    border: 4px solid var(--yellow);
+    border-radius: 12px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 8px 8px 0 var(--yellow);
+  }
+
+  .login-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.8rem;
+    color: var(--red);
+    text-shadow: 3px 3px 0 var(--yellow);
+    margin-bottom: 4px;
+  }
+
+  .login-sub {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  .error-msg {
+    background: #fef2f2;
+    border: 2px solid var(--red);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    color: var(--red);
+    margin-bottom: 12px;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .admin-nav-btn {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 2px solid var(--ink);
+    background: white;
+    cursor: pointer;
+  }
+
+  .admin-nav-btn.active { background: var(--ink); color: var(--yellow); }
+
+  .section-divider {
+    border: none;
+    border-top: 3px dashed var(--cream);
+    margin: 20px 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #aaa;
+    font-family: 'Special Elite', monospace;
+  }
+
+  .empty-icon { font-size: 3rem; margin-bottom: 8px; }
+
+  .bracket-winner {
+    background: var(--yellow);
+    border: 4px solid var(--ink);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 24px;
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+
+  .winner-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #666;
+  }
+
+  .winner-title {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 2rem;
+    color: var(--ink);
+    text-shadow: 3px 3px 0 var(--red);
+  }
+
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 2px solid;
+    margin-bottom: 12px;
+    font-family: 'Special Elite', monospace;
+    font-size: 0.85rem;
+  }
+
+  .alert-success { background: #f0fdf4; border-color: var(--green); color: var(--green); }
+  .alert-error { background: #fef2f2; border-color: var(--red); color: var(--red); }
+
+  .progress-bar-wrap {
+    height: 6px;
+    background: var(--cream);
+    border-radius: 3px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--green);
+    transition: width 0.4s ease;
+  }
+
+  /* Rating input for members */
+  .rating-input-card {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .star-picker {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .star-opt {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 3px solid var(--ink);
+    font-family: 'Permanent Marker', cursive;
+    font-size: 1.1rem;
+    background: var(--cream);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .star-opt.selected { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); transform: translateY(-2px); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// ─── STORAGE ────────────────────────────────────────────────────────────────
+// We use window.storage (persistent artifact storage) for data.
+// Falls back to localStorage if not available.
+
+const KEYS = {
+  movies: 'mc_movies',
+  ratings: 'mc_ratings',
+  bracket: 'mc_bracket',
+  members: 'mc_members',
+  alltime: 'mc_alltime',
+};
+
+async function dbGet(key) {
+  try {
+    if (window.storage) {
+      const r = await window.storage.get(key);
+      return r ? JSON.parse(r.value) : null;
+    }
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : null;
+  } catch { return null; }
+}
+
+async function dbSet(key, value) {
+  try {
+    const str = JSON.stringify(value);
+    if (window.storage) {
+      await window.storage.set(key, str);
+    } else {
+      localStorage.setItem(key, str);
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ─── DEFAULTS ───────────────────────────────────────────────────────────────
+const DEFAULT_MEMBERS = ['Alex','Jordan','Sam','Taylor','Morgan','Casey','Riley','Drew','Quinn','Avery','Blake','Jamie'];
+
+const DEFAULT_MOVIES = [
+  {
+    id: 1,
+    title: "The French Connection",
+    year: 1971,
+    description: "A pair of NYC narcotics detectives uncover a drug smuggling operation tied to a suave French criminal.",
+    poster: null,
+    streaming: ["Max","Tubi"],
+    accent: "#d63a2f",
+    ratingScale: "berets"
+  },
+  {
+    id: 2,
+    title: "Dr. Strangelove",
+    year: 1964,
+    description: "An insane general triggers a path to nuclear holocaust that a war room full of generals and politicians frantically tries to stop.",
+    poster: null,
+    streaming: ["Criterion Channel","Max"],
+    accent: "#2563b8",
+    ratingScale: "berets"
+  }
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+const ACCENT_COLORS = ['#d63a2f','#2563b8','#2a7a3b','#e8621a','#7c3aed','#b8860b'];
+
+function avg(arr) {
+  const nums = arr.filter(n => n > 0);
+  if (!nums.length) return null;
+  return (nums.reduce((a,b) => a+b, 0) / nums.length).toFixed(1);
+}
+
+function ScaleIcon({ theme }) {
+  const icons = {
+    berets: '🎩', stars: '⭐', skulls: '💀', tacos: '🌮', flames: '🔥', cups: '☕', bombs: '💣'
+  };
+  return icons[theme] || '⭐';
+}
+
+function renderScaleEmoji(theme, count) {
+  const icons = {
+    berets: '🎩', stars: '⭐', skulls: '💀', tacos: '🌮', flames: '🔥', cups: '☕', bombs: '💣'
+  };
+  const icon = icons[theme] || '⭐';
+  return Array.from({length: count}, (_,i) => icon).join('');
+}
+
+// ─── MOVIE CARD ──────────────────────────────────────────────────────────────
+function MovieCard({ movie, index }) {
+  const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
+  return (
+    <div className="movie-card">
+      <div className="movie-card-accent" style={{background: accent}} />
+      <div className="movie-poster-wrap">
+        {movie.poster
+          ? <img src={movie.poster} alt={movie.title} />
+          : <div className="poster-placeholder">🎬</div>
+        }
+        <div className="movie-number">{index + 1}</div>
+      </div>
+      <div className="movie-info">
+        <div className="movie-title">{movie.title}</div>
+        {movie.year && <div className="movie-year">{movie.year}</div>}
+        {movie.description && <div className="movie-desc">{movie.description}</div>}
+        {movie.streaming && movie.streaming.length > 0 && (
+          <>
+            <div className="where-label">Where to watch</div>
+            <div className="streaming-chips">
+              {movie.streaming.map((s,i) => (
+                <span key={i} className="chip" style={{background: accent + '22', borderColor: accent}}>{s}</span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── HOME PAGE ───────────────────────────────────────────────────────────────
+function HomePage({ movies }) {
+  const now = new Date();
+  const monthName = now.toLocaleString('default', { month: 'long' });
+
+  if (!movies || movies.length === 0) {
+    return (
+      <div className="main">
+        <div className="page-title">🎬 Movie Club</div>
+        <div className="page-subtitle">No movies set yet this month.</div>
+        <div className="empty-state">
+          <div className="empty-icon">🎞️</div>
+          <div>The admin hasn't picked this month's films yet.<br/>Check back soon!</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="main">
+      <div className="page-title">This Month's Films</div>
+      <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
+      {movies.map((m, i) => <MovieCard key={m.id} movie={m} index={i} />)}
+    </div>
+  );
+}
+
+// ─── RATINGS PAGE ────────────────────────────────────────────────────────────
+function RatingsPage({ movies, ratings, alltime, members }) {
+  const [tab, setTab] = useState('current');
+  const [selectedMember, setSelectedMember] = useState('');
+  const [localRatings, setLocalRatings] = useState({});
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setLocalRatings(ratings || {});
+  }, [ratings]);
+
+  async function saveRating(movieId, member, score) {
+    const updated = {
+      ...localRatings,
+      [movieId]: {
+        ...(localRatings[movieId] || {}),
+        [member]: score
+      }
+    };
+    setLocalRatings(updated);
+    await dbSet(KEYS.ratings, updated);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (tab === 'current') {
+    return (
+      <div className="main">
+        <div className="page-title">Ratings</div>
+        <div className="page-subtitle">Who liked what?</div>
+
+        <div className="ratings-tabs">
+          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
+          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
+          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+        </div>
+
+        {(!movies || movies.length === 0) && (
+          <div className="empty-state"><div className="empty-icon">📊</div><div>No movies this month yet.</div></div>
+        )}
+
+        {movies && movies.map(movie => {
+          const movieRatings = localRatings[movie.id] || {};
+          const scores = Object.values(movieRatings).filter(v => v > 0);
+          const average = avg(scores);
+          const accent = movie.accent || '#d63a2f';
+          const scale = movie.ratingScale || 'stars';
+          return (
+            <div key={movie.id} className="movie-rating-card">
+              <div className="rating-card-header">
+                <div>
+                  <div className="rating-movie-title">{movie.title}</div>
+                </div>
+                <div className="avg-badge" style={{background: accent + '22', borderColor: accent}}>
+                  {average ? `${average}/5` : '—'}
+                </div>
+              </div>
+              <div className="rating-scale-label">Scale: 1–5 {scale} {renderScaleEmoji(scale, 1)}</div>
+              <div className="member-ratings">
+                {members.map(m => {
+                  const score = movieRatings[m];
+                  return (
+                    <div key={m} className="member-row">
+                      <span className="member-name">{m}</span>
+                      <span className="member-score">
+                        {score ? renderScaleEmoji(scale, score) : <span style={{color:'#ccc'}}>—</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (tab === 'rate') {
+    return (
+      <div className="main">
+        <div className="page-title">Ratings</div>
+        <div className="page-subtitle">Add your score</div>
+        <div className="ratings-tabs">
+          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
+          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
+          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+        </div>
+
+        {saved && <div className="alert alert-success">✓ Rating saved!</div>}
+
+        <div className="voter-label">Who are you?</div>
+        <div className="voter-grid" style={{marginBottom:20}}>
+          {members.map(m => (
+            <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
+          ))}
+        </div>
+
+        {selectedMember && movies && movies.map(movie => {
+          const movieRatings = localRatings[movie.id] || {};
+          const current = movieRatings[selectedMember] || 0;
+          const scale = movie.ratingScale || 'stars';
+          const accent = movie.accent || '#d63a2f';
+          return (
+            <div key={movie.id} className="rating-input-card">
+              <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.2rem'}}>{movie.title}</div>
+              <div style={{fontFamily:"'Special Elite', monospace", fontSize:'0.75rem', color:'#888', marginTop:2}}>Rate 1–5 {scale}</div>
+              <div className="star-picker">
+                {[1,2,3,4,5].map(n => (
+                  <button key={n} className={`star-opt ${current===n?'selected':''}`}
+                    style={current===n?{borderColor:accent}:{}}
+                    onClick={()=>saveRating(movie.id, selectedMember, n)}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {current > 0 && <div style={{marginTop:8, fontSize:'1.2rem'}}>{renderScaleEmoji(scale, current)}</div>}
+            </div>
+          );
+        })}
+
+        {!selectedMember && (
+          <div className="empty-state"><div className="empty-icon">👆</div><div>Pick your name above to start rating.</div></div>
+        )}
+      </div>
+    );
+  }
+
+  // All time tab
+  const sortedAlltime = [...(alltime || [])].sort((a,b) => (b.avgScore||0) - (a.avgScore||0));
+  return (
+    <div className="main">
+      <div className="page-title">Ratings</div>
+      <div className="page-subtitle">The hall of fame</div>
+      <div className="ratings-tabs">
+        <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
+        <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
+        <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+      </div>
+      {sortedAlltime.length === 0 && (
+        <div className="empty-state"><div className="empty-icon">🏆</div><div>No past movies yet. They'll appear here after each month.</div></div>
+      )}
+      {sortedAlltime.map((movie, i) => (
+        <div key={movie.id || i} className="alltime-item">
+          <div className={`rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}`}>#{i+1}</div>
+          <div className="alltime-info">
+            <div className="alltime-title">{movie.title}</div>
+            <div className="alltime-meta">{movie.year} · {movie.ratingScale || 'stars'} scale</div>
+          </div>
+          <div className="alltime-score">{movie.avgScore}/5</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── BRACKET PAGE ────────────────────────────────────────────────────────────
+function BracketPage({ bracket, members, onVoteUpdate }) {
+  const [selectedMember, setSelectedMember] = useState('');
+
+  if (!bracket || !bracket.rounds || bracket.rounds.length === 0) {
+    return (
+      <div className="main">
+        <div className="page-title">The Bracket</div>
+        <div className="page-subtitle">May the best film win</div>
+        <div className="empty-state">
+          <div className="empty-icon">🏆</div>
+          <div>No bracket active yet.<br/>The admin will set one up soon!</div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentRound = bracket.currentRound || 0;
+  const round = bracket.rounds[currentRound];
+  const totalRounds = bracket.rounds.length;
+  const isFinished = bracket.finished;
+  const winner = bracket.winner;
+
+  async function castVote(matchupIdx, movieTitle) {
+    if (!selectedMember) return;
+    const updated = JSON.parse(JSON.stringify(bracket));
+    const matchup = updated.rounds[currentRound][matchupIdx];
+    matchup.votes = matchup.votes || {};
+    matchup.votes[selectedMember] = movieTitle;
+    await dbSet(KEYS.bracket, updated);
+    onVoteUpdate(updated);
+  }
+
+  return (
+    <div className="main">
+      <div className="page-title">The Bracket</div>
+      <div className="page-subtitle">Round {currentRound + 1} of {totalRounds}</div>
+
+      <div className="bracket-status">
+        {isFinished ? `🏆 Winner: ${winner}` : `🎬 Round ${currentRound + 1} — Vote now!`}
+      </div>
+
+      {isFinished && winner && (
+        <div className="bracket-winner">
+          <div className="winner-label">🎬 This Month's Pick</div>
+          <div className="winner-title">{winner}</div>
+        </div>
+      )}
+
+      {!isFinished && (
+        <>
+          <div className="voter-label">Who are you?</div>
+          <div className="voter-grid" style={{marginBottom: 20}}>
+            {members.map(m => (
+              <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
+            ))}
+          </div>
+
+          {!selectedMember && (
+            <div className="alert alert-error">👆 Pick your name to vote</div>
+          )}
+
+          {round && round.map((matchup, i) => {
+            const votes = matchup.votes || {};
+            const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
+            const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
+            const total = aVotes + bVotes;
+            const myVote = votes[selectedMember];
+            return (
+              <div key={i} className="matchup-card">
+                <div className="matchup-header">Matchup {i + 1}</div>
+                <div className="matchup-options">
+                  <button
+                    className={`vote-btn ${myVote===matchup.a?'voted':''}`}
+                    onClick={() => castVote(i, matchup.a)}
+                    disabled={!selectedMember}
+                  >
+                    <span>{matchup.a}</span>
+                    {total > 0 && <span className="vote-count">{aVotes} vote{aVotes!==1?'s':''}</span>}
+                  </button>
+                  <div className="matchup-vs">VS</div>
+                  <button
+                    className={`vote-btn ${myVote===matchup.b?'voted':''}`}
+                    onClick={() => castVote(i, matchup.b)}
+                    disabled={!selectedMember}
+                  >
+                    <span>{matchup.b}</span>
+                    {total > 0 && <span className="vote-count">{bVotes} vote{bVotes!==1?'s':''}</span>}
+                  </button>
+                </div>
+                {total > 0 && (
+                  <div style={{padding:'0 12px 12px'}}>
+                    <div className="progress-bar-wrap">
+                      <div className="progress-bar" style={{width: total ? `${(aVotes/total)*100}%` : '50%'}} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings }) {
+  const [section, setSection] = useState('movies');
+  const [msg, setMsg] = useState(null);
+
+  // Movies section state
+  const [movie1Title, setMovie1Title] = useState(movies[0]?.title || '');
+  const [movie1Year, setMovie1Year] = useState(movies[0]?.year || '');
+  const [movie1Desc, setMovie1Desc] = useState(movies[0]?.description || '');
+  const [movie1Stream, setMovie1Stream] = useState(movies[0]?.streaming?.join(', ') || '');
+  const [movie1Scale, setMovie1Scale] = useState(movies[0]?.ratingScale || 'stars');
+  const [movie1Poster, setMovie1Poster] = useState(movies[0]?.poster || '');
+  const [movie2Title, setMovie2Title] = useState(movies[1]?.title || '');
+  const [movie2Year, setMovie2Year] = useState(movies[1]?.year || '');
+  const [movie2Desc, setMovie2Desc] = useState(movies[1]?.description || '');
+  const [movie2Stream, setMovie2Stream] = useState(movies[1]?.streaming?.join(', ') || '');
+  const [movie2Scale, setMovie2Scale] = useState(movies[1]?.ratingScale || 'stars');
+  const [movie2Poster, setMovie2Poster] = useState(movies[1]?.poster || '');
+
+  // Members state
+  const [newMember, setNewMember] = useState('');
+  const [localMembers, setLocalMembers] = useState([...members]);
+
+  // Bracket state
+  const [bracketMovies, setBracketMovies] = useState('');
+  const [fetchingInfo, setFetchingInfo] = useState(false);
+
+  function showMsg(text, type='success') {
+    setMsg({text, type});
+    setTimeout(() => setMsg(null), 3000);
+  }
+
+  async function saveMovies() {
+    const updated = [
+      {
+        id: 1,
+        title: movie1Title,
+        year: movie1Year,
+        description: movie1Desc,
+        streaming: movie1Stream.split(',').map(s=>s.trim()).filter(Boolean),
+        ratingScale: movie1Scale,
+        poster: movie1Poster || null,
+        accent: ACCENT_COLORS[0]
+      },
+      {
+        id: 2,
+        title: movie2Title,
+        year: movie2Year,
+        description: movie2Desc,
+        streaming: movie2Stream.split(',').map(s=>s.trim()).filter(Boolean),
+        ratingScale: movie2Scale,
+        poster: movie2Poster || null,
+        accent: ACCENT_COLORS[1]
+      }
+    ].filter(m => m.title);
+    await dbSet(KEYS.movies, updated);
+    setMovies(updated);
+    showMsg('Movies saved!');
+  }
+
+  async function saveMembers() {
+    await dbSet(KEYS.members, localMembers);
+    setMembers(localMembers);
+    showMsg('Members saved!');
+  }
+
+  function addMember() {
+    if (!newMember.trim()) return;
+    setLocalMembers(prev => [...prev, newMember.trim()]);
+    setNewMember('');
+  }
+
+  function removeMember(name) {
+    setLocalMembers(prev => prev.filter(m => m !== name));
+  }
+
+  function buildBracket() {
+    const films = bracketMovies.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (films.length < 2) { showMsg('Enter at least 2 movies', 'error'); return; }
+    // Pad to even number
+    const padded = [...films];
+    if (padded.length % 2 !== 0) padded.push('BYE');
+    const matchups = [];
+    for (let i = 0; i < padded.length; i += 2) {
+      matchups.push({ a: padded[i], b: padded[i+1], votes: {} });
+    }
+    const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
+    dbSet(KEYS.bracket, newBracket);
+    setBracket(newBracket);
+    showMsg('Bracket created!');
+  }
+
+  function advanceBracket() {
+    if (!bracket || bracket.finished) return;
+    const round = bracket.rounds[bracket.currentRound];
+    // Figure out winners of each matchup by vote count
+    const winners = round.map(matchup => {
+      const votes = matchup.votes || {};
+      const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
+      const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
+      return aVotes >= bVotes ? matchup.a : matchup.b;
+    });
+
+    if (winners.length === 1) {
+      // We have a winner!
+      const final = { ...bracket, finished: true, winner: winners[0] };
+      dbSet(KEYS.bracket, final);
+      setBracket(final);
+      showMsg(`🏆 ${winners[0]} wins!`);
+      return;
+    }
+
+    // Build next round matchups
+    const nextMatchups = [];
+    for (let i = 0; i < winners.length; i += 2) {
+      if (i + 1 < winners.length) {
+        nextMatchups.push({ a: winners[i], b: winners[i+1], votes: {} });
+      } else {
+        nextMatchups.push({ a: winners[i], b: 'BYE', votes: {} });
+      }
+    }
+    const updated = {
+      ...bracket,
+      rounds: [...bracket.rounds, nextMatchups],
+      currentRound: bracket.currentRound + 1
+    };
+    dbSet(KEYS.bracket, updated);
+    setBracket(updated);
+    showMsg('Advanced to next round!');
+  }
+
+  async function archiveMovies() {
+    // Move current movies + their avg ratings to alltime
+    const newEntries = movies.map(m => {
+      const movieRatings = ratings[m.id] || {};
+      const scores = Object.values(movieRatings).filter(v => v > 0);
+      const average = scores.length ? parseFloat(avg(scores)) : null;
+      return {
+        id: m.id + '_' + Date.now(),
+        title: m.title,
+        year: m.year,
+        ratingScale: m.ratingScale,
+        avgScore: average
+      };
+    });
+    const updated = [...(alltime || []), ...newEntries.filter(e => e.avgScore !== null)];
+    await dbSet(KEYS.alltime, updated);
+    setAlltime(updated);
+    showMsg('Movies archived to All Time list!');
+  }
+
+  const scaleOptions = ['stars','berets','skulls','tacos','flames','cups','bombs'];
+
+  return (
+    <div className="admin-overlay" onClick={e => { if(e.target === e.currentTarget) onClose(); }}>
+      <div className="admin-sheet">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4}}>
+          <div>
+            <div className="admin-title">⚙️ Admin Panel</div>
+            <div className="admin-subtitle">Movie Club command center</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:'1.5rem',cursor:'pointer'}}>✕</button>
+        </div>
+
+        <div className="admin-nav">
+          {['movies','members','bracket'].map(s => (
+            <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
+              {s === 'movies' ? '🎬 Movies' : s === 'members' ? '👥 Members' : '🏆 Bracket'}
+            </button>
+          ))}
+        </div>
+
+        {msg && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
+
+        {/* MOVIES SECTION */}
+        {section === 'movies' && (
+          <>
+            <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
+            <label className="form-label">Title</label>
+            <input className="form-input" value={movie1Title} onChange={e=>setMovie1Title(e.target.value)} placeholder="The French Connection" />
+            <label className="form-label">Year</label>
+            <input className="form-input" value={movie1Year} onChange={e=>setMovie1Year(e.target.value)} placeholder="1971" />
+            <label className="form-label">Description</label>
+            <textarea className="form-input" value={movie1Desc} onChange={e=>setMovie1Desc(e.target.value)} rows={3} placeholder="Short synopsis..." style={{resize:'vertical'}} />
+            <label className="form-label">Where to Watch (comma separated)</label>
+            <input className="form-input" value={movie1Stream} onChange={e=>setMovie1Stream(e.target.value)} placeholder="Max, Tubi, Netflix" />
+            <label className="form-label">Poster URL (optional)</label>
+            <input className="form-input" value={movie1Poster} onChange={e=>setMovie1Poster(e.target.value)} placeholder="https://..." />
+            <label className="form-label">Rating Scale Theme</label>
+            <select className="form-input" value={movie1Scale} onChange={e=>setMovie1Scale(e.target.value)}>
+              {scaleOptions.map(s => <option key={s} value={s}>{s} {renderScaleEmoji(s,1)}</option>)}
+            </select>
+
+            <hr className="section-divider" />
+
+            <div style={{fontFamily:"'Permanent Marker', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
+            <label className="form-label">Title</label>
+            <input className="form-input" value={movie2Title} onChange={e=>setMovie2Title(e.target.value)} placeholder="Dr. Strangelove" />
+            <label className="form-label">Year</label>
+            <input className="form-input" value={movie2Year} onChange={e=>setMovie2Year(e.target.value)} placeholder="1964" />
+            <label className="form-label">Description</label>
+            <textarea className="form-input" value={movie2Desc} onChange={e=>setMovie2Desc(e.target.value)} rows={3} placeholder="Short synopsis..." style={{resize:'vertical'}} />
+            <label className="form-label">Where to Watch (comma separated)</label>
+            <input className="form-input" value={movie2Stream} onChange={e=>setMovie2Stream(e.target.value)} placeholder="Criterion Channel, Max" />
+            <label className="form-label">Poster URL (optional)</label>
+            <input className="form-input" value={movie2Poster} onChange={e=>setMovie2Poster(e.target.value)} placeholder="https://..." />
+            <label className="form-label">Rating Scale Theme</label>
+            <select className="form-input" value={movie2Scale} onChange={e=>setMovie2Scale(e.target.value)}>
+              {scaleOptions.map(s => <option key={s} value={s}>{s} {renderScaleEmoji(s,1)}</option>)}
+            </select>
+
+            <button className="btn-primary" onClick={saveMovies}>💾 Save Movies</button>
+            <button className="btn-secondary" onClick={archiveMovies}>📦 Archive to All Time List</button>
+          </>
+        )}
+
+        {/* MEMBERS SECTION */}
+        {section === 'members' && (
+          <>
+            <div className="admin-section-title">Club Members</div>
+            <div className="tag-list">
+              {localMembers.map(m => (
+                <div key={m} className="tag">
+                  {m}
+                  <button className="tag-remove" onClick={()=>removeMember(m)}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:8,marginBottom:10}}>
+              <input className="form-input" style={{marginBottom:0,flex:1}} value={newMember} onChange={e=>setNewMember(e.target.value)} placeholder="Add member name..." onKeyDown={e=>e.key==='Enter'&&addMember()} />
+              <button onClick={addMember} style={{padding:'10px 16px',fontFamily:"'Permanent Marker',cursive",fontSize:'1.2rem',background:'var(--green)',color:'white',border:'3px solid var(--ink)',borderRadius:8,cursor:'pointer'}}>+</button>
+            </div>
+            <button className="btn-primary" onClick={saveMembers}>💾 Save Members</button>
+          </>
+        )}
+
+        {/* BRACKET SECTION */}
+        {section === 'bracket' && (
+          <>
+            <div className="admin-section-title">Create Bracket</div>
+            <label className="form-label">Enter nominated movies (one per line)</label>
+            <textarea className="form-input" rows={8} value={bracketMovies} onChange={e=>setBracketMovies(e.target.value)} placeholder={"The French Connection\nDr. Strangelove\n48 Hrs\nThe Godfather\n..."} style={{resize:'vertical'}} />
+            <button className="btn-primary" onClick={buildBracket}>🏆 Build Bracket</button>
+
+            {bracket && bracket.rounds && (
+              <>
+                <hr className="section-divider" />
+                <div className="admin-section-title">Current Bracket</div>
+                <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.85rem',color:'#666',marginBottom:12}}>
+                  Round {(bracket.currentRound||0)+1} of {bracket.rounds.length} · {bracket.finished ? '✅ Finished' : '🔴 Active'}
+                  {bracket.winner && ` · Winner: ${bracket.winner}`}
+                </div>
+                {!bracket.finished && (
+                  <button className="btn-primary" style={{background:'var(--blue)'}} onClick={advanceBracket}>
+                    ➡️ Advance to Next Round
+                  </button>
+                )}
+                {bracket.finished && (
+                  <button className="btn-primary" onClick={() => { dbSet(KEYS.bracket, null); setBracket(null); showMsg('Bracket cleared'); }}>
+                    🗑️ Clear Bracket
+                  </button>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function LoginPage({ onLogin }) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+
+  function attempt() {
+    if (user === 'foif' && pass === 'Moomoo92') {
+      onLogin();
+    } else {
+      setErr('Wrong username or password.');
+    }
+  }
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-title">🎬 Admin</div>
+        <div className="login-sub">Movie Club command center</div>
+        {err && <div className="error-msg">{err}</div>}
+        <label className="form-label">Username</label>
+        <input className="form-input" value={user} onChange={e=>setUser(e.target.value)} autoComplete="username" />
+        <label className="form-label">Password</label>
+        <input className="form-input" type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&attempt()} autoComplete="current-password" />
+        <button className="btn-primary" onClick={attempt}>Enter →</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('home');
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+
+  const [movies, setMovies] = useState(DEFAULT_MOVIES);
+  const [ratings, setRatings] = useState({});
+  const [bracket, setBracket] = useState(null);
+  const [members, setMembers] = useState(DEFAULT_MEMBERS);
+  const [alltime, setAlltime] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const [m, r, b, mem, at] = await Promise.all([
+        dbGet(KEYS.movies),
+        dbGet(KEYS.ratings),
+        dbGet(KEYS.bracket),
+        dbGet(KEYS.members),
+        dbGet(KEYS.alltime),
+      ]);
+      if (m) setMovies(m);
+      if (r) setRatings(r);
+      if (b) setBracket(b);
+      if (mem) setMembers(mem);
+      if (at) setAlltime(at);
+      setLoaded(true);
+    }
+    load();
+  }, []);
+
+  function handleAdminClick() {
+    if (adminAuthed) {
+      setAdminOpen(true);
+    } else {
+      setShowLogin(true);
+    }
+  }
+
+  if (showLogin && !adminAuthed) {
+    return <LoginPage onLogin={() => { setAdminAuthed(true); setShowLogin(false); setAdminOpen(true); }} />;
+  }
+
+  if (!loaded) {
+    return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <header className="site-header">
+        <div className="logo">Movie<span>Club</span></div>
+        <nav className="nav">
+          <button className={`nav-btn ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</button>
+          <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>Ratings</button>
+          <button className={`nav-btn ${page==='bracket'?'active':''}`} onClick={()=>setPage('bracket')}>Bracket</button>
+        </nav>
+      </header>
+
+      {page === 'home' && <HomePage movies={movies} />}
+      {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} alltime={alltime} members={members} />}
+      {page === 'bracket' && <BracketPage bracket={bracket} members={members} onVoteUpdate={setBracket} />}
+
+      <button className="fab" onClick={handleAdminClick} title="Admin">⚙️</button>
+
+      {adminOpen && adminAuthed && (
+        <AdminPanel
+          onClose={() => setAdminOpen(false)}
+          movies={movies} setMovies={setMovies}
+          members={members} setMembers={setMembers}
+          bracket={bracket} setBracket={setBracket}
+          alltime={alltime} setAlltime={setAlltime}
+          ratings={ratings}
+        />
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
