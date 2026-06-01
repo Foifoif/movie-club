@@ -796,6 +796,32 @@
 
   .star-opt.selected { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); transform: translateY(-2px); }
 
+  /* MINI POSTER THUMBNAIL */
+  .mini-poster {
+    width: 48px;
+    height: 72px;
+    border-radius: 4px;
+    border: 2px solid var(--ink);
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--cream);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .mini-poster-placeholder {
+    width: 48px;
+    height: 72px;
+    border-radius: 4px;
+    border: 2px solid var(--ink);
+    background: var(--cream);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
   /* HISTORY TAB */
   .history-month { margin-bottom: 32px; }
 
@@ -819,12 +845,11 @@
   }
 
   .history-movie-head {
-    padding: 10px 14px 8px;
+    padding: 10px 12px 8px;
     border-bottom: 2px solid var(--cream);
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
   }
 
   .history-movie-title {
@@ -1026,6 +1051,7 @@ async function loadAll() {
       year: row.year,
       ratingScale: row.rating_scale || 'stars',
       avgScore: row.avg_score,
+      poster: row.poster || null,
       theme: HISTORY_META[i]?.theme || '',
       month: HISTORY_META[i]?.month || '',
     }));
@@ -1203,7 +1229,11 @@ function PastScreenings({ alltime, ratings, members }) {
             return (
               <div key={movie.id} className="history-movie">
                 <div className="history-movie-head">
-                  <div>
+                  {movie.poster
+                    ? <img src={movie.poster} className="mini-poster" alt="" />
+                    : <div className="mini-poster-placeholder">🎬</div>
+                  }
+                  <div style={{flex:1, minWidth:0}}>
                     <div className="history-movie-title">{movie.title}</div>
                     {movie.theme && <div className="history-theme">{movie.theme}</div>}
                   </div>
@@ -1396,11 +1426,15 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
       {sortedAlltime.map((movie, i) => (
         <div key={movie.id || i} className="alltime-item">
           <div className={`rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}`}>#{i+1}</div>
+          {movie.poster
+            ? <img src={movie.poster} className="mini-poster" alt="" />
+            : <div className="mini-poster-placeholder">🎬</div>
+          }
           <div className="alltime-info">
             <div className="alltime-title">{movie.title}</div>
-            <div className="alltime-meta">{movie.year} · {movie.ratingScale || 'stars'} scale</div>
+            <div className="alltime-meta">{movie.theme || (movie.ratingScale || 'stars')}</div>
           </div>
-          <div className="alltime-score">{movie.avgScore}/5</div>
+          <div className="alltime-score">{movie.avgScore}</div>
         </div>
       ))}
     </div>
