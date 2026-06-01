@@ -796,6 +796,98 @@
 
   .star-opt.selected { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); transform: translateY(-2px); }
 
+  /* HOME RATING BOX */
+  .home-rating-box {
+    border-top: 2px dashed var(--cream);
+    padding: 12px 16px 14px;
+    background: #faf8f4;
+  }
+
+  .home-ratings-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .home-rating-chip {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: var(--cream);
+    border: 2px solid var(--ink);
+    border-radius: 20px;
+    padding: 2px 9px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .home-rating-chip strong {
+    font-family: 'Black Ops One', cursive;
+    font-size: 0.85rem;
+    color: var(--red);
+  }
+
+  .home-add-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--blue);
+    background: none;
+    border: 2px solid var(--blue);
+    border-radius: 20px;
+    padding: 3px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .home-add-btn:hover { background: var(--blue); color: white; }
+
+  .home-rating-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .form-select {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .home-save-btn {
+    font-family: 'Black Ops One', cursive;
+    font-size: 0.9rem;
+    padding: 6px 14px;
+    background: var(--green);
+    color: white;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .home-save-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  .home-cancel-btn {
+    font-size: 1rem;
+    padding: 5px 10px;
+    background: none;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #888;
+  }
+
   /* TRIVIA BANNER */
   .trivia-banner {
     background: var(--ink);
@@ -1233,8 +1325,73 @@ async function dbArchiveMovies(movies, ratingsData) {
   return archived;
 }
 
+async function dbRecalcAvg(movieId) {
+  const { data } = await sb.from('ratings').select('score').eq('movie_id', movieId);
+  if (!data || !data.length) return null;
+  const sum = data.reduce((s, r) => s + parseFloat(r.score), 0);
+  const rounded = Math.round((sum / data.length) * 100) / 100;
+  await sb.from('movies').update({ avg_score: rounded }).eq('id', movieId);
+  return rounded;
+}
+
+// ─── HOME RATING AREA ────────────────────────────────────────────────────────
+const SCORE_OPTIONS = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5];
+
+function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [member, setMember] = useState('');
+  const [score, setScore] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    if (!member || !score) return;
+    setSaving(true);
+    await onSave(member, parseFloat(score));
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => { setSaved(false); setOpen(false); setMember(''); setScore(''); }, 1500);
+  }
+
+  const ratedMembers = members.filter(m => movieRatings[m] !== undefined);
+
+  return (
+    <div className="home-rating-box">
+      {ratedMembers.length > 0 && (
+        <div className="home-ratings-chips">
+          {ratedMembers.map(m => (
+            <span key={m} className="home-rating-chip">{m} <strong>{movieRatings[m]}</strong></span>
+          ))}
+        </div>
+      )}
+      {saved && (
+        <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
+      )}
+      {!open && !saved && (
+        <button className="home-add-btn" onClick={() => setOpen(true)}>+ Add Rating</button>
+      )}
+      {open && !saved && (
+        <div className="home-rating-form">
+          <select className="form-select" value={member} onChange={e => setMember(e.target.value)}>
+            <option value="">Who are you?</option>
+            {members.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select className="form-select" value={score} onChange={e => setScore(e.target.value)}>
+            <option value="">Score</option>
+            {SCORE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !score}>
+            {saving ? '...' : 'Save'}
+          </button>
+          <button className="home-cancel-btn" onClick={() => { setOpen(false); setMember(''); setScore(''); }}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MOVIE CARD ──────────────────────────────────────────────────────────────
-function MovieCard({ movie, index }) {
+function MovieCard({ movie, index, movieRatings, members, onRate }) {
   const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
   return (
     <div className="movie-card">
@@ -1261,6 +1418,14 @@ function MovieCard({ movie, index }) {
           </>
         )}
       </div>
+      {members && onRate && (
+        <HomeRatingArea
+          movieId={movie.id}
+          movieRatings={movieRatings || {}}
+          members={members}
+          onSave={onRate}
+        />
+      )}
     </div>
   );
 }
@@ -1278,9 +1443,21 @@ function TriviaOfTheWeek() {
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies }) {
+function HomePage({ movies, ratings, setRatings, members }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
+  const [localRatings, setLocalRatings] = useState(ratings || {});
+
+  useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
+
+  async function handleRate(movieId, member, score) {
+    try {
+      await dbSaveRating(movieId, member, score);
+      const updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
+      setLocalRatings(updated);
+      if (setRatings) setRatings(updated);
+    } catch(e) { console.error('Failed to save rating:', e); }
+  }
 
   if (!movies || movies.length === 0) {
     return (
@@ -1300,7 +1477,14 @@ function HomePage({ movies }) {
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <TriviaOfTheWeek />
-      {movies.map((m, i) => <MovieCard key={m.id} movie={m} index={i} />)}
+      {movies.map((m, i) => (
+        <MovieCard
+          key={m.id} movie={m} index={i}
+          movieRatings={localRatings[m.id] || {}}
+          members={members}
+          onRate={(member, score) => handleRate(m.id, member, score)}
+        />
+      ))}
     </div>
   );
 }
@@ -1741,7 +1925,7 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings }) {
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
@@ -1765,6 +1949,37 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   // Bracket state
   const [bracketMovies, setBracketMovies] = useState('');
+
+  // Edit rating state
+  const [editMovieId, setEditMovieId] = useState('');
+  const [editMember, setEditMember] = useState('');
+  const [editScore, setEditScore] = useState('');
+
+  async function saveEditedRating() {
+    if (!editMovieId || !editMember || !editScore) { showMsg('Fill in all fields', 'error'); return; }
+    const mid = parseInt(editMovieId);
+    const sc = parseFloat(editScore);
+    if (isNaN(sc) || sc < 0 || sc > 10) { showMsg('Score must be a number 0–10', 'error'); return; }
+    try {
+      await dbSaveRating(mid, editMember, sc);
+      // Update local ratings state
+      if (setRatings) {
+        setRatings(prev => ({ ...prev, [mid]: { ...(prev[mid] || {}), [editMember]: sc } }));
+      }
+      // If archived movie, recalculate avg and update alltime list
+      const isArchived = alltime.some(m => m.id === mid);
+      if (isArchived) {
+        const newAvg = await dbRecalcAvg(mid);
+        if (newAvg !== null && setAlltime) {
+          setAlltime(prev => prev.map(m => m.id === mid ? { ...m, avgScore: newAvg } : m));
+        }
+      }
+      showMsg(`Rating saved: ${editMember} → ${sc} on movie #${mid}`);
+      setEditScore('');
+    } catch(e) {
+      showMsg('Error: ' + e.message, 'error');
+    }
+  }
 
   function showMsg(text, type='success') {
     setMsg({text, type});
@@ -1911,9 +2126,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','bracket'].map(s => (
+          {['movies','members','bracket','ratings'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? '🎬 Movies' : s === 'members' ? '👥 Members' : '🏆 Bracket'}
+              {s === 'movies' ? '🎬 Movies' : s === 'members' ? '👥 Members' : s === 'bracket' ? '🏆 Bracket' : '✏️ Ratings'}
             </button>
           ))}
         </div>
@@ -1989,6 +2204,56 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               <button onClick={addMember} style={{padding:'10px 16px',fontFamily:"'Permanent Marker',cursive",fontSize:'1.2rem',background:'var(--green)',color:'white',border:'3px solid var(--ink)',borderRadius:8,cursor:'pointer'}}>+</button>
             </div>
             <button className="btn-primary" onClick={saveMembers}>💾 Save Members</button>
+          </>
+        )}
+
+        {/* EDIT RATINGS SECTION */}
+        {section === 'ratings' && (
+          <>
+            <div className="admin-section-title">Edit a Rating</div>
+            <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.8rem',color:'var(--text-on-dark)',marginBottom:14}}>
+              Fix a mistake or add a missing score. Works for current and past movies.
+            </div>
+
+            <label className="form-label">Movie</label>
+            <select className="form-input" value={editMovieId} onChange={e => setEditMovieId(e.target.value)}
+              style={{marginBottom:12}}>
+              <option value="">— Select movie —</option>
+              {movies.length > 0 && (
+                <optgroup label="This month">
+                  {movies.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+                </optgroup>
+              )}
+              {alltime.length > 0 && (
+                <optgroup label="Past films (archived)">
+                  {[...alltime].sort((a,b) => a.id - b.id).map(m => (
+                    <option key={m.id} value={m.id}>{m.title}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+
+            <label className="form-label">Member</label>
+            <select className="form-input" value={editMember} onChange={e => setEditMember(e.target.value)}
+              style={{marginBottom:12}}>
+              <option value="">— Select member —</option>
+              {members.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+
+            {editMovieId && editMember && ratings[parseInt(editMovieId)]?.[editMember] !== undefined && (
+              <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.8rem',color:'#aaa',marginBottom:8}}>
+                Current score: <strong style={{color:'var(--yellow)'}}>{ratings[parseInt(editMovieId)][editMember]}</strong>
+              </div>
+            )}
+
+            <label className="form-label">New Score (e.g. 4.5)</label>
+            <input className="form-input" type="number" min="0" max="10" step="0.25"
+              value={editScore} onChange={e => setEditScore(e.target.value)}
+              placeholder="e.g. 4.5" style={{marginBottom:14}} />
+
+            <button className="btn-primary" style={{background:'var(--blue)'}} onClick={saveEditedRating}>
+              ✏️ Save Rating
+            </button>
           </>
         )}
 
@@ -2119,7 +2384,7 @@ function App() {
         </nav>
       </header>
 
-      {page === 'home' && <HomePage movies={movies} />}
+      {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} members={members} />}
       {page === 'bracket' && <BracketPage bracket={bracket} members={members} onVoteUpdate={setBracket} />}
 
@@ -2132,7 +2397,7 @@ function App() {
           members={members} setMembers={setMembers}
           bracket={bracket} setBracket={setBracket}
           alltime={alltime} setAlltime={setAlltime}
-          ratings={ratings}
+          ratings={ratings} setRatings={setRatings}
         />
       )}
     </>
