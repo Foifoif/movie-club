@@ -795,6 +795,91 @@
   }
 
   .star-opt.selected { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); transform: translateY(-2px); }
+
+  /* HISTORY TAB */
+  .history-month { margin-bottom: 32px; }
+
+  .history-month-header {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1.15rem;
+    color: var(--yellow);
+    padding: 6px 0 8px;
+    border-bottom: 2px solid var(--yellow);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+
+  .history-movie {
+    background: white;
+    border: 3px solid var(--ink);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+
+  .history-movie-head {
+    padding: 10px 14px 8px;
+    border-bottom: 2px solid var(--cream);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .history-movie-title {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1.05rem;
+    line-height: 1.2;
+  }
+
+  .history-theme {
+    display: inline-block;
+    font-family: 'Special Elite', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #888;
+    background: var(--cream);
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 2px 7px;
+    margin-top: 4px;
+  }
+
+  .history-avg {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1.3rem;
+    color: var(--red);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .history-ratings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 8px 14px 10px;
+    gap: 0 12px;
+  }
+
+  .history-rating-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--cream);
+    font-size: 0.95rem;
+  }
+
+  .history-rating-row:last-child { border-bottom: none; }
+
+  .history-member-name { font-weight: 600; color: #444; }
+
+  .history-member-score {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1rem;
+    color: var(--ink);
+  }
 </style>
 </head>
 <body>
@@ -837,6 +922,51 @@ const SUPABASE_URL = 'https://schtizxdezxteulbvynp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_BLeS65tH-8Fxd4nbAX8acA_TAIMtcNn';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TMDB_KEY = 'aeb55fbbade0da7a94cd4e2ca7743ebf';
+
+// Theme + month metadata for the 40 archived movies, in insertion order
+// (French Connection = 0, Exorcist III = 39)
+const HISTORY_META = [
+  { theme: 'Movie Madness',                  month: 'May 2026'       }, // 0  French Connection
+  { theme: 'Feet / Bombs',                   month: 'May 2026'       }, // 1  Dr. Strangelove
+  { theme: 'Aotearoa',                       month: 'April 2026'     }, // 2  Boy
+  { theme: 'Eggs / Yellow Cab',              month: 'April 2026'     }, // 3  Goodbye Pork Pie
+  { theme: 'Fitting In',                     month: 'March 2026'     }, // 4  Gattaca
+  { theme: 'Garage Doors / Eyelashes',       month: 'March 2026'     }, // 5  Sorry to Bother You
+  { theme: 'Difficult Moms',                 month: 'February 2026'  }, // 6  I, Tonya
+  { theme: 'Ice Skates / Thrifted Dress',    month: 'February 2026'  }, // 7  Lady Bird
+  { theme: 'The Show Must Go On',            month: 'January 2026'   }, // 8  8½
+  { theme: 'Jazz Hands',                     month: 'January 2026'   }, // 9  All That Jazz
+  { theme: 'Heist',                          month: 'December 2025'  }, // 10 Italian Job
+  { theme: 'Mini Coopers / Motorcycle Chases', month: 'December 2025'}, // 11 Dhoom
+  { theme: 'Eat Up',                         month: 'November 2025'  }, // 12 Big Night
+  { theme: 'Noodles / Egg Yolks',            month: 'November 2025'  }, // 13 Tampopo
+  { theme: 'Greatness',                      month: 'October 2025'   }, // 14 One Battle After Another
+  { theme: 'Nunchucks / Baskets',            month: 'October 2025'   }, // 15 Battle of Algiers
+  { theme: 'Eccentric, Wild, Crazy Women',   month: 'September 2025' }, // 16 Promising Young Woman
+  { theme: 'Shredded Trophies',              month: 'September 2025' }, // 17 Official Competition
+  { theme: 'Gaslighting',                    month: 'August 2025'    }, // 18 Gaslight
+  { theme: 'Polaroids',                      month: 'August 2025'    }, // 19 Memento
+  { theme: 'Sensual Pillows',                month: 'July 2025'      }, // 20 Y Tu Mamá También
+  { theme: 'Coming of Age, Adolescent',      month: 'July 2025'      }, // 21 Me and Earl
+  { theme: 'Robots / Apples',               month: 'June 2025'      }, // 22 Terminator
+  { theme: 'AI Eats Us',                     month: 'June 2025'      }, // 23 Steve Jobs
+  { theme: 'Disney Wands',                   month: 'May 2025'       }, // 24 Lizzie McGuire Movie
+  { theme: 'Brilliant Disguise',             month: 'May 2025'       }, // 25 Freaky Friday
+  { theme: 'Willow Dances',                  month: 'April 2025'     }, // 26 Tree of Life
+  { theme: 'Spring Bobs & Renewal',          month: 'April 2025'     }, // 27 Wicker Man
+  { theme: 'Blue Jeans',                     month: 'March 2025'     }, // 28 Badlands
+  { theme: 'Dysfunctional Roadtrips',        month: 'March 2025'     }, // 29 Paris, Texas
+  { theme: 'Eagle Screech',                  month: 'February 2025'  }, // 30 Young Mr. Lincoln
+  { theme: 'America',                        month: 'February 2025'  }, // 31 The Long Goodbye
+  { theme: '💬',                              month: 'January 2025'   }, // 32 Nina Wu
+  { theme: 'Roleplay',                       month: 'January 2025'   }, // 33 Perfect Blue
+  { theme: 'Icicles',                        month: 'December 2024'  }, // 34 Force Majeure
+  { theme: 'COLD',                           month: 'December 2024'  }, // 35 The Spy Who Came in from the Cold
+  { theme: 'Family Members',                 month: 'November 2024'  }, // 36 What Ever Happened to Baby Jane?
+  { theme: 'Fucked Up Families',             month: 'November 2024'  }, // 37 The Celebration
+  { theme: 'Lighters',                       month: 'October 2024'   }, // 38 The Cure
+  { theme: 'Oh the Horror',                  month: 'October 2024'   }, // 39 Exorcist III
+];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const ACCENT_COLORS = ['#d63a2f','#2563b8','#2a7a3b','#e8621a','#7c3aed','#b8860b'];
@@ -886,16 +1016,20 @@ async function loadAll() {
 
   const allMovies = moviesRes.data || [];
   const currentMovies = allMovies.filter(m => !m.archived).map(rowToMovie);
-  const alltimeMovies = allMovies
+  // Attach theme/month by insertion order (sorted by id asc = same order as load_data.py)
+  const alltimeOrdered = allMovies
     .filter(m => m.archived)
-    .sort((a, b) => (b.avg_score || 0) - (a.avg_score || 0))
-    .map(row => ({
+    .sort((a, b) => a.id - b.id)
+    .map((row, i) => ({
       id: row.id,
       title: row.title,
       year: row.year,
       ratingScale: row.rating_scale || 'stars',
       avgScore: row.avg_score,
+      theme: HISTORY_META[i]?.theme || '',
+      month: HISTORY_META[i]?.month || '',
     }));
+  const alltimeMovies = [...alltimeOrdered].sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0));
 
   const ratingsData = {};
   for (const row of (ratingsRes.data || [])) {
@@ -1036,6 +1170,62 @@ function HomePage({ movies }) {
   );
 }
 
+// ─── PAST SCREENINGS ─────────────────────────────────────────────────────────
+function PastScreenings({ alltime, ratings, members }) {
+  // Sort by id (insertion order = chronological newest→oldest)
+  const sorted = [...alltime].sort((a, b) => (a.id || 0) - (b.id || 0));
+
+  // Group by month, preserving order
+  const monthOrder = [];
+  const byMonth = {};
+  for (const movie of sorted) {
+    const m = movie.month || 'Unknown';
+    if (!byMonth[m]) { byMonth[m] = []; monthOrder.push(m); }
+    byMonth[m].push(movie);
+  }
+
+  if (!monthOrder.length) return (
+    <div className="empty-state"><div className="empty-icon">📽️</div><div>No history yet.</div></div>
+  );
+
+  return (
+    <>
+      {monthOrder.map(month => (
+        <div key={month} className="history-month">
+          <div className="history-month-header">{month}</div>
+          {byMonth[month].map(movie => {
+            const movieRatings = ratings[movie.id] || {};
+            const scores = Object.values(movieRatings).filter(v => v > 0);
+            const average = scores.length
+              ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2).replace(/\.?0+$/, '')
+              : null;
+            const ratedMembers = members.filter(m => movieRatings[m] !== undefined);
+            return (
+              <div key={movie.id} className="history-movie">
+                <div className="history-movie-head">
+                  <div>
+                    <div className="history-movie-title">{movie.title}</div>
+                    {movie.theme && <div className="history-theme">{movie.theme}</div>}
+                  </div>
+                  <div className="history-avg">{average || '—'}</div>
+                </div>
+                <div className="history-ratings-grid">
+                  {ratedMembers.map(m => (
+                    <div key={m} className="history-rating-row">
+                      <span className="history-member-name">{m}</span>
+                      <span className="history-member-score">{movieRatings[m]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ─── RATINGS PAGE ────────────────────────────────────────────────────────────
 function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
   const [tab, setTab] = useState('current');
@@ -1073,9 +1263,10 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
         <div className="page-subtitle">Who liked what?</div>
 
         <div className="ratings-tabs">
-          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
-          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
-          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>Now</button>
+          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
         </div>
 
         {(!movies || movies.length === 0) && (
@@ -1125,9 +1316,10 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
         <div className="page-title">Ratings</div>
         <div className="page-subtitle">Add your score</div>
         <div className="ratings-tabs">
-          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
-          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
-          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>Now</button>
+          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
         </div>
 
         {saved && <div className="alert alert-success">✓ Rating saved!</div>}
@@ -1169,6 +1361,23 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
     );
   }
 
+  // History tab
+  if (tab === 'history') {
+    return (
+      <div className="main">
+        <div className="page-title">Ratings</div>
+        <div className="page-subtitle">Every screening, every score</div>
+        <div className="ratings-tabs">
+          <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>Now</button>
+          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
+        </div>
+        <PastScreenings alltime={alltime} ratings={ratings} members={members} />
+      </div>
+    );
+  }
+
   // All time tab
   const sortedAlltime = [...(alltime || [])].sort((a,b) => (b.avgScore||0) - (a.avgScore||0));
   return (
@@ -1176,9 +1385,10 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
       <div className="page-title">Ratings</div>
       <div className="page-subtitle">The hall of fame</div>
       <div className="ratings-tabs">
-        <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>This Month</button>
-        <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Add Mine</button>
-        <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>All Time</button>
+        <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>Now</button>
+        <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+        <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+        <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
       </div>
       {sortedAlltime.length === 0 && (
         <div className="empty-state"><div className="empty-icon">🏆</div><div>No past movies yet. They'll appear here after each month.</div></div>
