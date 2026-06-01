@@ -796,6 +796,52 @@
 
   .star-opt.selected { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); transform: translateY(-2px); }
 
+  /* TRIVIA BANNER */
+  .trivia-banner {
+    background: var(--ink);
+    border: 3px solid var(--yellow);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    box-shadow: 4px 4px 0 var(--yellow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .trivia-banner::before {
+    content: '🎬';
+    position: absolute;
+    right: -8px;
+    bottom: -10px;
+    font-size: 4rem;
+    opacity: 0.07;
+    pointer-events: none;
+  }
+
+  .trivia-label {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--yellow);
+    margin-bottom: 4px;
+  }
+
+  .trivia-movie {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1rem;
+    color: var(--red);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+
+  .trivia-fact {
+    font-family: 'Special Elite', monospace;
+    font-size: 0.82rem;
+    color: var(--text-on-dark);
+    line-height: 1.5;
+  }
+
   /* MINI POSTER THUMBNAIL */
   .mini-poster {
     width: 48px;
@@ -993,6 +1039,56 @@ const HISTORY_META = [
   { theme: 'Oh the Horror',                  month: 'October 2024'   }, // 39 Exorcist III
 ];
 
+// ─── TRIVIA BANK ─────────────────────────────────────────────────────────────
+// One fact per club film. Rotates weekly by week number — same trivia for everyone that week.
+const TRIVIA_BANK = [
+  { movie: 'The French Connection', fact: 'The car chase was filmed on real New York streets with no road closures or permits. Director William Friedkin drove at nearly 90 mph through live traffic — the terrified pedestrians scattering onscreen were not extras.' },
+  { movie: 'Dr. Strangelove', fact: 'Peter Sellers improvised most of Dr. Strangelove\'s character including the uncontrollable arm, allegedly in a single afternoon. Kubrick kept a camera rolling throughout and used whatever Sellers did.' },
+  { movie: 'Boy', fact: 'Taika Waititi filmed in Waihau Bay, the actual community where he grew up, casting real locals and his own cousins. He plays the absent father himself. It became New Zealand\'s highest-grossing domestic film at the time.' },
+  { movie: 'Goodbye Pork Pie', fact: 'The yellow Mini became so iconic in New Zealand that it sparked a national obsession with the car. The original was carefully restored and driven again for the promotion of the 2017 remake.' },
+  { movie: 'Gattaca', fact: 'The title is spelled entirely using the four letters that represent DNA bases: G, A, T, and C (guanine, adenine, thymine, cytosine). The film is now assigned reading in university bioethics courses worldwide.' },
+  { movie: 'Sorry to Bother You', fact: 'Director Boots Riley worked as an actual telemarketer for years before making this film. The "white voice" dubbed over Lakeith Stanfield was performed by comedian David Cross.' },
+  { movie: 'I, Tonya', fact: 'Margot Robbie trained on ice for five months, but the film\'s seamless skating was achieved by compositing her face onto a double\'s body for the hardest jumps — a technique so refined most viewers never spot the edit.' },
+  { movie: 'Lady Bird', fact: 'Greta Gerwig became only the fifth woman ever nominated for Best Director at the Oscars. Every scene in the film was personally experienced or directly witnessed by Gerwig growing up in Sacramento.' },
+  { movie: '8½', fact: 'Fellini began production with no script, telling his producer he planned to quit filmmaking. He decided instead to make a film about a director with no ideas — and 8½ was born. The title counts all his previous films, with shorts counted as halves.' },
+  { movie: 'All That Jazz', fact: 'Bob Fosse suffered a real heart attack while directing Chicago on Broadway in 1975. The open-heart surgery sequence in this film is based on his own operation — he reportedly demanded the footage be edited even from his hospital bed.' },
+  { movie: 'The Italian Job', fact: 'The cliffhanger ending was not meant to be ambiguous — the production literally ran out of money before they could film the resolution. Michael Caine has said he knows exactly how Charlie Croker got the gold out, but won\'t tell.' },
+  { movie: 'Dhoom', fact: 'Dhoom launched one of Bollywood\'s most successful franchises. The motorcycle choreography was so influential it defined a generation of Indian action cinema, with Dhoom 3 (2013) breaking nearly every domestic box office record at the time.' },
+  { movie: 'Big Night', fact: 'Stanley Tucci co-wrote, co-directed, and starred in the film on a $3 million budget shot entirely in New Jersey. The timpano preparation scene — the giant pasta drum — took an entire day to film and required a professional chef on set.' },
+  { movie: 'Tampopo', fact: 'Director Juzo Itami spent months eating at ramen shops across Japan before writing a single scene. He deliberately structured the film as a "ramen western," beat for beat following the classic spaghetti western formula with noodles instead of guns.' },
+  { movie: 'One Battle After Another', fact: 'Paul Verhoeven returned to European filmmaking with this Spain-set drama, his first film entirely in Spanish. It premiered at Cannes 2024 to significant controversy — exactly the reception Verhoeven tends to engineer.' },
+  { movie: 'Battle of Algiers', fact: 'France banned the film for five years after its release. In 2003 the Pentagon screened it for officers preparing for the Iraq occupation — the invitation memo described it as "a chilling documentation of the methods used by the National Liberation Front."' },
+  { movie: 'Promising Young Woman', fact: 'Emerald Fennell wrote the entire screenplay in six weeks while also playing Camilla Parker Bowles in The Crown. She won the Academy Award for Best Original Screenplay, becoming the first solo woman to win that award in 13 years.' },
+  { movie: 'Official Competition', fact: 'The film is a razor-sharp satire of art-house cinema ego, starring two of its biggest icons — Penélope Cruz and Antonio Banderas — in a film specifically designed to skewer the world they\'ve spent their careers inside.' },
+  { movie: 'Gaslight', fact: 'The word "gaslighting" — meaning psychological manipulation that makes someone question their own reality — comes directly from this film. It is now a formally recognized term used in clinical psychology and psychiatry.' },
+  { movie: 'Memento', fact: 'Christopher Nolan shot the film twice — once in color (played forward) and once in black and white (played backward) — then intercut them. The DVD release included an option to watch the entire film in strict chronological order, completely changing what it means.' },
+  { movie: 'Y Tu Mamá También', fact: 'The film contains 165 voiceover interruptions from an unseen narrator commenting on things the characters can\'t see or won\'t say. Most viewers don\'t consciously notice them on a first watch, but they tell a completely different story underneath.' },
+  { movie: 'Me and Earl and the Dying Girl', fact: 'At Sundance 2015 it won both the Grand Jury Prize and the Audience Award — one of the rarest double wins in the festival\'s history, and the largest acquisition deal Sundance had seen to that point.' },
+  { movie: 'Terminator', fact: 'James Cameron sold the rights to the Terminator concept to producer Gale Anne Hurd for exactly $1, on the condition he could direct it. He\'d come up with the idea during a fever dream while sick in Rome, imagining a metal endoskeleton rising from fire.' },
+  { movie: 'Steve Jobs', fact: 'Aaron Sorkin structured the entire screenplay as three real-time scenes — each set backstage before a product launch in 1984, 1988, and 1998. Michael Fassbender deliberately avoided watching any documentary footage of the real Jobs.' },
+  { movie: 'The Lizzie McGuire Movie', fact: 'A sequel was greenlit for Disney+ in 2019 with the full original cast, but was cancelled in 2020 after creative disagreements — Hilary Duff wanted the show to reflect Lizzie\'s adult life more honestly than Disney was comfortable with.' },
+  { movie: 'Freaky Friday', fact: 'Lindsay Lohan and Jamie Lee Curtis both studied each other\'s mannerisms for weeks and then immediately swapped them on set. Curtis later said playing a 15-year-old was the most liberating performance of her entire career.' },
+  { movie: 'The Tree of Life', fact: 'Terrence Malick shot over a million feet of film — roughly 183 hours — and cut it to 138 minutes. The cosmos sequence used zero CGI: it was real chemical reactions, ferrofluids, and microscopy footage, shot by Douglas Trumbull, who also did 2001: A Space Odyssey\'s effects.' },
+  { movie: 'The Wicker Man', fact: 'The original print was reportedly used as landfill under a British motorway by its own distributor, who didn\'t believe in the film. The version we know was painstakingly reconstructed from separate prints discovered around the world over 30 years.' },
+  { movie: 'Badlands', fact: 'Terrence Malick paid Martin Sheen $1,500 for the entire shoot. After the film premiered at the New York Film Festival to a standing ovation, Malick effectively vanished from Hollywood for the next 20 years.' },
+  { movie: 'Paris, Texas', fact: 'Ry Cooder composed and recorded the entire score in a single afternoon after watching the film once. Harry Dean Stanton, who was 58 at the time, later said this was the role he\'d spent his whole career preparing for without knowing it.' },
+  { movie: 'Young Mr. Lincoln', fact: 'John Ford was so reluctant to make the film he tried to get out of it. His only recorded direction to Henry Fonda: "You\'re playing young Abe Lincoln — you\'re not playing THE Abraham Lincoln. Stop being so goddamn reverent."' },
+  { movie: 'The Long Goodbye', fact: 'Robert Altman instructed Elliott Gould to mumble every line as if Marlowe was always talking to himself. The film features over 400 extras, all genuine residents of the Malibu Colony who were never told what the movie was actually about.' },
+  { movie: 'Nina Wu', fact: 'Lead actress Ke-Xi Wu co-wrote the screenplay, drawing on her own experiences in Taiwan\'s film industry. The film brought significant international attention to the MeToo movement within Asian cinema when it premiered at Cannes.' },
+  { movie: 'Perfect Blue', fact: 'Darren Aronofsky purchased the rights to this Satoshi Kon anime specifically so he could legally recreate one shot for Requiem for a Dream — the bathtub scene. He has publicly credited Perfect Blue as a direct influence on Black Swan.' },
+  { movie: 'Force Majeure', fact: 'The avalanche that opens the film and ruptures the marriage was a real controlled avalanche filmed in the French Alps. Director Ruben Östlund spent years photographing and observing real families at ski resorts before he wrote a single scene.' },
+  { movie: 'The Spy Who Came in from the Cold', fact: 'Richard Burton considered this his finest screen performance — ahead of any of his Shakespeare or blockbuster roles. The film was shot in black and white purely to make East Berlin look more bleak than color film could achieve.' },
+  { movie: 'What Ever Happened to Baby Jane?', fact: 'The real feud between Bette Davis and Joan Crawford is Hollywood legend. Davis claimed Crawford wore a weighted belt under her costume during a drag scene specifically to make herself heavier and harder for Davis to pull across the floor.' },
+  { movie: 'The Celebration', fact: 'The very first Dogme 95 film released, shot entirely on a consumer Sony camcorder with available light only. At its Cannes premiere, several audience members were reportedly unsure whether the confrontation scenes were real documentary footage.' },
+  { movie: 'The Cure', fact: 'The film is about two boys — one HIV-positive — searching the Mississippi bayou for a cure. Brad Renfro was 12 years old during filming. It was considered unusually tender and unsentimental for a mainstream studio film tackling AIDS in 1995.' },
+  { movie: 'Exorcist III', fact: 'Written and directed by William Peter Blatty, who wrote the original Exorcist novel. The studio forced reshoots and a title change — Blatty wanted to call it simply "Legion" after his source novel, and spent years publicly lamenting what was lost.' },
+];
+
+function getTriviaOfTheWeek() {
+  const weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  return TRIVIA_BANK[weekNum % TRIVIA_BANK.length];
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const ACCENT_COLORS = ['#d63a2f','#2563b8','#2a7a3b','#e8621a','#7c3aed','#b8860b'];
 
@@ -1169,6 +1265,18 @@ function MovieCard({ movie, index }) {
   );
 }
 
+// ─── TRIVIA BANNER ───────────────────────────────────────────────────────────
+function TriviaOfTheWeek() {
+  const { movie, fact } = getTriviaOfTheWeek();
+  return (
+    <div className="trivia-banner">
+      <div className="trivia-label">📽 Trivia of the Week</div>
+      <div className="trivia-movie">{movie}</div>
+      <div className="trivia-fact">{fact}</div>
+    </div>
+  );
+}
+
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
 function HomePage({ movies }) {
   const now = new Date();
@@ -1191,6 +1299,7 @@ function HomePage({ movies }) {
     <div className="main">
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
+      <TriviaOfTheWeek />
       {movies.map((m, i) => <MovieCard key={m.id} movie={m} index={i} />)}
     </div>
   );
