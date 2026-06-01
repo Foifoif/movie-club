@@ -5,34 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movie Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root {
-    --ink: #1a1008;
-    --paper: #f5f0e8;
-    --cream: #ede8d8;
-    --red: #d63a2f;
+    --ink: #12101e;
+    --paper: #f7f5f2;
+    --cream: #eeeadc;
+    --red: #c0392b;
     --yellow: #f5c518;
-    --blue: #2563b8;
-    --green: #2a7a3b;
-    --orange: #e8621a;
-    --purple: #7c3aed;
-    --bg: #0d0a07;
-    --bg2: #161008;
-    --text-on-dark: #d4c8b0;
-    --scratch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    --yellow-glow: rgba(245,197,24,0.18);
+    --blue: #8ec5e6;       /* baby blue */
+    --blue-mid: #5dacd4;   /* medium baby blue for borders/hover */
+    --blue-dark: #2a6a8a;  /* deeper blue for contrast */
+    --green: #27a860;
+    --bg: #0e0c16;
+    --bg2: #15132a;
+    --text-on-dark: #d8d3ee;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     background-color: var(--bg);
-    background-image: var(--scratch);
-    font-family: 'Barlow Condensed', sans-serif;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(142,197,230,0.04) 0%, transparent 70%);
+    font-family: 'Inter', sans-serif;
     color: var(--ink);
     min-height: 100vh;
     overflow-x: hidden;
@@ -40,53 +41,57 @@
 
   /* HEADER */
   .site-header {
-    background: var(--ink);
-    padding: 16px 20px 12px;
+    background: var(--bg);
+    padding: 14px 20px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 4px solid var(--yellow);
+    border-bottom: 1px solid rgba(245,197,24,0.4);
+    box-shadow: 0 1px 0 rgba(245,197,24,0.15), 0 4px 24px rgba(0,0,0,0.5);
   }
 
   .logo {
-    font-family: 'Black Ops One', cursive;
-    font-size: 1.6rem;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.5rem;
     color: var(--yellow);
-    letter-spacing: -1px;
+    letter-spacing: 0.5px;
     line-height: 1;
-    text-shadow: 3px 3px 0 var(--red);
+    text-shadow: 0 0 24px rgba(245,197,24,0.3);
   }
 
   .logo span {
-    color: var(--red);
-    text-shadow: 3px 3px 0 var(--yellow);
+    color: var(--blue);
+    font-style: normal;
+    text-shadow: 0 0 20px rgba(142,197,230,0.3);
   }
 
   .nav {
     display: flex;
-    gap: 6px;
+    gap: 4px;
   }
 
   .nav-btn {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--paper);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: rgba(216,211,238,0.7);
     background: transparent;
-    border: 2px solid transparent;
-    padding: 4px 10px;
-    border-radius: 4px;
+    border: 1px solid transparent;
+    padding: 5px 12px;
+    border-radius: 20px;
     cursor: pointer;
     transition: all 0.15s;
+    letter-spacing: 0.3px;
   }
 
   .nav-btn.active, .nav-btn:hover {
-    border-color: var(--yellow);
-    color: var(--yellow);
-    background: rgba(245,197,24,0.1);
+    border-color: var(--blue);
+    color: var(--blue);
+    background: rgba(142,197,230,0.08);
   }
 
   /* MAIN */
@@ -94,7 +99,8 @@
 
   /* HOME PAGE */
   .page-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
     font-size: 2rem;
     color: var(--yellow);
     margin-bottom: 4px;
@@ -104,31 +110,79 @@
   }
 
   .page-subtitle {
-    font-size: 1.1rem;
-    color: var(--text-on-dark);
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: rgba(216,211,238,0.6);
     margin-bottom: 24px;
-    font-family: 'Special Elite', monospace;
+    letter-spacing: 0.5px;
   }
 
   .movie-card {
     background: white;
-    border: 3px solid var(--ink);
-    border-radius: 8px;
-    margin-bottom: 24px;
+    border: 2px solid var(--blue);
+    border-radius: 6px;
+    margin-bottom: 28px;
     overflow: hidden;
-    box-shadow: 5px 5px 0 var(--ink);
+    box-shadow: 4px 4px 0 var(--yellow);
     position: relative;
   }
 
+  /* Marquee accent strip */
   .movie-card-accent {
-    height: 6px;
+    background: var(--bg);
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
+
+  .now-showing-bar {
+    flex: 1;
+    height: 1px;
+    opacity: 0.5;
+  }
+
+  .now-showing-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.52rem;
+    font-weight: 600;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    white-space: nowrap;
+  }
+
+  /* Theater poster frame */
+  .poster-frame {
+    margin: 10px 12px 0;
+    padding: 7px;
+    background: var(--bg);
+    border: 2px solid var(--yellow);
+    box-shadow:
+      0 0 0 4px var(--bg),
+      0 0 0 6px rgba(142,197,230,0.25),
+      0 0 22px rgba(245,197,24,0.1);
+    position: relative;
+  }
+
+  /* Corner brackets */
+  .frame-corner {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .fc-tl { top: 3px; left: 3px;   border-top: 2px solid var(--blue); border-left:  2px solid var(--blue); }
+  .fc-tr { top: 3px; right: 3px;  border-top: 2px solid var(--blue); border-right: 2px solid var(--blue); }
+  .fc-bl { bottom: 3px; left: 3px;  border-bottom: 2px solid var(--blue); border-left:  2px solid var(--blue); }
+  .fc-br { bottom: 3px; right: 3px; border-bottom: 2px solid var(--blue); border-right: 2px solid var(--blue); }
 
   .movie-poster-wrap {
     position: relative;
-    height: 420px;
+    height: 400px;
     overflow: hidden;
-    background: var(--cream);
+    background: #0a0814;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -142,50 +196,52 @@
 
   .poster-placeholder {
     font-size: 4rem;
-    opacity: 0.3;
+    opacity: 0.2;
   }
 
   .movie-number {
     position: absolute;
     top: 10px;
     left: 10px;
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 3rem;
     line-height: 1;
-    opacity: 0.15;
+    opacity: 0.12;
     color: white;
-    text-shadow: 2px 2px 0 black;
   }
 
-  .movie-info { padding: 16px; }
+  .movie-info { padding: 16px 16px 14px; }
 
   .movie-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.5rem;
+    font-weight: 700;
     line-height: 1.2;
     margin-bottom: 4px;
+    color: var(--ink);
   }
 
   .movie-year {
-    font-family: 'Special Elite', monospace;
-    font-size: 0.85rem;
-    color: #888;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--blue-mid);
     margin-bottom: 10px;
+    letter-spacing: 0.5px;
   }
 
   .movie-desc {
-    font-size: 1rem;
-    line-height: 1.4;
-    color: #444;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #555;
     margin-bottom: 14px;
   }
 
   .where-label {
-    font-family: 'Special Elite', monospace;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #999;
+    letter-spacing: 1.5px;
+    color: #aaa;
     margin-bottom: 6px;
   }
 
@@ -196,12 +252,11 @@
   }
 
   .chip {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 600;
     padding: 3px 10px;
     border-radius: 20px;
-    border: 2px solid var(--ink);
+    border: 1.5px solid;
   }
 
   .loading-card {
@@ -238,7 +293,7 @@
 
   .ratings-tab {
     flex: 1;
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 8px 4px;
@@ -250,15 +305,15 @@
   }
 
   .ratings-tab:last-child { border-right: none; }
-  .ratings-tab.active { background: var(--ink); color: var(--yellow); }
+  .ratings-tab.active { background: var(--blue); color: white; }
 
   .movie-rating-card {
     background: white;
-    border: 3px solid var(--ink);
-    border-radius: 8px;
+    border: 2px solid var(--blue);
+    border-radius: 6px;
     margin-bottom: 20px;
     overflow: hidden;
-    box-shadow: 4px 4px 0 var(--ink);
+    box-shadow: 3px 3px 0 var(--yellow);
   }
 
   .rating-card-header {
@@ -270,22 +325,25 @@
   }
 
   .rating-movie-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.2rem;
     line-height: 1.2;
   }
 
   .avg-badge {
-    font-family: 'Black Ops One', cursive;
-    font-size: 1.4rem;
-    padding: 4px 10px;
-    border-radius: 6px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--yellow);
     border: 2px solid var(--ink);
     white-space: nowrap;
+    color: var(--ink);
   }
 
   .rating-scale-label {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -311,7 +369,7 @@
   }
 
   .member-score {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.1rem;
   }
 
@@ -323,18 +381,18 @@
   /* ALL TIME LIST */
   .alltime-item {
     background: white;
-    border: 3px solid var(--ink);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 12px;
+    border: 2px solid var(--blue);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    box-shadow: 3px 3px 0 var(--ink);
+    gap: 12px;
+    box-shadow: 3px 3px 0 var(--yellow);
   }
 
   .rank-num {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 2rem;
     line-height: 1;
     min-width: 36px;
@@ -348,29 +406,30 @@
   .alltime-info { flex: 1; }
 
   .alltime-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.1rem;
     line-height: 1.2;
     margin-bottom: 2px;
   }
 
   .alltime-meta {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.75rem;
     color: #888;
   }
 
   .alltime-score {
-    font-family: 'Black Ops One', cursive;
-    font-size: 1.5rem;
-    color: var(--red);
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--blue-mid);
   }
 
   /* BRACKET PAGE */
   .bracket-status {
     background: var(--ink);
     color: var(--yellow);
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.1rem;
     text-align: center;
     padding: 10px;
@@ -384,7 +443,7 @@
   }
 
   .voter-label {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -399,7 +458,7 @@
   }
 
   .voter-btn {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -426,7 +485,7 @@
 
   .matchup-header {
     padding: 8px 16px;
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -438,7 +497,7 @@
 
   .matchup-vs {
     text-align: center;
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1rem;
     color: var(--red);
     margin: -4px 0;
@@ -447,7 +506,7 @@
   .vote-btn {
     width: 100%;
     padding: 14px 16px;
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.2rem;
     border: 3px solid var(--ink);
     border-radius: 8px;
@@ -465,7 +524,7 @@
   .vote-btn.lost { opacity: 0.4; }
 
   .vote-count {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
     background: rgba(0,0,0,0.15);
     border-radius: 10px;
@@ -497,7 +556,7 @@
   }
 
   .admin-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.6rem;
     margin-bottom: 4px;
     color: var(--red);
@@ -506,12 +565,12 @@
   .admin-subtitle {
     font-size: 0.9rem;
     color: var(--text-on-dark);
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     margin-bottom: 20px;
   }
 
   .form-label {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -522,7 +581,7 @@
 
   .form-input {
     width: 100%;
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.1rem;
     padding: 10px 12px;
     border: 3px solid var(--ink);
@@ -536,17 +595,19 @@
 
   .btn-primary {
     width: 100%;
-    font-family: 'Black Ops One', cursive;
-    font-size: 1.2rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
     padding: 12px;
-    background: var(--red);
+    background: var(--blue-mid);
     color: white;
-    border: 3px solid var(--ink);
+    border: 2px solid var(--ink);
     border-radius: 8px;
     cursor: pointer;
-    box-shadow: 4px 4px 0 var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
     transition: all 0.15s;
     margin-bottom: 10px;
+    letter-spacing: 0.3px;
   }
 
   .btn-primary:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
@@ -554,7 +615,7 @@
 
   .btn-secondary {
     width: 100%;
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 10px;
@@ -573,7 +634,7 @@
   }
 
   .admin-section-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.2rem;
     margin-bottom: 12px;
     color: var(--blue);
@@ -587,7 +648,7 @@
   }
 
   .tag {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     padding: 4px 10px;
@@ -652,7 +713,7 @@
   }
 
   .login-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.8rem;
     color: var(--red);
     text-shadow: 3px 3px 0 var(--yellow);
@@ -660,7 +721,7 @@
   }
 
   .login-sub {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.8rem;
     color: #888;
     margin-bottom: 20px;
@@ -684,7 +745,7 @@
   }
 
   .admin-nav-btn {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -706,7 +767,7 @@
     text-align: center;
     padding: 40px 20px;
     color: var(--text-on-dark);
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
   }
 
   .empty-icon { font-size: 3rem; margin-bottom: 8px; }
@@ -722,7 +783,7 @@
   }
 
   .winner-label {
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -730,7 +791,7 @@
   }
 
   .winner-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 2rem;
     color: var(--ink);
     text-shadow: 3px 3px 0 var(--red);
@@ -741,7 +802,7 @@
     border-radius: 8px;
     border: 2px solid;
     margin-bottom: 12px;
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
   }
 
@@ -784,7 +845,7 @@
     height: 40px;
     border-radius: 8px;
     border: 3px solid var(--ink);
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.1rem;
     background: var(--cream);
     cursor: pointer;
@@ -811,7 +872,7 @@
   }
 
   .home-rating-chip {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
     font-weight: 600;
     background: var(--cream);
@@ -824,13 +885,13 @@
   }
 
   .home-rating-chip strong {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 0.85rem;
     color: var(--red);
   }
 
   .home-add-btn {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--blue);
@@ -852,7 +913,7 @@
   }
 
   .form-select {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     padding: 6px 10px;
@@ -864,7 +925,7 @@
   }
 
   .home-save-btn {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 0.9rem;
     padding: 6px 14px;
     background: var(--green);
@@ -890,12 +951,13 @@
 
   /* TRIVIA BANNER */
   .trivia-banner {
-    background: var(--ink);
-    border: 3px solid var(--yellow);
-    border-radius: 8px;
+    background: var(--bg2);
+    border: 1px solid rgba(142,197,230,0.3);
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
     padding: 12px 14px;
     margin-bottom: 20px;
-    box-shadow: 4px 4px 0 var(--yellow);
+    box-shadow: 0 0 20px rgba(142,197,230,0.05);
     position: relative;
     overflow: hidden;
   }
@@ -906,32 +968,34 @@
     right: -8px;
     bottom: -10px;
     font-size: 4rem;
-    opacity: 0.07;
+    opacity: 0.05;
     pointer-events: none;
   }
 
   .trivia-label {
-    font-family: 'Special Elite', monospace;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: var(--yellow);
-    margin-bottom: 4px;
+    color: var(--blue);
+    margin-bottom: 5px;
   }
 
   .trivia-movie {
-    font-family: 'Black Ops One', cursive;
-    font-size: 1rem;
-    color: var(--red);
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--yellow);
     margin-bottom: 6px;
     line-height: 1.2;
   }
 
   .trivia-fact {
-    font-family: 'Special Elite', monospace;
     font-size: 0.82rem;
+    font-weight: 400;
     color: var(--text-on-dark);
-    line-height: 1.5;
+    line-height: 1.6;
+    opacity: 0.85;
   }
 
   /* MINI POSTER THUMBNAIL */
@@ -964,7 +1028,7 @@
   .history-month { margin-bottom: 32px; }
 
   .history-month-header {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.15rem;
     color: var(--yellow);
     padding: 6px 0 8px;
@@ -991,14 +1055,14 @@
   }
 
   .history-movie-title {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.05rem;
     line-height: 1.2;
   }
 
   .history-theme {
     display: inline-block;
-    font-family: 'Special Elite', monospace;
+    font-family: 'Inter', sans-serif;
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.8px;
@@ -1011,7 +1075,7 @@
   }
 
   .history-avg {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1.3rem;
     color: var(--red);
     white-space: nowrap;
@@ -1039,7 +1103,7 @@
   .history-member-name { font-weight: 600; color: #444; }
 
   .history-member-score {
-    font-family: 'Black Ops One', cursive;
+    font-family: 'Playfair Display', serif;
     font-size: 1rem;
     color: var(--ink);
   }
@@ -1395,13 +1459,23 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
   const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
   return (
     <div className="movie-card">
-      <div className="movie-card-accent" style={{background: accent}} />
-      <div className="movie-poster-wrap">
-        {movie.poster
-          ? <img src={movie.poster} alt={movie.title} />
-          : <div className="poster-placeholder">🎬</div>
-        }
-        <div className="movie-number">{index + 1}</div>
+      <div className="movie-card-accent" style={{color: accent}}>
+        <span className="now-showing-bar" style={{background: accent}} />
+        <span className="now-showing-text">Now Showing</span>
+        <span className="now-showing-bar" style={{background: accent}} />
+      </div>
+      <div className="poster-frame">
+        <span className="frame-corner fc-tl" />
+        <span className="frame-corner fc-tr" />
+        <span className="frame-corner fc-bl" />
+        <span className="frame-corner fc-br" />
+        <div className="movie-poster-wrap">
+          {movie.poster
+            ? <img src={movie.poster} alt={movie.title} />
+            : <div className="poster-placeholder">🎬</div>
+          }
+          <div className="movie-number">{index + 1}</div>
+        </div>
       </div>
       <div className="movie-info">
         <div className="movie-title">{movie.title}</div>
@@ -1661,8 +1735,8 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
           const accent = movie.accent || '#d63a2f';
           return (
             <div key={movie.id} className="rating-input-card">
-              <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.2rem'}}>{movie.title}</div>
-              <div style={{fontFamily:"'Special Elite', monospace", fontSize:'0.75rem', color:'#888', marginTop:2}}>Rate 1–5 {scale}</div>
+              <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.2rem'}}>{movie.title}</div>
+              <div style={{fontFamily:"'Inter', sans-serif", fontSize:'0.75rem', color:'#888', marginTop:2}}>Rate 1–5 {scale}</div>
               <div className="star-picker">
                 {[1,2,3,4,5].map(n => (
                   <button key={n} className={`star-opt ${current===n?'selected':''}`}
@@ -2138,7 +2212,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {/* MOVIES SECTION */}
         {section === 'movies' && (
           <>
-            <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
+            <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie1Title}
@@ -2161,7 +2235,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <hr className="section-divider" />
 
-            <div style={{fontFamily:"'Black Ops One', cursive", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
+            <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie2Title}
