@@ -1439,17 +1439,8 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
     setTimeout(() => { setSaved(false); setOpen(false); setMember(''); setScore(''); }, 1500);
   }
 
-  const ratedMembers = members.filter(m => movieRatings[m] !== undefined);
-
   return (
     <div className="home-rating-box">
-      {ratedMembers.length > 0 && (
-        <div className="home-ratings-chips">
-          {ratedMembers.map(m => (
-            <span key={m} className="home-rating-chip">{m} <strong>{movieRatings[m]}</strong></span>
-          ))}
-        </div>
-      )}
       {saved && (
         <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
       )}
