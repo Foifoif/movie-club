@@ -1771,7 +1771,6 @@ function RatingsPage({ movies, ratings, setRatings, alltime, members }) {
       <div className="page-title">Ratings</div>
       <div className="page-subtitle">The hall of fame</div>
       <div className="ratings-tabs">
-        <button className={`ratings-tab ${tab==='current'?'active':''}`} onClick={()=>setTab('current')}>Now</button>
         <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
         <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
         <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
