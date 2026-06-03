@@ -1720,7 +1720,6 @@ function HomePage({ movies, ratings, setRatings, members }) {
     <div className="main">
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
-      <TriviaOfTheWeek />
       {movies.map((m, i) => (
         <MovieCard
           key={m.id} movie={m} index={i}
@@ -2090,6 +2089,7 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
           <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
           <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
         </div>
+        <TriviaOfTheWeek />
         <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
           setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />
       </div>
