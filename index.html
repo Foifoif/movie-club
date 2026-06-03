@@ -2257,76 +2257,114 @@ function BracketPage({ bracket, members, onVoteUpdate }) {
 function MovieSearch({ value, onChange, onSelect, placeholder }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [year, setYear] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const timer = useRef(null);
+  const queryRef = useRef(value);
+
+  useEffect(() => { queryRef.current = value; }, [value]);
+
+  async function fetchResults(query, yr, pg, append) {
+    if (query.length < 2) { setResults([]); return; }
+    setLoading(true);
+    try {
+      let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${pg}`;
+      if (yr && /^\d{4}$/.test(yr.trim())) url += `&year=${yr.trim()}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = (data.results || []);
+      setHasMore((data.total_pages || 0) > pg);
+      setResults(prev => append ? [...prev, ...items] : items.slice(0, 10));
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  }
 
   function handleInput(e) {
     const q = e.target.value;
     onChange(q);
+    queryRef.current = q;
+    setPage(1);
     clearTimeout(timer.current);
-    if (q.length < 2) { setResults([]); return; }
-    timer.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US`);
-        const data = await res.json();
-        setResults((data.results || []).slice(0, 6));
-      } catch(e) { console.error(e); }
-      setLoading(false);
-    }, 400);
+    if (q.length < 2) { setResults([]); setHasMore(false); return; }
+    timer.current = setTimeout(() => fetchResults(q, year, 1, false), 400);
+  }
+
+  function handleYearChange(e) {
+    const yr = e.target.value;
+    setYear(yr);
+    setPage(1);
+    clearTimeout(timer.current);
+    if (queryRef.current.length >= 2) {
+      timer.current = setTimeout(() => fetchResults(queryRef.current, yr, 1, false), 400);
+    }
+  }
+
+  function loadMore() {
+    const next = page + 1;
+    setPage(next);
+    fetchResults(queryRef.current, year, next, true);
   }
 
   async function selectMovie(movie) {
-    setResults([]);
+    setResults([]); setHasMore(false);
     onChange(movie.title);
     setLoading(true);
     try {
-      const [provRes] = await Promise.all([
-        fetch(`https://api.themoviedb.org/3/movie/${movie.id}/watch/providers?api_key=${TMDB_KEY}`)
-      ]);
+      const provRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/watch/providers?api_key=${TMDB_KEY}`);
       const provData = await provRes.json();
       const flatrate = provData.results?.US?.flatrate || [];
       const streaming = flatrate.map(p => p.provider_name);
       const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null;
-      const year = movie.release_date ? movie.release_date.split('-')[0] : '';
-      onSelect({ title: movie.title, year, description: movie.overview || '', poster, streaming });
+      const yr = movie.release_date ? movie.release_date.split('-')[0] : '';
+      onSelect({ title: movie.title, year: yr, description: movie.overview || '', poster, streaming });
     } catch(e) { console.error(e); }
     setLoading(false);
   }
 
   return (
     <div style={{position:'relative', marginBottom:14}}>
-      <input
-        className="form-input"
-        style={{marginBottom:0}}
-        value={value}
-        onChange={handleInput}
-        placeholder={placeholder || 'Search for a movie...'}
-      />
+      <input className="form-input" style={{marginBottom:6}} value={value}
+        onChange={handleInput} placeholder={placeholder || 'Search for a movie...'} />
+      <input className="form-input" style={{marginBottom:0, fontSize:'0.88rem', padding:'6px 10px'}}
+        value={year} onChange={handleYearChange} placeholder="Year (optional — helps narrow it down, e.g. 2010)" />
       {loading && (
-        <div style={{padding:'6px 12px', fontFamily:"'Special Elite',monospace", fontSize:'0.8rem', color:'#999'}}>
-          Searching...
-        </div>
+        <div style={{padding:'6px 12px', fontSize:'0.8rem', color:'#999'}}>Searching...</div>
       )}
       {results.length > 0 && (
-        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'white',border:'3px solid var(--ink)',borderTop:'none',borderRadius:'0 0 8px 8px',zIndex:300,boxShadow:'4px 4px 0 var(--ink)',maxHeight:320,overflowY:'auto'}}>
+        <div style={{position:'absolute',top:'100%',left:0,right:0,background:'white',border:'2px solid var(--ink)',borderTop:'none',borderRadius:'0 0 8px 8px',zIndex:300,boxShadow:'3px 3px 0 var(--ink)',maxHeight:420,overflowY:'auto'}}>
           {results.map(movie => (
-            <div
-              key={movie.id}
-              onClick={() => selectMovie(movie)}
-              style={{padding:'10px 12px',cursor:'pointer',borderBottom:'1px solid var(--cream)',display:'flex',alignItems:'center',gap:10}}
+            <div key={movie.id} onClick={() => selectMovie(movie)}
+              style={{padding:'9px 12px',cursor:'pointer',borderBottom:'1px solid var(--cream)',display:'flex',alignItems:'center',gap:10}}
               onMouseEnter={e => e.currentTarget.style.background='var(--cream)'}
-              onMouseLeave={e => e.currentTarget.style.background='white'}
-            >
+              onMouseLeave={e => e.currentTarget.style.background='white'}>
               {movie.poster_path
-                ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} style={{width:32,height:48,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-                : <div style={{width:32,height:48,background:'var(--cream)',borderRadius:3,flexShrink:0}} />
+                ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} style={{width:30,height:45,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                : <div style={{width:30,height:45,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem'}}>🎬</div>
               }
-              <div>
-                <div style={{fontFamily:"'Permanent Marker',cursive",fontSize:'1rem',lineHeight:1.2}}>{movie.title}</div>
-                {movie.release_date && <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.75rem',color:'#888'}}>{movie.release_date.split('-')[0]}</div>}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:'0.95rem',lineHeight:1.2}}>{movie.title}</div>
+                {movie.release_date && <div style={{fontSize:'0.75rem',color:'#888'}}>{movie.release_date.split('-')[0]}</div>}
+                {movie.overview && (
+                  <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2,lineHeight:1.3,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>
+                    {movie.overview}
+                  </div>
+                )}
               </div>
             </div>
           ))}
+          <div style={{padding:'8px 12px',textAlign:'center',borderTop:'1px solid var(--cream)'}}>
+            {hasMore ? (
+              <button onClick={loadMore} disabled={loading}
+                style={{fontSize:'0.82rem',fontWeight:600,color:'var(--blue-mid)',background:'none',border:'none',cursor:'pointer',padding:'2px 0'}}>
+                {loading ? 'Loading…' : '↓ Show more results'}
+              </button>
+            ) : (
+              <span style={{fontSize:'0.75rem',color:'#ccc'}}>
+                {results.length} result{results.length !== 1 ? 's' : ''} · try adding a year to narrow it down
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
