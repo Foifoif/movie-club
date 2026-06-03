@@ -1136,9 +1136,9 @@
     letter-spacing: 0.5px;
   }
 
-  .history-delete-btn {
+  .history-delete-btn, .history-edit-btn {
     position: absolute;
-    top: 8px; right: 8px;
+    top: 8px;
     width: 24px; height: 24px;
     border-radius: 50%;
     border: 1.5px solid #ddd;
@@ -1150,7 +1150,10 @@
     transition: all 0.15s;
     z-index: 2;
   }
+  .history-delete-btn { right: 8px; }
+  .history-edit-btn   { right: 38px; }
   .history-delete-btn:hover { border-color: var(--red); color: var(--red); background: #fff0f0; }
+  .history-edit-btn:hover   { border-color: var(--blue); color: var(--blue-mid); background: rgba(142,197,230,0.1); }
 
   .history-session-theme {
     font-family: Arial, 'Helvetica Neue', sans-serif;
@@ -1569,6 +1572,11 @@ async function dbDeleteMovie(movieId) {
   if (error) throw error;
 }
 
+async function dbUpdateHistoryMovie(movieId, updates) {
+  const { error } = await sb.from('movies').update(updates).eq('id', movieId);
+  if (error) throw error;
+}
+
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
 const SCORE_OPTIONS = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5];
 
@@ -1804,10 +1812,61 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
   );
 }
 
+// ─── EDIT HISTORY MOVIE FORM ─────────────────────────────────────────────────
+function EditHistoryMovieForm({ movie, onSave, onCancel }) {
+  const [search, setSearch] = useState(movie.title || '');
+  const [poster, setPoster] = useState(movie.poster || '');
+  const [title, setTitle] = useState(movie.title || '');
+  const [year, setYear] = useState(movie.year || '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function handleSave() {
+    setSaving(true); setErr('');
+    try {
+      await dbUpdateHistoryMovie(movie.id, { poster: poster || null, title, year: year || null });
+      onSave({ poster: poster || null, title, year: year || null });
+    } catch(e) { setErr('Save failed: ' + e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="add-history-form">
+      <div className="add-history-form-title">Edit — {movie.title}</div>
+      <label className="form-label" style={{color:'var(--ink)'}}>Search TMDB for correct poster</label>
+      <MovieSearch value={search} onChange={setSearch}
+        onSelect={d => {
+          setSearch(d.title);
+          setTitle(d.title);
+          if (d.year) setYear(d.year);
+          if (d.poster) setPoster(d.poster);
+        }}
+        placeholder="Search for the movie..." />
+      <label className="form-label" style={{color:'var(--ink)', marginTop:6}}>Poster URL</label>
+      <input className="form-input" value={poster} onChange={e => setPoster(e.target.value)}
+        placeholder="https://image.tmdb.org/t/p/w500/..." style={{marginBottom:8}} />
+      {poster && (
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+          <img src={poster} className="mini-poster" alt="" style={{flexShrink:0}} />
+          <span style={{fontSize:'0.75rem',color:'#888',wordBreak:'break-all'}}>{title} {year && `(${year})`}</span>
+        </div>
+      )}
+      {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{err}</div>}
+      <div style={{display:'flex',gap:8}}>
+        <button className="home-save-btn" onClick={handleSave} disabled={saving} style={{flex:1,padding:'8px'}}>
+          {saving ? '...' : 'Save Changes'}
+        </button>
+        <button className="home-cancel-btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAST SCREENINGS ─────────────────────────────────────────────────────────
 function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed }) {
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingMovieId, setEditingMovieId] = useState(null);
 
   useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
 
@@ -1824,6 +1883,11 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   function handleMovieAdded(movie) {
     if (setAlltime) setAlltime(prev => [...prev, movie]);
     setShowAddForm(false);
+  }
+
+  function handleEditSaved(movieId, updates) {
+    if (setAlltime) setAlltime(prev => prev.map(m => m.id === movieId ? { ...m, ...updates } : m));
+    setEditingMovieId(null);
   }
 
   async function handleDelete(movieId, title) {
@@ -1872,12 +1936,25 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                 : null;
               const ratedMembers = members.filter(m => movieRatings[m] !== undefined);
               const isImpromptu = movie.movieType === 'impromptu';
+
+              if (editingMovieId === movie.id) {
+                return (
+                  <EditHistoryMovieForm key={movie.id} movie={movie}
+                    onSave={updates => handleEditSaved(movie.id, updates)}
+                    onCancel={() => setEditingMovieId(null)} />
+                );
+              }
+
               return (
                 <div key={movie.id}
                   className={`history-movie ${isImpromptu ? 'history-movie-impromptu' : 'history-movie-official'}`}>
                   {adminAuthed && (
-                    <button className="history-delete-btn" title="Delete"
-                      onClick={() => handleDelete(movie.id, movie.title)}>✕</button>
+                    <>
+                      <button className="history-edit-btn" title="Edit"
+                        onClick={() => setEditingMovieId(movie.id)}>✎</button>
+                      <button className="history-delete-btn" title="Delete"
+                        onClick={() => handleDelete(movie.id, movie.title)}>✕</button>
+                    </>
                   )}
                   <div className="history-movie-head">
                     {movie.poster
