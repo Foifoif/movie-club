@@ -96,6 +96,34 @@
   /* MAIN */
   .main { padding: 20px 16px 80px; max-width: 480px; margin: 0 auto; }
 
+  /* HOME — two movies side by side */
+  .home-movies-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Slightly tighter card chrome inside the grid */
+  .home-movies-grid .movie-card { margin-bottom: 0; }
+  .home-movies-grid .movie-card-accent { padding: 4px 10px; }
+  .home-movies-grid .now-showing-text { letter-spacing: 3px; font-size: 0.46rem; }
+  .home-movies-grid .poster-frame { margin: 6px 8px 0; padding: 5px; }
+  .home-movies-grid .movie-info { padding: 10px 10px 12px; }
+  .home-movies-grid .movie-title { font-size: 1.05rem; }
+  .home-movies-grid .movie-year { font-size: 0.75rem; }
+  .home-movies-grid .movie-desc {
+    font-size: 0.8rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .home-movies-grid .home-rating-box { padding: 8px 10px 10px; }
+  .home-movies-grid .home-add-btn { font-size: 0.82rem; padding: 3px 10px; }
+  .home-movies-grid .home-rating-form { gap: 6px; }
+  .home-movies-grid .form-select { font-size: 0.88rem; padding: 5px 6px; }
+  .home-movies-grid .home-save-btn { font-size: 0.82rem; padding: 5px 10px; }
+
   /* HOME PAGE */
   .page-title {
     font-family: 'Playfair Display', serif;
@@ -178,7 +206,7 @@
 
   .movie-poster-wrap {
     position: relative;
-    height: 400px;
+    aspect-ratio: 2/3;
     overflow: hidden;
     background: #0a0814;
     display: flex;
@@ -189,7 +217,7 @@
   .movie-poster-wrap img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
   }
 
   .poster-placeholder {
@@ -1578,8 +1606,6 @@ async function dbUpdateHistoryMovie(movieId, updates) {
 }
 
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
-const SCORE_OPTIONS = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5];
-
 function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
   const [open, setOpen] = useState(false);
   const [member, setMember] = useState('');
@@ -1587,8 +1613,10 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 10;
+
   async function handleSave() {
-    if (!member || !score) return;
+    if (!member || !scoreValid) return;
     setSaving(true);
     await onSave(member, parseFloat(score));
     setSaving(false);
@@ -1599,7 +1627,7 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
   return (
     <div className="home-rating-box">
       {saved && (
-        <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
+        <div style={{fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
       )}
       {!open && !saved && (
         <button className="home-add-btn" onClick={() => setOpen(true)}>+ Add Rating</button>
@@ -1610,11 +1638,14 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
             <option value="">Who are you?</option>
             {members.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select className="form-select" value={score} onChange={e => setScore(e.target.value)}>
-            <option value="">Score</option>
-            {SCORE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !score}>
+          <input
+            type="number" className="form-select"
+            style={{width:'68px'}}
+            min="0" max="10" step="0.25"
+            value={score} onChange={e => setScore(e.target.value)}
+            placeholder="0–5"
+          />
+          <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !scoreValid}>
             {saving ? '...' : 'Save'}
           </button>
           <button className="home-cancel-btn" onClick={() => { setOpen(false); setMember(''); setScore(''); }}>✕</button>
@@ -1720,14 +1751,16 @@ function HomePage({ movies, ratings, setRatings, members }) {
     <div className="main">
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
-      {movies.map((m, i) => (
-        <MovieCard
-          key={m.id} movie={m} index={i}
-          movieRatings={localRatings[m.id] || {}}
-          members={members}
-          onRate={(member, score) => handleRate(m.id, member, score)}
-        />
-      ))}
+      <div className="home-movies-grid">
+        {movies.map((m, i) => (
+          <MovieCard
+            key={m.id} movie={m} index={i}
+            movieRatings={localRatings[m.id] || {}}
+            members={members}
+            onRate={(member, score) => handleRate(m.id, member, score)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -1999,95 +2032,18 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
 
 // ─── RATINGS PAGE ────────────────────────────────────────────────────────────
 function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members, adminAuthed }) {
-  const [tab, setTab] = useState('rate');
+  const [tab, setTab] = useState('history');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [selectedMember, setSelectedMember] = useState('');
-  const [localRatings, setLocalRatings] = useState({});
-  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    setLocalRatings(ratings || {});
-  }, [ratings]);
-
-  async function saveRating(movieId, member, score) {
-    const updated = {
-      ...localRatings,
-      [movieId]: {
-        ...(localRatings[movieId] || {}),
-        [member]: score
-      }
-    };
-    setLocalRatings(updated);
-    if (setRatings) setRatings(updated);
-    try {
-      await dbSaveRating(movieId, member, score);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch(e) {
-      console.error('Failed to save rating:', e);
-    }
-  }
-
-  if (tab === 'rate') {
-    return (
-      <div className="main">
-        <div className="page-title">Ratings</div>
-        <div className="page-subtitle">Add your score</div>
-        <div className="ratings-tabs">
-          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
-          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
-          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
-        </div>
-
-        {saved && <div className="alert alert-success">✓ Rating saved!</div>}
-
-        <div className="voter-label">Who are you?</div>
-        <div className="voter-grid" style={{marginBottom:20}}>
-          {members.map(m => (
-            <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
-          ))}
-        </div>
-
-        {selectedMember && movies && movies.map(movie => {
-          const movieRatings = localRatings[movie.id] || {};
-          const current = movieRatings[selectedMember] || 0;
-          const scale = movie.ratingScale || 'stars';
-          const accent = movie.accent || '#d63a2f';
-          return (
-            <div key={movie.id} className="rating-input-card">
-              <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.2rem'}}>{movie.title}</div>
-              <div style={{fontFamily:"Arial, 'Helvetica Neue', sans-serif", fontSize:'0.75rem', color:'#888', marginTop:2}}>Rate 1–5 {scale}</div>
-              <div className="star-picker">
-                {[1,2,3,4,5].map(n => (
-                  <button key={n} className={`star-opt ${current===n?'selected':''}`}
-                    style={current===n?{borderColor:accent}:{}}
-                    onClick={()=>saveRating(movie.id, selectedMember, n)}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-              {current > 0 && <div style={{marginTop:8, fontSize:'1.2rem'}}>{renderScaleEmoji(scale, current)}</div>}
-            </div>
-          );
-        })}
-
-        {!selectedMember && (
-          <div className="empty-state"><div className="empty-icon">👆</div><div>Pick your name above to start rating.</div></div>
-        )}
-      </div>
-    );
-  }
-
-  // History tab
+  // History / Ratings tab (default)
   if (tab === 'history') {
     return (
       <div className="main">
         <div className="page-title">Ratings</div>
         <div className="page-subtitle">Every screening, every score</div>
         <div className="ratings-tabs">
-          <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>Ratings</button>
           <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
-          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
         </div>
         <TriviaOfTheWeek />
         <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
@@ -2106,9 +2062,8 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
       <div className="page-title">Ratings</div>
       <div className="page-subtitle">The hall of fame</div>
       <div className="ratings-tabs">
-        <button className={`ratings-tab ${tab==='rate'?'active':''}`} onClick={()=>setTab('rate')}>Rate</button>
+        <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>Ratings</button>
         <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
-        <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History</button>
       </div>
       <div className="type-filter">
         <button className={`type-filter-btn ${typeFilter==='all'?'active-all':''}`} onClick={()=>setTypeFilter('all')}>All</button>
