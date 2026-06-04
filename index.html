@@ -104,16 +104,29 @@
   }
 
   /* Slightly tighter card chrome inside the grid */
-  .home-movies-grid .movie-card { margin-bottom: 0; }
+  .home-movies-grid .movie-card {
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* movie-info grows to fill card height, pushing streaming + rating to bottom */
+  .home-movies-grid .movie-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 10px 12px;
+  }
+  /* description expands to fill the gap between year and streaming section */
+  .home-movies-grid .movie-desc {
+    flex: 1;
+    font-size: 0.8rem;
+    margin-bottom: 14px;
+  }
   .home-movies-grid .movie-card-accent { padding: 4px 10px; }
   .home-movies-grid .now-showing-text { letter-spacing: 3px; font-size: 0.46rem; }
   .home-movies-grid .poster-frame { margin: 6px 8px 0; padding: 5px; }
-  .home-movies-grid .movie-info { padding: 10px 10px 12px; }
   .home-movies-grid .movie-title { font-size: 1.05rem; }
   .home-movies-grid .movie-year { font-size: 0.75rem; }
-  .home-movies-grid .movie-desc {
-    font-size: 0.8rem;
-  }
   .home-movies-grid .home-rating-box { padding: 8px 10px 10px; }
   .home-movies-grid .home-add-btn { font-size: 0.82rem; padding: 3px 10px; }
   .home-movies-grid .home-rating-form { gap: 6px; }
