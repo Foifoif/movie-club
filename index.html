@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movie Club</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<!-- No Google Fonts — using system fonts: Georgia (logo) + Calibri (everything else) -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -33,7 +31,7 @@
   body {
     background-color: var(--bg);
     background-image: radial-gradient(ellipse at 50% 0%, rgba(142,197,230,0.04) 0%, transparent 70%);
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     color: var(--ink);
     min-height: 100vh;
     overflow-x: hidden;
@@ -54,18 +52,24 @@
   }
 
   .logo {
-    font-family: 'Playfair Display', serif;
+    font-family: Georgia, 'Times New Roman', Times, serif;
     font-size: 1.5rem;
+    font-weight: 400;
     color: var(--yellow);
     letter-spacing: 0.5px;
     line-height: 1;
-    text-shadow: 0 0 24px rgba(245,197,24,0.3);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .logo strong {
+    font-weight: 700;
+    color: var(--yellow);
   }
 
   .logo span {
     color: var(--blue);
-    font-style: normal;
-    text-shadow: 0 0 20px rgba(142,197,230,0.3);
+    font-weight: 400;
   }
 
   .nav {
@@ -74,7 +78,7 @@
   }
 
   .nav-btn {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     color: rgba(216,211,238,0.7);
@@ -135,7 +139,7 @@
 
   /* HOME PAGE */
   .page-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 2rem;
     color: var(--yellow);
     margin-bottom: 4px;
@@ -178,7 +182,7 @@
   }
 
   .now-showing-text {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.52rem;
     font-weight: 600;
     letter-spacing: 5px;
@@ -238,7 +242,7 @@
     position: absolute;
     top: 10px;
     left: 10px;
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 3rem;
     line-height: 1;
     opacity: 0.12;
@@ -248,7 +252,7 @@
   .movie-info { padding: 16px 16px 14px; }
 
   .movie-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1.2;
@@ -328,7 +332,7 @@
 
   .ratings-tab {
     flex: 1;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 8px 4px;
@@ -360,13 +364,13 @@
   }
 
   .rating-movie-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.2rem;
     line-height: 1.2;
   }
 
   .avg-badge {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.3rem;
     font-weight: 700;
     padding: 3px 10px;
@@ -378,7 +382,7 @@
   }
 
   .rating-scale-label {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -404,7 +408,7 @@
   }
 
   .member-score {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
   }
 
@@ -427,7 +431,7 @@
   }
 
   .rank-num {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 2rem;
     line-height: 1;
     min-width: 36px;
@@ -441,20 +445,20 @@
   .alltime-info { flex: 1; }
 
   .alltime-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
     line-height: 1.2;
     margin-bottom: 2px;
   }
 
   .alltime-meta {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.75rem;
     color: #888;
   }
 
   .alltime-score {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.4rem;
     font-weight: 700;
     color: var(--blue-mid);
@@ -464,7 +468,7 @@
   .bracket-status {
     background: var(--ink);
     color: var(--yellow);
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
     text-align: center;
     padding: 10px;
@@ -478,7 +482,7 @@
   }
 
   .voter-label {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -493,7 +497,7 @@
   }
 
   .voter-btn {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -520,7 +524,7 @@
 
   .matchup-header {
     padding: 8px 16px;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -532,7 +536,7 @@
 
   .matchup-vs {
     text-align: center;
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     color: var(--red);
     margin: -4px 0;
@@ -541,7 +545,7 @@
   .vote-btn {
     width: 100%;
     padding: 14px 16px;
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.2rem;
     border: 3px solid var(--ink);
     border-radius: 8px;
@@ -559,7 +563,7 @@
   .vote-btn.lost { opacity: 0.4; }
 
   .vote-count {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.85rem;
     background: rgba(0,0,0,0.15);
     border-radius: 10px;
@@ -591,7 +595,7 @@
   }
 
   .admin-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.6rem;
     margin-bottom: 4px;
     color: var(--red);
@@ -600,12 +604,12 @@
   .admin-subtitle {
     font-size: 0.9rem;
     color: var(--text-on-dark);
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     margin-bottom: 20px;
   }
 
   .form-label {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -616,7 +620,7 @@
 
   .form-input {
     width: 100%;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
     padding: 10px 12px;
     border: 3px solid var(--ink);
@@ -630,7 +634,7 @@
 
   .btn-primary {
     width: 100%;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 600;
     padding: 12px;
@@ -650,7 +654,7 @@
 
   .btn-secondary {
     width: 100%;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 10px;
@@ -669,7 +673,7 @@
   }
 
   .admin-section-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.2rem;
     margin-bottom: 12px;
     color: var(--blue);
@@ -683,7 +687,7 @@
   }
 
   .tag {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     padding: 4px 10px;
@@ -748,7 +752,7 @@
   }
 
   .login-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.8rem;
     color: var(--red);
     text-shadow: 3px 3px 0 var(--yellow);
@@ -756,7 +760,7 @@
   }
 
   .login-sub {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.8rem;
     color: #888;
     margin-bottom: 20px;
@@ -780,7 +784,7 @@
   }
 
   .admin-nav-btn {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -802,7 +806,7 @@
     text-align: center;
     padding: 40px 20px;
     color: var(--text-on-dark);
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
   }
 
   .empty-icon { font-size: 3rem; margin-bottom: 8px; }
@@ -818,7 +822,7 @@
   }
 
   .winner-label {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -826,7 +830,7 @@
   }
 
   .winner-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 2rem;
     color: var(--ink);
     text-shadow: 3px 3px 0 var(--red);
@@ -837,7 +841,7 @@
     border-radius: 8px;
     border: 2px solid;
     margin-bottom: 12px;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.85rem;
   }
 
@@ -880,7 +884,7 @@
     height: 40px;
     border-radius: 8px;
     border: 3px solid var(--ink);
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
     background: var(--cream);
     cursor: pointer;
@@ -907,7 +911,7 @@
   }
 
   .home-rating-chip {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.9rem;
     font-weight: 600;
     background: var(--cream);
@@ -920,13 +924,13 @@
   }
 
   .home-rating-chip strong {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.85rem;
     color: var(--red);
   }
 
   .home-add-btn {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--blue);
@@ -948,7 +952,7 @@
   }
 
   .form-select {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     font-weight: 600;
     padding: 6px 10px;
@@ -960,7 +964,7 @@
   }
 
   .home-save-btn {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.9rem;
     padding: 6px 14px;
     background: var(--green);
@@ -1017,7 +1021,7 @@
   }
 
   .trivia-movie {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-style: italic;
     font-size: 1.05rem;
     color: var(--yellow);
@@ -1127,7 +1131,7 @@
     box-shadow: 3px 3px 0 var(--yellow);
   }
   .add-history-form-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: 12px;
@@ -1164,7 +1168,7 @@
   .history-month { margin-bottom: 32px; }
 
   .history-month-header {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.15rem;
     color: var(--yellow);
     padding: 6px 0 8px;
@@ -1193,7 +1197,7 @@
   .history-edit-btn:hover   { border-color: var(--blue); color: var(--blue-mid); background: rgba(142,197,230,0.1); }
 
   .history-session-theme {
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.8rem;
     font-weight: 500;
     color: var(--blue);
@@ -1221,14 +1225,14 @@
   }
 
   .history-movie-title {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.05rem;
     line-height: 1.2;
   }
 
   .history-theme {
     display: inline-block;
-    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.8px;
@@ -1241,7 +1245,7 @@
   }
 
   .history-avg {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.3rem;
     color: var(--red);
     white-space: nowrap;
@@ -1269,7 +1273,7 @@
   .history-member-name { font-weight: 600; color: #444; }
 
   .history-member-score {
-    font-family: 'Playfair Display', serif;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1rem;
     color: var(--ink);
   }
@@ -2552,7 +2556,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {/* MOVIES SECTION */}
         {section === 'movies' && (
           <>
-            <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
+            <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1.1rem', marginBottom:12, color:'var(--blue)'}}>Movie 1</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie1Title}
@@ -2573,7 +2577,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <hr className="section-divider" />
 
-            <div style={{fontFamily:"'Playfair Display', serif", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
+            <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1.1rem', marginBottom:12, color:'var(--orange)'}}>Movie 2</div>
             <label className="form-label">Title</label>
             <MovieSearch
               value={movie2Title}
@@ -2791,7 +2795,7 @@ function App() {
   return (
     <>
       <header className="site-header">
-        <div className="logo">Movie<span>Club</span></div>
+        <div className="logo" onClick={() => setPage('home')}><strong>movie</strong><span>club</span></div>
         <nav className="nav">
           <button className={`nav-btn ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>Ratings</button>
