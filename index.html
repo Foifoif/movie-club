@@ -127,11 +127,18 @@
   .nav-icon { display: none; line-height: 1; }
   .nav-label { display: inline; }
 
-  /* ── Mobile: smaller buttons ── */
+  /* ── Mobile: smaller logo + tighter nav ── */
   @media (max-width: 600px) {
+    .logo-circle {
+      width: 52px;
+      height: 52px;
+    }
+    .nav {
+      gap: 5px;
+    }
     .nav-btn {
       font-size: 0.78rem;
-      padding: 6px 11px;
+      padding: 6px 10px;
     }
   }
 
