@@ -51,24 +51,38 @@
   }
 
   .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+  }
+
+  .logo-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--yellow);
+    flex-shrink: 0;
+  }
+
+  .logo-text {
     font-family: Georgia, 'Times New Roman', Times, serif;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 400;
     color: var(--yellow);
     letter-spacing: 0.5px;
     line-height: 1;
-    cursor: pointer;
-    user-select: none;
   }
 
-  .logo strong {
+  .logo-text strong {
     font-weight: 700;
-    color: var(--yellow);
   }
 
-  .logo span {
+  .logo-text span {
     color: var(--blue);
-    font-weight: 400;
   }
 
   .nav {
@@ -2793,7 +2807,10 @@ function App() {
   return (
     <>
       <header className="site-header">
-        <div className="logo" onClick={() => setPage('home')}><strong>movie</strong><span>club</span></div>
+        <div className="logo" onClick={() => setPage('home')}>
+          <img src="movieclub.png" className="logo-img" alt="Movie Club logo" />
+          <span className="logo-text"><strong>movie</strong><span>club</span></span>
+        </div>
         <nav className="nav">
           <button className={`nav-btn ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>Ratings</button>
