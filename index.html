@@ -807,6 +807,27 @@
     width: 100%;
     max-width: 340px;
     box-shadow: 8px 8px 0 var(--yellow);
+    position: relative;
+  }
+
+  .login-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #aaa;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .login-close:hover {
+    color: var(--ink);
+    background: rgba(0,0,0,0.07);
   }
 
   .login-title {
@@ -1048,41 +1069,30 @@
 
   /* TRIVIA BANNER */
   .trivia-banner {
-    background: var(--bg2);
-    border: 1px solid rgba(142,197,230,0.3);
-    border-left: 3px solid var(--blue);
+    background: white;
+    border: 2px solid var(--blue);
+    border-left: 4px solid var(--blue-mid);
     border-radius: 6px;
-    padding: 12px 14px;
+    padding: 14px 16px;
     margin-bottom: 20px;
-    box-shadow: 0 0 20px rgba(142,197,230,0.05);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .trivia-banner::before {
-    content: '🎬';
-    position: absolute;
-    right: -8px;
-    bottom: -10px;
-    font-size: 4rem;
-    opacity: 0.05;
-    pointer-events: none;
+    box-shadow: 3px 3px 0 var(--yellow);
   }
 
   .trivia-label {
     font-size: 0.62rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: var(--blue);
+    color: var(--blue-mid);
     margin-bottom: 5px;
   }
 
   .trivia-movie {
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-style: italic;
-    font-size: 1.05rem;
-    color: var(--yellow);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ink);
     margin-bottom: 6px;
     line-height: 1.2;
   }
@@ -1090,9 +1100,8 @@
   .trivia-fact {
     font-size: 0.82rem;
     font-weight: 400;
-    color: var(--text-on-dark);
+    color: #4a4435;
     line-height: 1.6;
-    opacity: 0.85;
   }
 
   /* MINI POSTER THUMBNAIL */
@@ -2770,7 +2779,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 }
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, onClose }) {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
@@ -2786,6 +2795,9 @@ function LoginPage({ onLogin }) {
   return (
     <div className="login-wrap">
       <div className="login-card">
+        <button className="login-close" onClick={onClose} aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
         <div className="login-title">🎬 Admin</div>
         <div className="login-sub">Movie Club command center</div>
         {err && <div className="error-msg">{err}</div>}
@@ -2846,7 +2858,7 @@ function App() {
   }
 
   if (showLogin && !adminAuthed) {
-    return <LoginPage onLogin={() => { setAdminAuthed(true); setShowLogin(false); setAdminOpen(true); }} />;
+    return <LoginPage onLogin={() => { setAdminAuthed(true); setShowLogin(false); setAdminOpen(true); }} onClose={() => setShowLogin(false)} />;
   }
 
   if (!loaded) {
