@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movie Club</title>
+<link rel="icon" type="image/png" href="movieclub.png">
+<link rel="apple-touch-icon" href="movieclub.png">
 <!-- No Google Fonts — using system fonts: Georgia (logo) + Calibri (everything else) -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -2854,8 +2856,15 @@ function LoginPage({ onLogin, onClose }) {
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
+function pageFromPath() {
+  const p = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
+  if (p === 'ratings') return 'ratings';
+  if (p === 'bracket') return 'bracket';
+  return 'home';
+}
+
 function App() {
-  const [page, setPage] = useState('home');
+  const [page, _setPage] = useState(pageFromPath);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -2869,6 +2878,18 @@ function App() {
   const [members, setMembers] = useState([]);
   const [alltime, setAlltime] = useState([]);
   const [loaded, setLoaded] = useState(false);
+
+  function setPage(newPage) {
+    const path = newPage === 'home' ? '/' : `/${newPage}`;
+    window.history.pushState(null, '', path);
+    _setPage(newPage);
+  }
+
+  useEffect(() => {
+    const onPop = () => _setPage(pageFromPath());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 48);
