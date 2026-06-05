@@ -630,49 +630,146 @@
   .admin-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(26,16,8,0.85);
+    background: rgba(18,16,30,0.5);
     z-index: 200;
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
 
   .admin-sheet {
-    background: #1a1208;
+    background: white;
     border-radius: 16px 16px 0 0;
-    border: 3px solid var(--yellow);
+    border: 2px solid var(--blue);
     border-bottom: none;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.1), -3px 0 0 var(--yellow), 3px 0 0 var(--yellow);
     width: 100%;
     max-width: 480px;
     max-height: 90vh;
     overflow-y: auto;
     padding: 20px 16px 40px;
-    color: var(--text-on-dark);
+    color: var(--ink);
   }
 
   .admin-title {
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 1.6rem;
-    margin-bottom: 4px;
-    color: var(--red);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .admin-subtitle {
-    font-size: 0.9rem;
-    color: var(--text-on-dark);
+    font-size: 0.85rem;
+    color: #7a6e58;
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
+
+  .admin-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #aaa;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .admin-close-btn:hover { color: var(--ink); background: rgba(0,0,0,0.07); }
 
   .form-label {
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: var(--text-on-dark);
+    color: #7a6e58;
     margin-bottom: 4px;
     display: block;
   }
+
+  /* CONFIRM DELETE MODAL */
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(18,16,30,0.55);
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .confirm-card {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding: 24px 20px 20px;
+    max-width: 300px;
+    width: 100%;
+    box-shadow: 4px 4px 0 var(--yellow);
+  }
+
+  .confirm-card-title {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .confirm-card-body {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.88rem;
+    color: #4a4435;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .confirm-cancel-btn {
+    flex: 1;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 9px;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .confirm-cancel-btn:hover { background: #f5f5f5; }
+
+  .confirm-delete-btn {
+    flex: 1;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 9px;
+    border: 2px solid var(--red);
+    border-radius: 6px;
+    background: var(--red);
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .confirm-delete-btn:hover { filter: brightness(1.1); }
 
   .form-input {
     width: 100%;
@@ -723,16 +820,17 @@
   }
 
   .admin-section {
-    border-top: 2px dashed var(--ink);
+    border-top: 1.5px solid rgba(142,197,230,0.4);
     padding-top: 16px;
     margin-top: 16px;
   }
 
   .admin-section-title {
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
     margin-bottom: 12px;
-    color: var(--blue);
+    color: var(--blue-mid);
   }
 
   .tag-list {
@@ -2024,6 +2122,7 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, title }
 
   useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
 
@@ -2047,12 +2146,17 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
     setEditingMovieId(null);
   }
 
-  async function handleDelete(movieId, title) {
-    if (!window.confirm(`Delete "${title}" and all its ratings?`)) return;
+  function handleDelete(movieId, title) {
+    setConfirmDelete({ id: movieId, title });
+  }
+
+  async function executeDelete() {
+    const { id, title } = confirmDelete;
+    setConfirmDelete(null);
     try {
-      await dbDeleteMovie(movieId);
-      if (setAlltime) setAlltime(prev => prev.filter(m => m.id !== movieId));
-      setLocalRatings(prev => { const n = {...prev}; delete n[movieId]; return n; });
+      await dbDeleteMovie(id);
+      if (setAlltime) setAlltime(prev => prev.filter(m => m.id !== id));
+      setLocalRatings(prev => { const n = {...prev}; delete n[id]; return n; });
     } catch(e) { console.error('Failed to delete:', e); }
   }
 
@@ -2151,6 +2255,21 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
           </div>
         );
       })}
+
+      {confirmDelete && (
+        <div className="confirm-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
+          <div className="confirm-card">
+            <div className="confirm-card-title">Delete movie?</div>
+            <div className="confirm-card-body">
+              This will permanently remove <strong>"{confirmDelete.title}"</strong> and all its ratings. This can't be undone.
+            </div>
+            <div className="confirm-actions">
+              <button className="confirm-cancel-btn" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="confirm-delete-btn" onClick={executeDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -2649,16 +2768,23 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       <div className="admin-sheet">
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4}}>
           <div>
-            <div className="admin-title">⚙️ Admin Panel</div>
+            <div className="admin-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{color:'var(--blue-mid)',flexShrink:0}}>
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+              </svg>
+              Admin Panel
+            </div>
             <div className="admin-subtitle">Movie Club command center</div>
           </div>
-          <button onClick={onClose} style={{background:'none',border:'none',fontSize:'1.5rem',cursor:'pointer'}}>✕</button>
+          <button className="admin-close-btn" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
         </div>
 
         <div className="admin-nav">
           {['movies','members','bracket','ratings'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? '🎬 Movies' : s === 'members' ? '👥 Members' : s === 'bracket' ? '🏆 Bracket' : '✏️ Ratings'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'bracket' ? 'Bracket' : 'Ratings'}
             </button>
           ))}
         </div>
