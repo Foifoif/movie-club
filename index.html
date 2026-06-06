@@ -2276,7 +2276,7 @@ function MovieNightCountdown({ members }) {
 
   return (
     <div className="mn-card">
-      <div className="mn-eyebrow">🎬 Next Movie Night</div>
+      <div className="mn-eyebrow">🎬 Next Movie "Night"</div>
       <div className="mn-date">{fmtEventDate(eventDate)}</div>
 
       {cd.done ? (
@@ -3479,7 +3479,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         <div className="admin-nav">
           {['movies','members','bracket','ratings','movienight'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : '🎬 Movie Night'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : '🎬 Movie "Night"'}
             </button>
           ))}
         </div>
@@ -3643,7 +3643,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {/* MOVIE NIGHT SECTION */}
         {section === 'movienight' && (
           <>
-            <div className="admin-section-title">Movie Night Schedule</div>
+            <div className="admin-section-title">Movie "Night" Schedule</div>
             <div style={{fontSize:'0.88rem',color:'#7a6e58',marginBottom:14,lineHeight:1.5}}>
               Auto-schedule: <strong>4th Friday of each month, 9 AM PST</strong><br/>
               {mnCurrent
