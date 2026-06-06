@@ -2665,12 +2665,13 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, title }
+  const [revealedMonths, setRevealedMonths] = useState(new Set());
   const [revealedMovies, setRevealedMovies] = useState(new Set());
 
-  function toggleReveal(movieId) {
-    setRevealedMovies(prev => {
+  function toggleRevealMonth(month) {
+    setRevealedMonths(prev => {
       const next = new Set(prev);
-      next.has(movieId) ? next.delete(movieId) : next.add(movieId);
+      next.has(month) ? next.delete(month) : next.add(month);
       return next;
     });
   }
@@ -2740,6 +2741,7 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
       {monthOrder.map(month => {
         const sessionTheme = byMonth[month][0]?.sessionTheme;
         const isCurrentMonth = month === NOW_MONTH;
+        const monthRevealed = revealedMonths.has(month);
         return (
           <div key={month} className="history-month">
             <div className="history-month-header">
@@ -2747,6 +2749,11 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                 {month}
                 {sessionTheme && <span className="history-session-theme"> · {sessionTheme}</span>}
               </div>
+              {isCurrentMonth && (
+                <button className="reveal-btn" onClick={() => toggleRevealMonth(month)}>
+                  {monthRevealed ? 'Hide' : 'Reveal'}
+                </button>
+              )}
             </div>
             {byMonth[month].map(movie => {
               const movieRatings = localRatings[movie.id] || {};
@@ -2792,23 +2799,21 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                         </span>
                       </div>
                     </div>
-                    <div className={`history-avg${(!isCurrentMonth || revealedMovies.has(movie.id)) ? '' : ' score-hidden'}`}>{average || '—'}</div>
+                    {(() => { const show = !isCurrentMonth || monthRevealed || revealedMovies.has(movie.id); return (
+                      <div className={`history-avg${show ? '' : ' score-hidden'}`}>{average || '—'}</div>
+                    ); })()}
                   </div>
                   <div className="history-ratings-grid">
-                    {ratedMembers.map(m => (
-                      <div key={m} className="history-rating-row">
-                        <span className="history-member-name">{m}</span>
-                        <span className={`history-member-score${(!isCurrentMonth || revealedMovies.has(movie.id)) ? '' : ' score-hidden'}`}>{movieRatings[m]}</span>
-                      </div>
-                    ))}
+                    {ratedMembers.map(m => {
+                      const show = !isCurrentMonth || monthRevealed || revealedMovies.has(movie.id);
+                      return (
+                        <div key={m} className="history-rating-row">
+                          <span className="history-member-name">{m}</span>
+                          <span className={`history-member-score${show ? '' : ' score-hidden'}`}>{movieRatings[m]}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {isCurrentMonth && ratedMembers.length > 0 && (
-                    <div style={{textAlign:'right', padding:'2px 8px 6px'}}>
-                      <button className="reveal-btn" onClick={() => toggleReveal(movie.id)}>
-                        {revealedMovies.has(movie.id) ? 'Hide' : 'Reveal'}
-                      </button>
-                    </div>
-                  )}
                   <HomeRatingArea
                     movieId={movie.id}
                     movieRatings={movieRatings}
