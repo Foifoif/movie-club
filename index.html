@@ -2437,18 +2437,65 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   );
 }
 
+// ─── RATINGS PAGE URL HELPERS ────────────────────────────────────────────────
+function parseRatingsUrl() {
+  const parts = window.location.pathname.replace(/^\//, '').split('/');
+  // parts: ['ratings', 'top'?, filter?]
+  if (parts[1] !== 'top') return { tab: 'history', topFilter: 'movies', movieSubFilter: 'all' };
+  const seg = parts[2] || '';
+  if (seg === 'leaderboard') return { tab: 'alltime', topFilter: 'leaderboard', movieSubFilter: 'all' };
+  if (seg === 'personal')    return { tab: 'alltime', topFilter: 'personal',    movieSubFilter: 'all' };
+  if (seg === 'official')    return { tab: 'alltime', topFilter: 'movies',      movieSubFilter: 'official' };
+  if (seg === 'impromptu')   return { tab: 'alltime', topFilter: 'movies',      movieSubFilter: 'impromptu' };
+  return { tab: 'alltime', topFilter: 'movies', movieSubFilter: 'all' };
+}
+
+function buildRatingsUrl(tab, topFilter, movieSubFilter) {
+  if (tab !== 'alltime') return '/ratings';
+  if (topFilter === 'leaderboard') return '/ratings/top/leaderboard';
+  if (topFilter === 'personal')    return '/ratings/top/personal';
+  if (movieSubFilter === 'official')  return '/ratings/top/official';
+  if (movieSubFilter === 'impromptu') return '/ratings/top/impromptu';
+  return '/ratings/top';
+}
+
 // ─── RATINGS PAGE ────────────────────────────────────────────────────────────
 function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members, adminAuthed }) {
-  const [tab, setTab] = useState('history');
-  const [topFilter, setTopFilter] = useState('movies');   // movies | leaderboard | personal
-  const [movieSubFilter, setMovieSubFilter] = useState('all'); // all | official | impromptu
+  const init = parseRatingsUrl();
+  const [tab,           _setTab]           = useState(init.tab);
+  const [topFilter,     _setTopFilter]     = useState(init.topFilter);
+  const [movieSubFilter,_setMovieSubFilter] = useState(init.movieSubFilter);
   const [selectedMember, setSelectedMember] = useState('');
 
-  function switchTop(f) {
-    setTopFilter(f);
-    if (f !== 'personal') setSelectedMember('');
-    if (f !== 'movies') setMovieSubFilter('all');
+  // Push URL whenever tab/filter changes
+  function setTab(t) {
+    _setTab(t);
+    window.history.pushState(null, '', buildRatingsUrl(t, topFilter, movieSubFilter));
   }
+  function switchTop(f) {
+    const sub = f === 'movies' ? movieSubFilter : 'all';
+    _setTopFilter(f);
+    _setMovieSubFilter(sub);
+    if (f !== 'personal') setSelectedMember('');
+    window.history.pushState(null, '', buildRatingsUrl(tab, f, sub));
+  }
+  function changeSub(s) {
+    _setMovieSubFilter(s);
+    window.history.pushState(null, '', buildRatingsUrl(tab, topFilter, s));
+  }
+
+  // Sync state from URL on browser back/forward
+  useEffect(() => {
+    const onPop = () => {
+      const u = parseRatingsUrl();
+      _setTab(u.tab);
+      _setTopFilter(u.topFilter);
+      _setMovieSubFilter(u.movieSubFilter);
+      setSelectedMember('');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // History / Ratings tab (default)
   if (tab === 'history') {
@@ -2520,9 +2567,9 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
       {/* ── MOVIES SUB-FILTER ── */}
       {topFilter === 'movies' && (
         <div className="sub-filter">
-          <button className={`sub-filter-btn ${movieSubFilter==='all'?'active-sub-all':''}`} onClick={()=>setMovieSubFilter('all')}>All</button>
-          <button className={`sub-filter-btn ${movieSubFilter==='official'?'active-sub-official':''}`} onClick={()=>setMovieSubFilter('official')}>🔵 Official</button>
-          <button className={`sub-filter-btn ${movieSubFilter==='impromptu'?'active-sub-impromptu':''}`} onClick={()=>setMovieSubFilter('impromptu')}>🟡 Impromptu</button>
+          <button className={`sub-filter-btn ${movieSubFilter==='all'?'active-sub-all':''}`} onClick={()=>changeSub('all')}>All</button>
+          <button className={`sub-filter-btn ${movieSubFilter==='official'?'active-sub-official':''}`} onClick={()=>changeSub('official')}>🔵 Official</button>
+          <button className={`sub-filter-btn ${movieSubFilter==='impromptu'?'active-sub-impromptu':''}`} onClick={()=>changeSub('impromptu')}>🟡 Impromptu</button>
         </div>
       )}
 
