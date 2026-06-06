@@ -1318,9 +1318,111 @@
     transition: all 0.15s;
     color: #666;
   }
-  .type-filter-btn.active-all    { border-color: var(--ink); color: var(--ink); background: var(--cream); }
+  .type-filter-btn.active-all      { border-color: var(--ink); color: var(--ink); background: var(--cream); }
   .type-filter-btn.active-official  { border-color: var(--blue); color: var(--blue-mid); background: rgba(142,197,230,0.1); }
   .type-filter-btn.active-impromptu { border-color: var(--yellow); color: #8a6800; background: rgba(245,197,24,0.1); }
+  .type-filter-btn.active-personal  { border-color: #9c6dd8; color: #7b4fc4; background: rgba(156,109,216,0.1); }
+
+  /* IT'S PERSONAL VIEW */
+  .personal-member-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 22px;
+  }
+  .personal-member-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 5px 15px;
+    border: 1.5px solid #ccc;
+    border-radius: 999px;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .personal-member-btn:hover { border-color: #9c6dd8; color: #7b4fc4; }
+  .personal-member-btn.active { background: #7b4fc4; border-color: #7b4fc4; color: white; }
+
+  .personal-avg-card {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 8px;
+    padding: 14px 18px;
+    box-shadow: 3px 3px 0 var(--yellow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+  .personal-avg-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #7a6e58;
+  }
+  .personal-avg-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--blue-mid);
+    line-height: 1;
+  }
+
+  .personal-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #7a6e58;
+    margin-bottom: 10px;
+  }
+
+  .personal-top3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .personal-movie-card {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 3px 3px 0 var(--yellow);
+    display: flex;
+    flex-direction: column;
+  }
+  .personal-movie-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+  }
+  .personal-movie-placeholder {
+    width: 100%;
+    aspect-ratio: 2/3;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+  }
+  .personal-movie-info {
+    padding: 7px 8px 9px;
+  }
+  .personal-movie-title {
+    font-size: 0.73rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 3px;
+  }
+  .personal-movie-score {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--blue-mid);
+  }
 
   /* ADD HISTORY MOVIE FORM */
   .add-history-btn {
@@ -2284,6 +2386,12 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
 function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members, adminAuthed }) {
   const [tab, setTab] = useState('history');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [selectedMember, setSelectedMember] = useState('');
+
+  function switchFilter(f) {
+    setTypeFilter(f);
+    if (f !== 'personal') setSelectedMember('');
+  }
 
   // History / Ratings tab (default)
   if (tab === 'history') {
@@ -2305,7 +2413,21 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
   // All time tab
   const allSorted = [...(alltime || [])].sort((a,b) => (b.avgScore||0) - (a.avgScore||0));
   const filteredAlltime = typeFilter === 'all' ? allSorted
+    : typeFilter === 'personal' ? allSorted
     : allSorted.filter(m => (m.movieType || 'official') === typeFilter);
+
+  // Personal view data
+  let personalStats = null;
+  if (typeFilter === 'personal' && selectedMember) {
+    const scored = (alltime || [])
+      .filter(m => ratings[m.id]?.[selectedMember] !== undefined)
+      .map(m => ({ movie: m, score: Number(ratings[m.id][selectedMember]) }))
+      .sort((a, b) => b.score - a.score);
+    const avg = scored.length
+      ? (scored.reduce((s, x) => s + x.score, 0) / scored.length).toFixed(2).replace(/\.?0+$/, '')
+      : null;
+    personalStats = { avg, top3: scored.slice(0, 3) };
+  }
 
   return (
     <div className="main">
@@ -2316,34 +2438,84 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
         <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
       </div>
       <div className="type-filter">
-        <button className={`type-filter-btn ${typeFilter==='all'?'active-all':''}`} onClick={()=>setTypeFilter('all')}>All</button>
-        <button className={`type-filter-btn ${typeFilter==='official'?'active-official':''}`} onClick={()=>setTypeFilter('official')}>🔵 Official</button>
-        <button className={`type-filter-btn ${typeFilter==='impromptu'?'active-impromptu':''}`} onClick={()=>setTypeFilter('impromptu')}>🟡 Impromptu</button>
+        <button className={`type-filter-btn ${typeFilter==='all'?'active-all':''}`} onClick={()=>switchFilter('all')}>All</button>
+        <button className={`type-filter-btn ${typeFilter==='official'?'active-official':''}`} onClick={()=>switchFilter('official')}>🔵 Official</button>
+        <button className={`type-filter-btn ${typeFilter==='impromptu'?'active-impromptu':''}`} onClick={()=>switchFilter('impromptu')}>🟡 Impromptu</button>
+        <button className={`type-filter-btn ${typeFilter==='personal'?'active-personal':''}`} onClick={()=>switchFilter('personal')}>✦ It's Personal</button>
       </div>
-      {filteredAlltime.length === 0 && (
-        <div className="empty-state"><div className="empty-icon">🏆</div><div>No movies here yet.</div></div>
-      )}
-      {filteredAlltime.map((movie, i) => (
-        <div key={movie.id || i} className="alltime-item">
-          <div className={`rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}`}>#{i+1}</div>
-          {movie.poster
-            ? <img src={movie.poster} className="mini-poster" alt="" />
-            : <div className="mini-poster-placeholder">🎬</div>
-          }
-          <div className="alltime-info">
-            <div className="alltime-title">{movie.title}</div>
-            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginTop:2}}>
-              {(movie.theme || movie.ratingScale) && (
-                <div className="alltime-meta">{movie.theme || movie.ratingScale}</div>
-              )}
-              <span className={`type-badge ${movie.movieType==='impromptu'?'type-badge-impromptu':'type-badge-official'}`}>
-                {movie.movieType==='impromptu'?'Impromptu':'Official'}
-              </span>
-            </div>
+
+      {/* ── IT'S PERSONAL ── */}
+      {typeFilter === 'personal' && (
+        <div>
+          <div className="personal-member-grid">
+            {(members || []).map(m => (
+              <button key={m}
+                className={`personal-member-btn ${selectedMember === m ? 'active' : ''}`}
+                onClick={() => setSelectedMember(selectedMember === m ? '' : m)}>
+                {m}
+              </button>
+            ))}
           </div>
-          <div className="alltime-score">{movie.avgScore}</div>
+
+          {personalStats && (
+            <>
+              <div className="personal-avg-card">
+                <div className="personal-avg-label">Average rating given</div>
+                <div className="personal-avg-value">{personalStats.avg ?? '—'}</div>
+              </div>
+              {personalStats.top3.length > 0 && (
+                <>
+                  <div className="personal-section-label">Top {personalStats.top3.length} films</div>
+                  <div className="personal-top3">
+                    {personalStats.top3.map(({ movie, score }) => (
+                      <div key={movie.id} className="personal-movie-card">
+                        {movie.poster
+                          ? <img src={movie.poster} alt={movie.title} />
+                          : <div className="personal-movie-placeholder">🎬</div>
+                        }
+                        <div className="personal-movie-info">
+                          <div className="personal-movie-title">{movie.title}</div>
+                          <div className="personal-movie-score">{score}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
-      ))}
+      )}
+
+      {/* ── ALL / OFFICIAL / IMPROMPTU LIST ── */}
+      {typeFilter !== 'personal' && (
+        <>
+          {filteredAlltime.length === 0 && (
+            <div className="empty-state"><div className="empty-icon">🏆</div><div>No movies here yet.</div></div>
+          )}
+          {filteredAlltime.map((movie, i) => (
+            <div key={movie.id || i} className="alltime-item">
+              <div className={`rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}`}>#{i+1}</div>
+              {movie.poster
+                ? <img src={movie.poster} className="mini-poster" alt="" />
+                : <div className="mini-poster-placeholder">🎬</div>
+              }
+              <div className="alltime-info">
+                <div className="alltime-title">{movie.title}</div>
+                <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginTop:2}}>
+                  {(movie.theme || movie.ratingScale) && (
+                    <div className="alltime-meta">{movie.theme || movie.ratingScale}</div>
+                  )}
+                  <span className={`type-badge ${movie.movieType==='impromptu'?'type-badge-impromptu':'type-badge-official'}`}>
+                    {movie.movieType==='impromptu'?'Impromptu':'Official'}
+                  </span>
+                </div>
+              </div>
+              <div className="alltime-score">{movie.avgScore}</div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
