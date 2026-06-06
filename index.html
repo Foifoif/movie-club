@@ -10,9 +10,9 @@
 <meta property="og:url" content="https://amovieclub.com" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!-- No Google Fonts — using system fonts: Georgia (logo) + Calibri (everything else) -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -3399,7 +3399,7 @@ function App() {
       <header className={`site-header${scrolled ? ' header-scrolled' : ''}`}>
         <div className={`logo${footerVisible ? ' logo-hidden' : ''}`} onClick={() => setPage('home')}>
           <div className="logo-circle">
-            <img src="movieclub.png" className="logo-img" alt="Movie Club logo" />
+            <img src="/movieclub.png" className="logo-img" alt="Movie Club logo" />
           </div>
         </div>
         <nav className="nav">
@@ -3425,7 +3425,7 @@ function App() {
       <div className="footer-logo-section" ref={footerRef}
         onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
         <div className="footer-logo-circle">
-          <img src="movieclub.png" alt="Movie Club" />
+          <img src="/movieclub.png" alt="Movie Club" />
         </div>
       </div>
 
