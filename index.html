@@ -963,6 +963,23 @@
     color: var(--green);
     margin-bottom: 14px;
   }
+  .mn-join-btn {
+    display: inline-block;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 10px 24px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 999px;
+    text-decoration: none;
+    margin-bottom: 14px;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
+    transition: filter 0.15s, transform 0.15s;
+    cursor: pointer;
+  }
+  .mn-join-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
   .mn-rsvp-row {
     display: flex;
     gap: 8px;
@@ -2177,8 +2194,17 @@ async function dbLoadRSVPs(dateStr) {
   } catch { return []; }
 }
 async function dbSaveRSVP(memberName, status, dateStr) {
-  await sb.from('rsvps').upsert({ member_name: memberName, status, event_date: dateStr },
-    { onConflict: 'member_name,event_date' });
+  await sb.from('rsvps').delete().eq('member_name', memberName).eq('event_date', dateStr);
+  await sb.from('rsvps').insert({ member_name: memberName, status, event_date: dateStr });
+}
+async function dbLoadJoinUrl() {
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key','movie_night_join_url').maybeSingle();
+    return data?.value || null;
+  } catch { return null; }
+}
+async function dbSaveJoinUrl(url) {
+  await sb.from('settings').upsert({ key:'movie_night_join_url', value: url });
 }
 
 // ─── MOVIE NIGHT HELPERS ─────────────────────────────────────────────────────
@@ -2233,6 +2259,7 @@ function MovieNightCountdown({ members }) {
   const [picker,   setPicker]       = useState(null); // 'going'|'not_going'|null
   const [tick,     setTick]         = useState(0);
   const [ready,    setReady]        = useState(false);
+  const [joinUrl,  setJoinUrl]      = useState('');
 
   const eventDate = getNextMovieNight(override);
   const dateStr   = eventDate.toISOString().split('T')[0];
@@ -2240,8 +2267,9 @@ function MovieNightCountdown({ members }) {
 
   useEffect(() => {
     (async () => {
-      const ov = await dbLoadOverride();
+      const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
       setOverride(ov);
+      setJoinUrl(url || '');
       const ev = getNextMovieNight(ov);
       const ds = ev.toISOString().split('T')[0];
       setRsvps(await dbLoadRSVPs(ds));
@@ -2289,6 +2317,12 @@ function MovieNightCountdown({ members }) {
           <span className="mn-sep">:</span>
           <div className="mn-unit"><span className="mn-val">{pad(cd.minutes)}</span><span className="mn-lbl">min</span></div>
         </div>
+      )}
+
+      {(cd.days === 0 || cd.done) && joinUrl && (
+        <a className="mn-join-btn" href={joinUrl} target="_blank" rel="noopener noreferrer">
+          🎬 Join Movie "Night"
+        </a>
       )}
 
       <div className="mn-rsvp-row">
@@ -3262,11 +3296,14 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   // Movie Night section state
   const [mnOverride,    setMnOverride]    = useState('');
-  const [mnCurrent,     setMnCurrent]     = useState(null); // loaded from DB
+  const [mnCurrent,     setMnCurrent]     = useState(null);
+  const [mnJoinUrl,     setMnJoinUrl]     = useState('');
+  const [mnJoinCurrent, setMnJoinCurrent] = useState('');
   const [mnLoading,     setMnLoading]     = useState(false);
   useEffect(() => {
     if (section === 'movienight') {
       dbLoadOverride().then(v => setMnCurrent(v));
+      dbLoadJoinUrl().then(v => { setMnJoinCurrent(v||''); setMnJoinUrl(v||''); });
     }
   }, [section]);
 
@@ -3679,7 +3716,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 <hr className="section-divider" />
                 <div className="admin-section-title">Clear Override</div>
                 <div style={{fontSize:'0.85rem',color:'#7a6e58',marginBottom:12}}>
-                  Removes the override and reverts to the automatic 4th-Friday schedule.
+                  Removes the override and reverts to the automatic 4th-Sunday schedule.
                 </div>
                 <button className="btn-secondary" onClick={async () => {
                   await dbClearOverride();
@@ -3690,6 +3727,26 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 </button>
               </>
             )}
+
+            <hr className="section-divider" />
+            <div className="admin-section-title">Join Link</div>
+            <div style={{fontSize:'0.85rem',color:'#7a6e58',marginBottom:12}}>
+              Shown as a "Join" button on event day. Leave blank to hide it.
+              {mnJoinCurrent && <><br/><strong>Current:</strong> {mnJoinCurrent}</>}
+            </div>
+            <label className="form-label">Google Meet / Zoom URL</label>
+            <input className="form-input" type="url" value={mnJoinUrl}
+              onChange={e => setMnJoinUrl(e.target.value)}
+              placeholder="https://meet.google.com/..." />
+            <button className="btn-primary" disabled={mnLoading} onClick={async () => {
+              setMnLoading(true);
+              await dbSaveJoinUrl(mnJoinUrl);
+              setMnJoinCurrent(mnJoinUrl);
+              setMnLoading(false);
+              showMsg({ type:'success', text:'Join link saved!' });
+            }}>
+              {mnLoading ? 'Saving…' : 'Save Join Link'}
+            </button>
           </>
         )}
       </div>
