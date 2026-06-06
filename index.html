@@ -1048,7 +1048,7 @@
     margin-top: 4px;
     flex-wrap: wrap;
   }
-  .mn-tracker-going { color: var(--blue-mid); }
+  .mn-tracker-going { color: var(--ink); }
   .mn-tracker-not   { color: #aaa; }
   .mn-tracker strong { font-size: 1rem; }
 
@@ -2331,11 +2331,11 @@ function MovieNightCountdown({ members }) {
       <div className="mn-rsvp-row">
         <button className={`mn-btn mn-btn-going ${picker==='going'?'mn-btn-active':''}`}
           onClick={() => setPicker(picker === 'going' ? null : 'going')}>
-          I'm there 🙌
+          I'm there
         </button>
         <button className={`mn-btn mn-btn-not ${picker==='not_going'?'mn-btn-active':''}`}
           onClick={() => setPicker(picker === 'not_going' ? null : 'not_going')}>
-          Can't Make It 😢
+          Can't Make It :(
         </button>
       </div>
 
@@ -2354,12 +2354,12 @@ function MovieNightCountdown({ members }) {
         <div className="mn-tracker">
           {going.length > 0 && (
             <span className="mn-tracker-going">
-              🍿 <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
+              <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
             </span>
           )}
           {notGoing.length > 0 && (
             <span className="mn-tracker-not">
-              😢 <strong>{notGoing.length}</strong> can't make it
+              :( <strong>{notGoing.length}</strong> can't make it
             </span>
           )}
         </div>
