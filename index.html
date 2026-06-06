@@ -1687,6 +1687,33 @@
     border-bottom: 2px solid var(--ink);
     margin-bottom: 12px;
     letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .reveal-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 999px;
+    border: 1.5px solid var(--blue-mid);
+    background: white;
+    color: var(--blue-mid);
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .reveal-btn:hover { background: var(--blue-mid); color: white; }
+
+  .score-hidden {
+    filter: blur(5px);
+    user-select: none;
+    pointer-events: none;
   }
 
   .history-delete-btn, .history-edit-btn {
@@ -2155,12 +2182,12 @@ async function dbSaveRSVP(memberName, status, dateStr) {
 }
 
 // ─── MOVIE NIGHT HELPERS ─────────────────────────────────────────────────────
-function getFourthFriday(year, month) {
+function getFourthSunday(year, month) {
   let count = 0;
   for (let d = 1; d <= 31; d++) {
     const dt = new Date(year, month, d);
     if (dt.getMonth() !== month) break;
-    if (dt.getDay() === 5 && ++count === 4) return dt;
+    if (dt.getDay() === 0 && ++count === 4) return dt;
   }
   return null;
 }
@@ -2170,10 +2197,10 @@ function getNextMovieNight(override) {
   const now = new Date();
   let year = now.getFullYear(), month = now.getMonth();
   for (let i = 0; i < 3; i++) {
-    const fri = getFourthFriday(year, month);
-    if (fri) {
+    const sun = getFourthSunday(year, month);
+    if (sun) {
       // 9 AM PST = 17:00 UTC
-      const ev = new Date(Date.UTC(fri.getFullYear(), fri.getMonth(), fri.getDate(), 17, 0, 0));
+      const ev = new Date(Date.UTC(sun.getFullYear(), sun.getMonth(), sun.getDate(), 17, 0, 0));
       if (ev > now) return ev;
     }
     month++;
@@ -2183,8 +2210,9 @@ function getNextMovieNight(override) {
 }
 
 function fmtEventDate(d) {
-  return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', timeZone:'America/Los_Angeles' })
-    + ' · 9 AM PST';
+  const datePart = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  const timePart = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZoneName:'short' });
+  return `${datePart} · ${timePart}`;
 }
 
 function calcCountdown(target) {
@@ -2595,11 +2623,23 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
 }
 
 // ─── PAST SCREENINGS ─────────────────────────────────────────────────────────
+// Current month string e.g. "June 2026"
+const NOW_MONTH = new Date().toLocaleString('en-US', { month:'long' }) + ' ' + new Date().getFullYear();
+
 function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed }) {
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, title }
+  const [revealedMonths, setRevealedMonths] = useState(new Set());
+
+  function toggleReveal(month) {
+    setRevealedMonths(prev => {
+      const next = new Set(prev);
+      next.has(month) ? next.delete(month) : next.add(month);
+      return next;
+    });
+  }
 
   useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
 
@@ -2660,11 +2700,20 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
 
       {monthOrder.map(month => {
         const sessionTheme = byMonth[month][0]?.sessionTheme;
+        const isCurrentMonth = month === NOW_MONTH;
+        const isRevealed = !isCurrentMonth || revealedMonths.has(month);
         return (
           <div key={month} className="history-month">
             <div className="history-month-header">
-              {month}
-              {sessionTheme && <span className="history-session-theme"> · {sessionTheme}</span>}
+              <div>
+                {month}
+                {sessionTheme && <span className="history-session-theme"> · {sessionTheme}</span>}
+              </div>
+              {isCurrentMonth && (
+                <button className="reveal-btn" onClick={() => toggleReveal(month)}>
+                  {isRevealed ? 'Hide' : 'Reveal'}
+                </button>
+              )}
             </div>
             {byMonth[month].map(movie => {
               const movieRatings = localRatings[movie.id] || {};
@@ -2710,13 +2759,13 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                         </span>
                       </div>
                     </div>
-                    <div className="history-avg">{average || '—'}</div>
+                    <div className={`history-avg${isRevealed ? '' : ' score-hidden'}`}>{average || '—'}</div>
                   </div>
                   <div className="history-ratings-grid">
                     {ratedMembers.map(m => (
                       <div key={m} className="history-rating-row">
                         <span className="history-member-name">{m}</span>
-                        <span className="history-member-score">{movieRatings[m]}</span>
+                        <span className={`history-member-score${isRevealed ? '' : ' score-hidden'}`}>{movieRatings[m]}</span>
                       </div>
                     ))}
                   </div>
@@ -2833,15 +2882,15 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
   const filteredMovies = movieSubFilter === 'all' ? allSorted
     : allSorted.filter(m => (m.movieType || 'official') === movieSubFilter);
 
-  // Leaderboard — % watched since each member's first rated film
-  const moviesByDate = [...(alltime || [])].sort((a, b) =>
-    parseMonthYear(a.month || '') - parseMonthYear(b.month || '')
-  );
+  // Leaderboard — % of Official movies watched since each member's first rated official film
+  const officialByDate = [...(alltime || [])]
+    .filter(m => (m.movieType || 'official') !== 'impromptu')
+    .sort((a, b) => parseMonthYear(a.month || '') - parseMonthYear(b.month || ''));
   const leaderboard = (members || [])
     .map(member => {
-      const firstIdx = moviesByDate.findIndex(m => ratings[m.id]?.[member] !== undefined);
+      const firstIdx = officialByDate.findIndex(m => ratings[m.id]?.[member] !== undefined);
       if (firstIdx === -1) return null;
-      const eligible = moviesByDate.slice(firstIdx);
+      const eligible = officialByDate.slice(firstIdx);
       const watched = eligible.filter(m => ratings[m.id]?.[member] !== undefined).length;
       const pct = Math.round((watched / eligible.length) * 100);
       return { member, pct, watched, eligible: eligible.length };
