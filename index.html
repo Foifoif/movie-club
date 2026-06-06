@@ -1369,11 +1369,13 @@
     font-size: 0.95rem;
     font-weight: 600;
     color: #7a6e58;
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
   }
   .leaderboard-count strong {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     color: var(--blue-mid);
-    margin-right: 3px;
   }
 
   /* IT'S PERSONAL VIEW */
@@ -2470,13 +2472,21 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
   const filteredMovies = movieSubFilter === 'all' ? allSorted
     : allSorted.filter(m => (m.movieType || 'official') === movieSubFilter);
 
-  // Leaderboard
+  // Leaderboard — % watched since each member's first rated film
+  const moviesByDate = [...(alltime || [])].sort((a, b) =>
+    parseMonthYear(a.month || '') - parseMonthYear(b.month || '')
+  );
   const leaderboard = (members || [])
-    .map(member => ({
-      member,
-      count: (alltime || []).filter(m => ratings[m.id]?.[member] !== undefined).length
-    }))
-    .sort((a, b) => b.count - a.count);
+    .map(member => {
+      const firstIdx = moviesByDate.findIndex(m => ratings[m.id]?.[member] !== undefined);
+      if (firstIdx === -1) return null;
+      const eligible = moviesByDate.slice(firstIdx);
+      const watched = eligible.filter(m => ratings[m.id]?.[member] !== undefined).length;
+      const pct = Math.round((watched / eligible.length) * 100);
+      return { member, pct, watched, eligible: eligible.length };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.pct - a.pct || b.watched - a.watched);
 
   // Personal view data
   let personalStats = null;
@@ -2549,11 +2559,14 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
       {/* ── LEADERBOARD ── */}
       {topFilter === 'leaderboard' && (
         <>
-          {leaderboard.map(({ member, count }, i) => (
+          {leaderboard.map(({ member, pct, watched, eligible }, i) => (
             <div key={member} className="leaderboard-item">
               <div className={`rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}`}>#{i+1}</div>
               <div className="leaderboard-name">{member}</div>
-              <div className="leaderboard-count"><strong>{count}</strong> films</div>
+              <div className="leaderboard-count">
+                <strong>{pct}%</strong>
+                <span style={{fontSize:'0.78rem',color:'#aaa',marginLeft:4}}>({watched}/{eligible})</span>
+              </div>
             </div>
           ))}
         </>
