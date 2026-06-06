@@ -2304,14 +2304,7 @@ function MovieNightCountdown({ members }) {
 
   return (
     <div className="mn-card">
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
-        <div className="mn-eyebrow">🎬 Next Movie "Night"</div>
-        {going.length > 0 && (
-          <span className="mn-tracker-going" style={{fontSize:'0.78rem',fontWeight:700}}>
-            🍿 <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
-          </span>
-        )}
-      </div>
+      <div className="mn-eyebrow">🎬 Next Movie "Night"</div>
       <div className="mn-date">{fmtEventDate(eventDate)}</div>
 
       {cd.done ? (
@@ -2354,11 +2347,18 @@ function MovieNightCountdown({ members }) {
         </div>
       )}
 
-      {notGoing.length > 0 && (
-        <div style={{textAlign:'center',marginTop:4}}>
-          <span className="mn-tracker-not" style={{fontSize:'0.78rem'}}>
-            😢 <strong>{notGoing.length}</strong> can't make it
-          </span>
+      {(going.length > 0 || notGoing.length > 0) && (
+        <div className="mn-tracker">
+          {going.length > 0 && (
+            <span className="mn-tracker-going">
+              🍿 <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
+            </span>
+          )}
+          {notGoing.length > 0 && (
+            <span className="mn-tracker-not">
+              😢 <strong>{notGoing.length}</strong> can't make it
+            </span>
+          )}
         </div>
       )}
     </div>
