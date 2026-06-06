@@ -896,6 +896,145 @@
     transform: scale(1.08) rotate(-12deg);
   }
 
+  /* MOVIE NIGHT COUNTDOWN */
+  .mn-card {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    margin-bottom: 22px;
+    box-shadow: 4px 4px 0 var(--yellow);
+    text-align: center;
+  }
+  .mn-eyebrow {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--blue-mid);
+    margin-bottom: 3px;
+  }
+  .mn-date {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  .mn-countdown {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 2px;
+    margin-bottom: 14px;
+  }
+  .mn-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 54px;
+  }
+  .mn-val {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .mn-lbl {
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #bbb;
+    margin-top: 2px;
+  }
+  .mn-sep {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--yellow);
+    line-height: 1.25;
+    padding: 0 1px;
+    margin-bottom: 10px;
+  }
+  .mn-happening {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 14px;
+  }
+  .mn-rsvp-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .mn-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 2px solid transparent;
+  }
+  .mn-btn-going {
+    background: var(--blue-mid);
+    color: white;
+    border-color: var(--blue-mid);
+  }
+  .mn-btn-going:hover, .mn-btn-going.mn-btn-active { filter: brightness(1.1); box-shadow: 0 2px 8px rgba(93,172,212,0.4); }
+  .mn-btn-not {
+    background: white;
+    color: var(--ink);
+    border-color: #ccc;
+  }
+  .mn-btn-not:hover, .mn-btn-not.mn-btn-active { border-color: var(--ink); }
+  .mn-picker {
+    background: #f5f2ea;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .mn-picker-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #7a6e58;
+    margin-bottom: 8px;
+  }
+  .mn-picker-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  .mn-name-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border: 1.5px solid #ccc;
+    border-radius: 999px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mn-name-btn:hover { border-color: var(--blue-mid); color: var(--blue-mid); }
+  .mn-tracker {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    font-size: 0.9rem;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .mn-tracker-going { color: var(--blue-mid); }
+  .mn-tracker-not   { color: #aaa; }
+  .mn-tracker strong { font-size: 1rem; }
+
   /* FOOTER LOGO */
   .footer-logo-section {
     display: flex;
@@ -1991,6 +2130,179 @@ async function dbUpdateHistoryMovie(movieId, updates) {
   if (error) throw error;
 }
 
+// ─── MOVIE NIGHT DB HELPERS ──────────────────────────────────────────────────
+async function dbLoadOverride() {
+  try {
+    const { data } = await sb.from('settings').select('value').eq('key','movie_night_override').maybeSingle();
+    return data?.value || null;
+  } catch { return null; }
+}
+async function dbSaveOverride(val) {
+  await sb.from('settings').upsert({ key:'movie_night_override', value: val });
+}
+async function dbClearOverride() {
+  await sb.from('settings').delete().eq('key','movie_night_override');
+}
+async function dbLoadRSVPs(dateStr) {
+  try {
+    const { data } = await sb.from('rsvps').select('member_name,status').eq('event_date', dateStr);
+    return data || [];
+  } catch { return []; }
+}
+async function dbSaveRSVP(memberName, status, dateStr) {
+  await sb.from('rsvps').upsert({ member_name: memberName, status, event_date: dateStr },
+    { onConflict: 'member_name,event_date' });
+}
+
+// ─── MOVIE NIGHT HELPERS ─────────────────────────────────────────────────────
+function getFourthFriday(year, month) {
+  let count = 0;
+  for (let d = 1; d <= 31; d++) {
+    const dt = new Date(year, month, d);
+    if (dt.getMonth() !== month) break;
+    if (dt.getDay() === 5 && ++count === 4) return dt;
+  }
+  return null;
+}
+
+function getNextMovieNight(override) {
+  if (override) return new Date(override);
+  const now = new Date();
+  let year = now.getFullYear(), month = now.getMonth();
+  for (let i = 0; i < 3; i++) {
+    const fri = getFourthFriday(year, month);
+    if (fri) {
+      // 9 AM PST = 17:00 UTC
+      const ev = new Date(Date.UTC(fri.getFullYear(), fri.getMonth(), fri.getDate(), 17, 0, 0));
+      if (ev > now) return ev;
+    }
+    month++;
+    if (month > 11) { month = 0; year++; }
+  }
+  return new Date();
+}
+
+function fmtEventDate(d) {
+  return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', timeZone:'America/Los_Angeles' })
+    + ' · 9 AM PST';
+}
+
+function calcCountdown(target) {
+  const diff = target - Date.now();
+  if (diff <= 0) return { days:0, hours:0, minutes:0, done:true };
+  return {
+    days:    Math.floor(diff / 86400000),
+    hours:   Math.floor((diff % 86400000) / 3600000),
+    minutes: Math.floor((diff % 3600000)  / 60000),
+    done: false
+  };
+}
+
+// ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
+function MovieNightCountdown({ members }) {
+  const [override, setOverride]     = useState(null);
+  const [rsvps,    setRsvps]        = useState([]);
+  const [picker,   setPicker]       = useState(null); // 'going'|'not_going'|null
+  const [tick,     setTick]         = useState(0);
+  const [ready,    setReady]        = useState(false);
+
+  const eventDate = getNextMovieNight(override);
+  const dateStr   = eventDate.toISOString().split('T')[0];
+  const cd        = calcCountdown(eventDate);
+
+  useEffect(() => {
+    (async () => {
+      const ov = await dbLoadOverride();
+      setOverride(ov);
+      const ev = getNextMovieNight(ov);
+      const ds = ev.toISOString().split('T')[0];
+      setRsvps(await dbLoadRSVPs(ds));
+      setReady(true);
+    })();
+  }, []);
+
+  // 1-minute tick to keep countdown live
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auto-roll when event passes
+  useEffect(() => {
+    if (cd.done && ready && !override) {
+      dbLoadRSVPs(dateStr).then(setRsvps);
+    }
+  }, [tick]);
+
+  async function handleRSVP(memberName) {
+    const status = picker;
+    setPicker(null);
+    await dbSaveRSVP(memberName, status, dateStr);
+    setRsvps(await dbLoadRSVPs(dateStr));
+  }
+
+  const going    = rsvps.filter(r => r.status === 'going');
+  const notGoing = rsvps.filter(r => r.status === 'not_going');
+
+  const pad = n => String(n).padStart(2, '0');
+
+  return (
+    <div className="mn-card">
+      <div className="mn-eyebrow">🎬 Next Movie Night</div>
+      <div className="mn-date">{fmtEventDate(eventDate)}</div>
+
+      {cd.done ? (
+        <div className="mn-happening">It's happening — enjoy! 🍿</div>
+      ) : (
+        <div className="mn-countdown">
+          <div className="mn-unit"><span className="mn-val">{cd.days}</span><span className="mn-lbl">days</span></div>
+          <span className="mn-sep">:</span>
+          <div className="mn-unit"><span className="mn-val">{pad(cd.hours)}</span><span className="mn-lbl">hrs</span></div>
+          <span className="mn-sep">:</span>
+          <div className="mn-unit"><span className="mn-val">{pad(cd.minutes)}</span><span className="mn-lbl">min</span></div>
+        </div>
+      )}
+
+      <div className="mn-rsvp-row">
+        <button className={`mn-btn mn-btn-going ${picker==='going'?'mn-btn-active':''}`}
+          onClick={() => setPicker(picker === 'going' ? null : 'going')}>
+          I'm there 🙌
+        </button>
+        <button className={`mn-btn mn-btn-not ${picker==='not_going'?'mn-btn-active':''}`}
+          onClick={() => setPicker(picker === 'not_going' ? null : 'not_going')}>
+          Can't Make It 😢
+        </button>
+      </div>
+
+      {picker && (
+        <div className="mn-picker">
+          <div className="mn-picker-label">{picker === 'going' ? 'Who\'s coming?' : 'Who can\'t make it?'}</div>
+          <div className="mn-picker-names">
+            {(members || []).map(m => (
+              <button key={m} className="mn-name-btn" onClick={() => handleRSVP(m)}>{m}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(going.length > 0 || notGoing.length > 0) && (
+        <div className="mn-tracker">
+          {going.length > 0 && (
+            <span className="mn-tracker-going">
+              🍿 <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} in
+            </span>
+          )}
+          {notGoing.length > 0 && (
+            <span className="mn-tracker-not">
+              😢 <strong>{notGoing.length}</strong> out
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
 function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
   const [open, setOpen] = useState(false);
@@ -2123,6 +2435,7 @@ function HomePage({ movies, ratings, setRatings, members }) {
   if (!movies || movies.length === 0) {
     return (
       <div className="main">
+        <MovieNightCountdown members={members} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -2135,6 +2448,7 @@ function HomePage({ movies, ratings, setRatings, members }) {
 
   return (
     <div className="main">
+      <MovieNightCountdown members={members} />
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <div className="home-movies-grid">
@@ -2897,6 +3211,16 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
+  // Movie Night section state
+  const [mnOverride,    setMnOverride]    = useState('');
+  const [mnCurrent,     setMnCurrent]     = useState(null); // loaded from DB
+  const [mnLoading,     setMnLoading]     = useState(false);
+  useEffect(() => {
+    if (section === 'movienight') {
+      dbLoadOverride().then(v => setMnCurrent(v));
+    }
+  }, [section]);
+
   // Movies section state
   const [movie1Title, setMovie1Title] = useState(movies[0]?.title || '');
   const [movie1Year, setMovie1Year] = useState(movies[0]?.year || '');
@@ -3104,9 +3428,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','bracket','ratings'].map(s => (
+          {['movies','members','bracket','ratings','movienight'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'bracket' ? 'Bracket' : 'Ratings'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : '🎬 Movie Night'}
             </button>
           ))}
         </div>
@@ -3262,6 +3586,59 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     🗑️ Clear Bracket
                   </button>
                 )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* MOVIE NIGHT SECTION */}
+        {section === 'movienight' && (
+          <>
+            <div className="admin-section-title">Movie Night Schedule</div>
+            <div style={{fontSize:'0.88rem',color:'#7a6e58',marginBottom:14,lineHeight:1.5}}>
+              Auto-schedule: <strong>4th Friday of each month, 9 AM PST</strong><br/>
+              {mnCurrent
+                ? <span>Override active: <strong>{new Date(mnCurrent).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'})} PST</strong></span>
+                : <span>No override set — using automatic schedule.</span>
+              }
+            </div>
+
+            <label className="form-label">Override date &amp; time (local datetime)</label>
+            <input
+              className="form-input"
+              type="datetime-local"
+              value={mnOverride}
+              onChange={e => setMnOverride(e.target.value)}
+              style={{marginBottom:8}}
+            />
+            <div style={{fontSize:'0.75rem',color:'#aaa',marginBottom:14}}>
+              Enter the date/time in your local timezone. Members will see this as the next movie night.
+            </div>
+            <button className="btn-primary" disabled={!mnOverride || mnLoading} onClick={async () => {
+              setMnLoading(true);
+              await dbSaveOverride(new Date(mnOverride).toISOString());
+              setMnCurrent(new Date(mnOverride).toISOString());
+              setMnOverride('');
+              setMnLoading(false);
+              showMsg({ type:'success', text:'Movie night date updated!' });
+            }}>
+              {mnLoading ? 'Saving…' : 'Save Override'}
+            </button>
+
+            {mnCurrent && (
+              <>
+                <hr className="section-divider" />
+                <div className="admin-section-title">Clear Override</div>
+                <div style={{fontSize:'0.85rem',color:'#7a6e58',marginBottom:12}}>
+                  Removes the override and reverts to the automatic 4th-Friday schedule.
+                </div>
+                <button className="btn-secondary" onClick={async () => {
+                  await dbClearOverride();
+                  setMnCurrent(null);
+                  showMsg({ type:'success', text:'Override cleared — back to auto schedule.' });
+                }}>
+                  Clear Override
+                </button>
               </>
             )}
           </>
