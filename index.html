@@ -3656,16 +3656,32 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate }) {
+function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd }) {
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
   const [bracketMovies, setBracketMovies] = useState('');
   const [bracketMsg, setBracketMsg] = useState('');
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState('');
 
   const activePoll = (polls || []).find(p => p.is_active);
   const pastPolls = (polls || []).filter(p => !p.is_active).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   const activeBracket = bracket && !bracket.finished ? bracket : null;
   const finishedBracket = bracket && bracket.finished ? bracket : null;
+
+  async function handleCreatePoll() {
+    if (!newQuestion.trim()) { setCreateErr('Enter a question first'); return; }
+    setCreating(true); setCreateErr('');
+    try {
+      const newPoll = await dbCreatePoll(newQuestion.trim());
+      if (onPollsAdd) onPollsAdd(newPoll);
+      setNewQuestion('');
+      setShowCreatePoll(false);
+    } catch(e) { setCreateErr('Error: ' + e.message); }
+    setCreating(false);
+  }
 
   async function handleBuildBracket() {
     const films = bracketMovies.split('\n').map(s=>s.trim()).filter(Boolean);
@@ -3705,12 +3721,35 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
           ) : (
             <div className="empty-state">
               <div className="empty-icon">🗳️</div>
-              <div>No active poll or bracket yet.<br/>Check back soon!</div>
+              <div>No active poll yet.</div>
+            </div>
+          )}
+
+          {/* Anyone can ask a question */}
+          {!activeBracket && !showCreatePoll && (
+            <button className="setup-bracket-btn" onClick={()=>setShowCreatePoll(true)}>
+              + Ask a question
+            </button>
+          )}
+
+          {!activeBracket && showCreatePoll && (
+            <div style={{marginTop:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
+              <div style={{fontWeight:700,marginBottom:10,fontSize:'1rem'}}>New Poll</div>
+              <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
+                placeholder="Ask the group anything…"
+                onKeyDown={e=>e.key==='Enter'&&handleCreatePoll()} />
+              {createErr && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{createErr}</div>}
+              <div style={{display:'flex',gap:8}}>
+                <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll} disabled={!newQuestion.trim()||creating}>
+                  {creating ? '…' : 'Post Poll'}
+                </button>
+                <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setCreateErr('');}}>Cancel</button>
+              </div>
             </div>
           )}
 
           {adminAuthed && !activeBracket && !showBracketSetup && (
-            <button className="setup-bracket-btn" onClick={()=>setShowBracketSetup(true)}>
+            <button className="setup-bracket-btn" style={{marginTop:8}} onClick={()=>setShowBracketSetup(true)}>
               + Set Up Bracket
             </button>
           )}
@@ -4575,7 +4614,9 @@ function App() {
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <PollPage polls={polls} bracket={bracket} members={members}
-        onPollUpdate={updatePoll} onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />}
+        onPollUpdate={updatePoll}
+        onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
+        onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />}
       {page === 'bracket' && <BracketReadOnlyPage bracket={bracket} onBack={()=>setPage('poll')} />}
 
       <div className="footer-logo-section" ref={footerRef}
