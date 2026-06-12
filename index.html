@@ -3373,6 +3373,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [newAnswerImage, setNewAnswerImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [pendingOptionId, setPendingOptionId] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchYear, setSearchYear] = useState('');
@@ -3398,13 +3399,16 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
   const isCreator = selectedMember && selectedMember === localPoll.created_by;
 
-  async function handleVoteForOption(optionId) {
-    if (!selectedMember || submitting || editingOptionId) return;
+  async function handleVoteForOption(optionId, withMember) {
+    const member = withMember || selectedMember;
+    if (!member || submitting || editingOptionId) return;
+    if (withMember) setSelectedMember(withMember);
+    setPendingOptionId(null);
     setSubmitting(true);
     try {
-      await dbVoteForOption(localPoll.id, optionId, selectedMember);
-      const newVotes = (localPoll.votes || []).filter(v => v.member_name !== selectedMember);
-      newVotes.push({ poll_id: localPoll.id, option_id: optionId, member_name: selectedMember });
+      await dbVoteForOption(localPoll.id, optionId, member);
+      const newVotes = (localPoll.votes || []).filter(v => v.member_name !== member);
+      newVotes.push({ poll_id: localPoll.id, option_id: optionId, member_name: member });
       const updated = { ...localPoll, votes: newVotes };
       setLocalPoll(updated);
       if (onUpdate) onUpdate(updated);
@@ -3517,14 +3521,6 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
         {localPoll.created_by && !editingQuestion && <span className="poll-asked-by">{localPoll.created_by}</span>}
       </div>
 
-      {/* Member picker */}
-      <div className="voter-label">Who are you?</div>
-      <div className="voter-grid" style={{marginBottom:16}}>
-        {members.map(m => (
-          <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
-        ))}
-      </div>
-      {!selectedMember && <div className="alert alert-error" style={{marginBottom:10}}>👆 Pick your name to vote</div>}
 
       {/* Options */}
       {optionsWithCounts.length > 0 && (
@@ -3548,8 +3544,8 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                   </div>
                 ) : (
                   <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
-                    style={{cursor:selectedMember&&!submitting?'pointer':'default',marginBottom:8}}
-                    onClick={() => selectedMember && !submitting && handleVoteForOption(opt.id)}>
+                    style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
+                    onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
                       <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
                         {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
@@ -3569,6 +3565,19 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                       <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
                     </div>
                   </div>
+                  {pendingOptionId===opt.id && (
+                    <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
+                      <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                        {members.map(m => (
+                          <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
+                            onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 )}
               </div>
             );
@@ -3578,7 +3587,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
       {/* Add answer */}
       {!showAddAnswer ? (
-        <button className="home-add-btn" onClick={()=>setShowAddAnswer(true)} style={{opacity:selectedMember?1:0.45}}>
+        <button className="home-add-btn" onClick={()=>{setShowAddAnswer(true);setPendingOptionId(null);}}>
           + Add your answer
         </button>
       ) : (
@@ -3617,6 +3626,20 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               </div>
             )}
           </div>
+          {!selectedMember && (
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {members.map(m => (
+                  <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
+                    onClick={()=>setSelectedMember(m)}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Adding as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
           {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
           <div style={{display:'flex',gap:8}}>
             <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer}
