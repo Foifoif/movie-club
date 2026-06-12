@@ -2250,8 +2250,23 @@ async function dbLoadPolls() {
 
 async function dbCreatePoll(question, createdBy) {
   const { data, error } = await sb.from('polls').insert({ question, created_by: createdBy || null, is_active: true }).select().single();
-  if (error) throw error;
+  if (error) {
+    if (error.message && (error.message.includes('schema cache') || error.message.includes("table 'public.polls'"))) {
+      throw new Error("Polls aren't set up yet — run the SQL setup in Supabase first (see code comments).");
+    }
+    throw error;
+  }
   return { ...data, options: [], votes: [] };
+}
+
+async function dbUpdatePollQuestion(pollId, newQuestion) {
+  const { error } = await sb.from('polls').update({ question: newQuestion }).eq('id', pollId);
+  if (error) throw error;
+}
+
+async function dbUpdatePollOption(optionId, newText) {
+  const { error } = await sb.from('poll_options').update({ text: newText }).eq('id', optionId);
+  if (error) throw error;
 }
 
 async function dbClosePoll(pollId) {
@@ -3341,7 +3356,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
 }
 
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
-function PollVoteView({ poll, members, onUpdate }) {
+function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [selectedMember, setSelectedMember] = useState('');
   const [localPoll, setLocalPoll] = useState(poll);
   const [showAddAnswer, setShowAddAnswer] = useState(false);
@@ -3351,7 +3366,15 @@ function PollVoteView({ poll, members, onUpdate }) {
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef(null);
 
-  useEffect(() => { setLocalPoll(poll); }, [poll]);
+  // Edit question
+  const [editingQuestion, setEditingQuestion] = useState(false);
+  const [editedQuestion, setEditedQuestion] = useState(localPoll.question);
+
+  // Edit an option's text
+  const [editingOptionId, setEditingOptionId] = useState(null);
+  const [editedOptionText, setEditedOptionText] = useState('');
+
+  useEffect(() => { setLocalPoll(poll); setEditedQuestion(poll.question); }, [poll]);
 
   const myVote = (localPoll.votes || []).find(v => v.member_name === selectedMember);
   const myOptionId = myVote ? myVote.option_id : null;
@@ -3361,8 +3384,10 @@ function PollVoteView({ poll, members, onUpdate }) {
     voteCount: (localPoll.votes || []).filter(v => v.option_id === opt.id).length
   })).sort((a, b) => b.voteCount - a.voteCount);
 
+  const isCreator = selectedMember && selectedMember === localPoll.created_by;
+
   async function handleVoteForOption(optionId) {
-    if (!selectedMember || submitting) return;
+    if (!selectedMember || submitting || editingOptionId) return;
     setSubmitting(true);
     try {
       await dbVoteForOption(localPoll.id, optionId, selectedMember);
@@ -3373,6 +3398,28 @@ function PollVoteView({ poll, members, onUpdate }) {
       if (onUpdate) onUpdate(updated);
     } catch(e) { console.error(e); }
     setSubmitting(false);
+  }
+
+  async function handleSaveQuestion() {
+    if (!editedQuestion.trim() || editedQuestion === localPoll.question) { setEditingQuestion(false); return; }
+    try {
+      await dbUpdatePollQuestion(localPoll.id, editedQuestion.trim());
+      const updated = { ...localPoll, question: editedQuestion.trim() };
+      setLocalPoll(updated);
+      if (onUpdate) onUpdate(updated);
+    } catch(e) { console.error(e); }
+    setEditingQuestion(false);
+  }
+
+  async function handleSaveOption() {
+    if (!editedOptionText.trim()) { setEditingOptionId(null); return; }
+    try {
+      await dbUpdatePollOption(editingOptionId, editedOptionText.trim());
+      const updated = { ...localPoll, options: localPoll.options.map(o => o.id === editingOptionId ? { ...o, text: editedOptionText.trim() } : o) };
+      setLocalPoll(updated);
+      if (onUpdate) onUpdate(updated);
+    } catch(e) { console.error(e); }
+    setEditingOptionId(null);
   }
 
   async function handleAddAnswer() {
@@ -3407,11 +3454,34 @@ function PollVoteView({ poll, members, onUpdate }) {
 
   return (
     <div className="poll-card">
+      {/* Question row */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:14}}>
-        <div className="poll-question" style={{margin:0,flex:1}}>{localPoll.question}</div>
-        {localPoll.created_by && <span className="poll-asked-by">{localPoll.created_by}</span>}
+        {editingQuestion ? (
+          <div style={{flex:1}}>
+            <input className="form-input" style={{marginBottom:6}} value={editedQuestion}
+              onChange={e=>setEditedQuestion(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter') handleSaveQuestion(); if(e.key==='Escape') setEditingQuestion(false); }}
+              autoFocus />
+            <div style={{display:'flex',gap:6}}>
+              <button className="home-save-btn" style={{padding:'5px 14px'}} onClick={handleSaveQuestion}>Save</button>
+              <button className="home-cancel-btn" onClick={()=>{setEditingQuestion(false);setEditedQuestion(localPoll.question);}}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{flex:1}}>
+            <div className="poll-question" style={{margin:0}}>{localPoll.question}</div>
+            {isCreator && (
+              <button onClick={()=>setEditingQuestion(true)}
+                style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.75rem',color:'var(--blue-mid)',padding:'2px 0',marginTop:2}}>
+                ✏️ Edit question
+              </button>
+            )}
+          </div>
+        )}
+        {localPoll.created_by && !editingQuestion && <span className="poll-asked-by">{localPoll.created_by}</span>}
       </div>
 
+      {/* Member picker */}
       <div className="voter-label">Who are you?</div>
       <div className="voter-grid" style={{marginBottom:16}}>
         {members.map(m => (
@@ -3420,31 +3490,56 @@ function PollVoteView({ poll, members, onUpdate }) {
       </div>
       {!selectedMember && <div className="alert alert-error" style={{marginBottom:10}}>👆 Pick your name to vote</div>}
 
+      {/* Options */}
       {optionsWithCounts.length > 0 && (
         <div style={{marginBottom:12}}>
           {optionsWithCounts.map(opt => {
             const pct = totalVotes ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
             const isMyVote = opt.id === myOptionId;
+            const isEditingThis = editingOptionId === opt.id;
             return (
-              <div key={opt.id}
-                className={`poll-option-btn${isMyVote ? ' poll-option-selected' : ''}`}
-                onClick={() => selectedMember && !submitting && handleVoteForOption(opt.id)}
-                style={{cursor: selectedMember ? 'pointer' : 'default'}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
-                  <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
-                  <span style={{fontSize:'0.78rem',color:'#888',flexShrink:0}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
-                </div>
-                <div className="progress-bar-wrap">
-                  <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
-                </div>
+              <div key={opt.id}>
+                {isEditingThis ? (
+                  <div style={{marginBottom:8}}>
+                    <input className="form-input" style={{marginBottom:6}} value={editedOptionText}
+                      onChange={e=>setEditedOptionText(e.target.value)}
+                      onKeyDown={e=>{ if(e.key==='Enter') handleSaveOption(); if(e.key==='Escape') setEditingOptionId(null); }}
+                      autoFocus />
+                    <div style={{display:'flex',gap:6}}>
+                      <button className="home-save-btn" style={{padding:'5px 14px'}} onClick={handleSaveOption}>Save</button>
+                      <button className="home-cancel-btn" onClick={()=>setEditingOptionId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
+                    style={{cursor:selectedMember&&!submitting?'pointer':'default',marginBottom:8}}
+                    onClick={() => selectedMember && !submitting && handleVoteForOption(opt.id)}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+                      <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                        {isMyVote && selectedMember && (
+                          <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
+                            style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:0,lineHeight:1}}>
+                            ✏️
+                          </button>
+                        )}
+                        <span style={{fontSize:'0.78rem',color:'#888'}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
+                      </div>
+                    </div>
+                    <div className="progress-bar-wrap">
+                      <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
+      {/* Add answer */}
       {!showAddAnswer ? (
-        <button className="home-add-btn" onClick={()=>setShowAddAnswer(true)} style={{opacity: selectedMember?1:0.45}}>
+        <button className="home-add-btn" onClick={()=>setShowAddAnswer(true)} style={{opacity:selectedMember?1:0.45}}>
           + Add your answer
         </button>
       ) : (
@@ -3466,11 +3561,10 @@ function PollVoteView({ poll, members, onUpdate }) {
                       style={{padding:'7px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
                       onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
                       onMouseLeave={e=>e.currentTarget.style.background='white'}
-                      onClick={() => { setNewAnswerText(name + (year ? ` (${year})` : '')); setSearchResults([]); }}>
+                      onClick={() => { setNewAnswerText(name + (year?` (${year})`:''));setSearchResults([]); }}>
                       {img
                         ? <img src={`https://image.tmdb.org/t/p/w92${img}`} style={{width:24,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-                        : <div style={{width:24,height:36,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem'}}>🎬</div>
-                      }
+                        : <div style={{width:24,height:36,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem'}}>🎬</div>}
                       <div>
                         <div style={{fontWeight:600,fontSize:'0.9rem'}}>{name}</div>
                         {year && <div style={{fontSize:'0.72rem',color:'#888'}}>{year}</div>}
@@ -3483,11 +3577,21 @@ function PollVoteView({ poll, members, onUpdate }) {
           </div>
           <div style={{display:'flex',gap:8}}>
             <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer}
-              disabled={!newAnswerText.trim() || !selectedMember || submitting}>
-              {submitting ? '…' : 'Submit Answer'}
+              disabled={!newAnswerText.trim()||!selectedMember||submitting}>
+              {submitting?'…':'Submit Answer'}
             </button>
             <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setSearchResults([]);}}>Cancel</button>
           </div>
+        </div>
+      )}
+
+      {/* Admin delete */}
+      {adminAuthed && (
+        <div style={{borderTop:'1px dashed var(--cream)',marginTop:14,paddingTop:10,textAlign:'right'}}>
+          <button onClick={onDelete}
+            style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.8rem',color:'var(--red)',fontWeight:600}}>
+            Delete poll
+          </button>
         </div>
       )}
     </div>
@@ -3502,8 +3606,36 @@ function PastPollCard({ poll, members, onUpdate }) {
   const [showAddAnswer, setShowAddAnswer] = useState(false);
   const [newAnswerText, setNewAnswerText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(false);
+  const [editedQuestion, setEditedQuestion] = useState(poll.question);
+  const [editingOptionId, setEditingOptionId] = useState(null);
+  const [editedOptionText, setEditedOptionText] = useState('');
 
-  useEffect(() => { setLocalPoll(poll); }, [poll]);
+  useEffect(() => { setLocalPoll(poll); setEditedQuestion(poll.question); }, [poll]);
+
+  const isCreator = selectedMember && selectedMember === localPoll.created_by;
+
+  async function handleSaveQuestion() {
+    if (!editedQuestion.trim() || editedQuestion === localPoll.question) { setEditingQuestion(false); return; }
+    try {
+      await dbUpdatePollQuestion(localPoll.id, editedQuestion.trim());
+      const updated = { ...localPoll, question: editedQuestion.trim() };
+      setLocalPoll(updated);
+      if (onUpdate) onUpdate(updated);
+    } catch(e) { console.error(e); }
+    setEditingQuestion(false);
+  }
+
+  async function handleSaveOption() {
+    if (!editedOptionText.trim()) { setEditingOptionId(null); return; }
+    try {
+      await dbUpdatePollOption(editingOptionId, editedOptionText.trim());
+      const updated = { ...localPoll, options: localPoll.options.map(o => o.id === editingOptionId ? { ...o, text: editedOptionText.trim() } : o) };
+      setLocalPoll(updated);
+      if (onUpdate) onUpdate(updated);
+    } catch(e) { console.error(e); }
+    setEditingOptionId(null);
+  }
 
   const optionsWithCounts = (localPoll.options || []).map(opt => ({
     ...opt,
@@ -3544,13 +3676,34 @@ function PastPollCard({ poll, members, onUpdate }) {
     <div className="movie-rating-card" style={{marginBottom:20}}>
       <div className="rating-card-header" style={{cursor:'pointer'}} onClick={()=>setExpanded(e=>!e)}>
         <div style={{flex:1}}>
-          <div className="rating-movie-title">{localPoll.question}</div>
-          <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2}}>
-            {totalVotes} vote{totalVotes!==1?'s':''}
-            {localPoll.closed_at ? ` · Closed ${new Date(localPoll.closed_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}` : ''}
-          </div>
+          {editingQuestion ? (
+            <div onClick={e=>e.stopPropagation()}>
+              <input className="form-input" style={{marginBottom:4,fontSize:'0.95rem',padding:'6px 10px'}}
+                value={editedQuestion} onChange={e=>setEditedQuestion(e.target.value)}
+                onKeyDown={e=>{ if(e.key==='Enter') handleSaveQuestion(); if(e.key==='Escape') setEditingQuestion(false); }}
+                autoFocus />
+              <div style={{display:'flex',gap:6}}>
+                <button className="home-save-btn" style={{padding:'4px 12px',fontSize:'0.82rem'}} onClick={handleSaveQuestion}>Save</button>
+                <button className="home-cancel-btn" onClick={()=>{setEditingQuestion(false);setEditedQuestion(localPoll.question);}}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rating-movie-title">{localPoll.question}</div>
+              <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2}}>
+                {totalVotes} vote{totalVotes!==1?'s':''}
+                {localPoll.closed_at ? ` · Closed ${new Date(localPoll.closed_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}` : ''}
+                {isCreator && (
+                  <button onClick={e=>{e.stopPropagation();setEditingQuestion(true);}}
+                    style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:'0 0 0 8px'}}>
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
-        {localPoll.created_by && <span className="poll-asked-by" style={{marginRight:6}}>{localPoll.created_by}</span>}
+        {localPoll.created_by && !editingQuestion && <span className="poll-asked-by" style={{marginRight:6}}>{localPoll.created_by}</span>}
         <span style={{fontSize:'0.72rem',color:'#bbb',marginLeft:4}}>{expanded?'▲':'▼'}</span>
       </div>
 
@@ -3559,18 +3712,41 @@ function PastPollCard({ poll, members, onUpdate }) {
           {optionsWithCounts.map((opt, i) => {
             const pct = totalVotes ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
             const isMyVote = opt.id === myOptionId;
+            const isEditingThis = editingOptionId === opt.id;
             return (
-              <div key={opt.id}
-                className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
-                onClick={() => selectedMember && handleVote(opt.id)}
-                style={{cursor:selectedMember?'pointer':'default',marginBottom:8}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                  <span style={{fontWeight:i===0?700:400,fontSize:'0.9rem'}}>{opt.text}</span>
-                  <span style={{fontSize:'0.75rem',color:'#888'}}>{pct}% · {opt.voteCount}</span>
-                </div>
-                <div className="progress-bar-wrap">
-                  <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':i===0?'var(--blue-mid)':'#ccc'}} />
-                </div>
+              <div key={opt.id}>
+                {isEditingThis ? (
+                  <div style={{marginBottom:8}}>
+                    <input className="form-input" style={{marginBottom:4}} value={editedOptionText}
+                      onChange={e=>setEditedOptionText(e.target.value)}
+                      onKeyDown={e=>{ if(e.key==='Enter') handleSaveOption(); if(e.key==='Escape') setEditingOptionId(null); }}
+                      autoFocus />
+                    <div style={{display:'flex',gap:6}}>
+                      <button className="home-save-btn" style={{padding:'5px 12px'}} onClick={handleSaveOption}>Save</button>
+                      <button className="home-cancel-btn" onClick={()=>setEditingOptionId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
+                    onClick={() => selectedMember && handleVote(opt.id)}
+                    style={{cursor:selectedMember?'pointer':'default',marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                      <span style={{fontWeight:i===0?700:400,fontSize:'0.9rem'}}>{opt.text}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                        {isMyVote && selectedMember && (
+                          <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
+                            style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.7rem',color:'var(--blue-mid)',padding:0}}>
+                            ✏️
+                          </button>
+                        )}
+                        <span style={{fontSize:'0.75rem',color:'#888'}}>{pct}% · {opt.voteCount}</span>
+                      </div>
+                    </div>
+                    <div className="progress-bar-wrap">
+                      <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':i===0?'var(--blue-mid)':'#ccc'}} />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -3674,7 +3850,7 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd }) {
+function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
   const [bracketMovies, setBracketMovies] = useState('');
@@ -3738,7 +3914,11 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
           ) : activePoll ? (
-            <PollVoteView poll={activePoll} members={members} onUpdate={onPollUpdate} />
+            <PollVoteView poll={activePoll} members={members} onUpdate={onPollUpdate}
+              adminAuthed={adminAuthed}
+              onDelete={async () => {
+                try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
+              }} />
           ) : (
             <div className="empty-state">
               <div className="empty-icon">🗳️</div>
@@ -4645,6 +4825,7 @@ function App() {
       {page === 'poll' && <PollPage polls={polls} bracket={bracket} members={members}
         onPollUpdate={updatePoll}
         onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
+        onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
         onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />}
       {page === 'bracket' && <BracketReadOnlyPage bracket={bracket} onBack={()=>setPage('poll')} />}
 
