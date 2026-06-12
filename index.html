@@ -3543,41 +3543,43 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                     </div>
                   </div>
                 ) : (
-                  <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
-                    style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
-                    onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-                        {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
-                        <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
+                  <>
+                    <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
+                      style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
+                      onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+                          {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
+                          <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                          {isMyVote && selectedMember && (
+                            <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
+                              style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:0,lineHeight:1}}>
+                              ✏️
+                            </button>
+                          )}
+                          <span style={{fontSize:'0.78rem',color:'#888'}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
+                        </div>
                       </div>
-                      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                        {isMyVote && selectedMember && (
-                          <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
-                            style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:0,lineHeight:1}}>
-                            ✏️
-                          </button>
-                        )}
-                        <span style={{fontSize:'0.78rem',color:'#888'}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
-                      </div>
-                    </div>
-                    <div className="progress-bar-wrap">
-                      <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
-                    </div>
-                  </div>
-                  {pendingOptionId===opt.id && (
-                    <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
-                      <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                        {members.map(m => (
-                          <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
-                            onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
-                            {m}
-                          </button>
-                        ))}
+                      <div className="progress-bar-wrap">
+                        <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
                       </div>
                     </div>
-                  )}
+                    {pendingOptionId===opt.id && (
+                      <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
+                        <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                          {members.map(m => (
+                            <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
+                              onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
