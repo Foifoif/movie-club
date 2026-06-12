@@ -1877,14 +1877,14 @@
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
-    color: var(--blue-mid);
+    color: var(--red);
     cursor: pointer;
     padding: 0 0 16px;
     line-height: 1.4;
     display: block;
   }
 
-  .poll-preview-btn:hover { color: var(--blue-dark); }
+  .poll-preview-btn:hover { color: #a93226; }
 
   .poll-asked-by {
     font-size: 0.72rem;
@@ -3375,6 +3375,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [submitError, setSubmitError] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchYear, setSearchYear] = useState('');
   const searchTimer = useRef(null);
 
   // Edit question
@@ -3443,26 +3444,48 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
       if (onUpdate) onUpdate(updatedPoll);
       setNewAnswerText('');
       setNewAnswerImage('');
+      setSearchYear('');
       setShowAddAnswer(false);
       setSearchResults([]);
     } catch(e) { console.error(e); setSubmitError(e.message || 'Something went wrong'); }
     setSubmitting(false);
   }
 
+  async function doSearch(text, yr) {
+    if (text.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      let items;
+      if (yr && /^\d{4}$/.test(yr.trim())) {
+        // Year specified → movie-only search with year filter
+        const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1&year=${yr.trim()}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        items = (data.results || []).map(r => ({ ...r, media_type: 'movie' })).slice(0, 8);
+      } else {
+        // No year → multi search (movies + people)
+        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1`);
+        const data = await res.json();
+        items = (data.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'person').slice(0, 6);
+      }
+      setSearchResults(items);
+    } catch(e) { console.error(e); }
+    setSearching(false);
+  }
+
   function handleAnswerInput(text) {
     setNewAnswerText(text);
     clearTimeout(searchTimer.current);
     if (text.length < 2) { setSearchResults([]); return; }
-    searchTimer.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1`);
-        const data = await res.json();
-        const items = (data.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'person').slice(0, 6);
-        setSearchResults(items);
-      } catch(e) { console.error(e); }
-      setSearching(false);
-    }, 400);
+    searchTimer.current = setTimeout(() => doSearch(text, searchYear), 400);
+  }
+
+  function handleYearInput(yr) {
+    setSearchYear(yr);
+    clearTimeout(searchTimer.current);
+    if (newAnswerText.length >= 2) {
+      searchTimer.current = setTimeout(() => doSearch(newAnswerText, yr), 400);
+    }
   }
 
   return (
@@ -3565,6 +3588,9 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               onChange={e => handleAnswerInput(e.target.value)}
               placeholder="Type a movie, person, or anything…"
               onKeyDown={e => e.key === 'Enter' && handleAddAnswer()} />
+            <input className="form-input" style={{marginBottom:4,fontSize:'0.88rem',padding:'6px 10px'}}
+              value={searchYear} onChange={e => handleYearInput(e.target.value)}
+              placeholder="Year (optional — helps narrow it down, e.g. 2010)" />
             {searching && <div style={{fontSize:'0.75rem',color:'#999',marginBottom:4}}>Searching…</div>}
             {searchResults.length > 0 && (
               <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',marginBottom:8,overflow:'hidden',position:'relative',zIndex:10}}>
@@ -3597,7 +3623,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               disabled={!newAnswerText.trim()||!selectedMember||submitting}>
               {submitting?'…':'Submit Answer'}
             </button>
-            <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
+            <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchYear('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
           </div>
         </div>
       )}
