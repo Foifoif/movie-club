@@ -3982,29 +3982,16 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
 
       {tab === 'live' && (
         <>
-          {activeBracket ? (
-            <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
-          ) : activePoll ? (
-            <PollVoteView poll={activePoll} members={members} onUpdate={onPollUpdate}
-              adminAuthed={adminAuthed}
-              onDelete={async () => {
-                try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
-              }} />
-          ) : (
-            <div className="empty-state">
-              <div>No active poll yet.</div>
-            </div>
-          )}
-
-          {/* Anyone can ask a question */}
+          {/* Ask a question — always at top when no bracket */}
           {!activeBracket && !showCreatePoll && (
-            <button className="setup-bracket-btn" onClick={()=>setShowCreatePoll(true)}>
+            <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
+              onClick={()=>setShowCreatePoll(true)}>
               + Ask a question
             </button>
           )}
 
           {!activeBracket && showCreatePoll && (
-            <div style={{marginTop:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
+            <div style={{marginBottom:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
               <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Poll</div>
               <div className="voter-label">Who are you?</div>
               <div className="voter-grid" style={{marginBottom:14}}>
@@ -4025,6 +4012,18 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
                 <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setNewPollAsker('');setCreateErr('');}}>Cancel</button>
               </div>
             </div>
+          )}
+
+          {activeBracket ? (
+            <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
+          ) : activePoll ? (
+            <PollVoteView poll={activePoll} members={members} onUpdate={onPollUpdate}
+              adminAuthed={adminAuthed}
+              onDelete={async () => {
+                try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
+              }} />
+          ) : (
+            !showCreatePoll && <div className="empty-state"><div>No active poll yet.</div></div>
           )}
 
           {adminAuthed && !activeBracket && !showBracketSetup && (
