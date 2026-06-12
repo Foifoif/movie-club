@@ -1875,11 +1875,11 @@
     border: none;
     text-align: left;
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 1.15rem;
+    font-weight: 700;
     color: var(--blue-mid);
     cursor: pointer;
-    padding: 2px 0 18px;
+    padding: 0 0 16px;
     line-height: 1.4;
     display: block;
   }
@@ -2300,9 +2300,16 @@ async function dbAddOptionAndVote(pollId, text, memberName, currentPoll, imageUr
   if (existing) {
     optionId = existing.id;
   } else {
-    const { data: newOpt, error } = await sb.from('poll_options')
-      .insert({ poll_id: pollId, text: trimmed, image_url: imageUrl || null }).select().single();
-    if (error) throw error;
+    // Try with image_url first; fall back without it if the column doesn't exist yet
+    let insertPayload = { poll_id: pollId, text: trimmed, image_url: imageUrl || null };
+    let { data: newOpt, error } = await sb.from('poll_options').insert(insertPayload).select().single();
+    if (error && error.message && error.message.includes('image_url')) {
+      const fallback = await sb.from('poll_options').insert({ poll_id: pollId, text: trimmed }).select().single();
+      if (fallback.error) throw fallback.error;
+      newOpt = fallback.data;
+    } else if (error) {
+      throw error;
+    }
     optionId = newOpt.id;
     newOptions = [...newOptions, newOpt];
   }
@@ -2697,12 +2704,12 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   if (!movies || movies.length === 0) {
     return (
       <div className="main">
-        <MovieNightCountdown members={members} />
         {activePoll && (
           <button className="poll-preview-btn" onClick={onPollClick}>
-            🗳️ {activePoll.question}
+            {activePoll.question}
           </button>
         )}
+        <MovieNightCountdown members={members} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -2715,12 +2722,12 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
 
   return (
     <div className="main">
-      <MovieNightCountdown members={members} />
       {activePoll && (
         <button className="poll-preview-btn" onClick={onPollClick}>
-          🗳️ {activePoll.question}
+          {activePoll.question}
         </button>
       )}
+      <MovieNightCountdown members={members} />
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <div className="home-movies-grid">
@@ -3365,6 +3372,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [newAnswerText, setNewAnswerText] = useState('');
   const [newAnswerImage, setNewAnswerImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef(null);
@@ -3428,6 +3436,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   async function handleAddAnswer() {
     if (!selectedMember || !newAnswerText.trim() || submitting) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const { updatedPoll } = await dbAddOptionAndVote(localPoll.id, newAnswerText.trim(), selectedMember, localPoll, newAnswerImage);
       setLocalPoll(updatedPoll);
@@ -3436,7 +3445,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
       setNewAnswerImage('');
       setShowAddAnswer(false);
       setSearchResults([]);
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error(e); setSubmitError(e.message || 'Something went wrong'); }
     setSubmitting(false);
   }
 
@@ -3582,12 +3591,13 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               </div>
             )}
           </div>
+          {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
           <div style={{display:'flex',gap:8}}>
             <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer}
               disabled={!newAnswerText.trim()||!selectedMember||submitting}>
               {submitting?'…':'Submit Answer'}
             </button>
-            <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchResults([]);}}>Cancel</button>
+            <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
           </div>
         </div>
       )}
