@@ -2504,9 +2504,12 @@ function getNearbyHoliday(movieNightDate, windowDays = 4) {
     h.date.setHours(0, 0, 0, 0);
     const diff = Math.round((h.date - mn) / 86400000);
     if (Math.abs(diff) <= windowDays) {
-      if (diff === 0) return `${h.name} is today`;
-      if (diff > 0)  return `${h.name} is in ${diff} day${diff === 1 ? '' : 's'}`;
-      return `${h.name} was ${-diff} day${-diff === 1 ? '' : 's'} ago`;
+      if (diff === 0) return `Movie night falls on ${h.name}!`;
+      const n = Math.abs(diff);
+      const s = n === 1 ? '' : 's';
+      return diff < 0
+        ? `${n} day${s} after ${h.name}`
+        : `${n} day${s} before ${h.name}`;
     }
   }
   return null;
