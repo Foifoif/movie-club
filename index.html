@@ -2459,14 +2459,65 @@ function calcCountdown(target) {
   };
 }
 
+function getNthWeekday(year, month, weekday, n) {
+  if (n > 0) {
+    const d = new Date(year, month, 1);
+    const diff = (weekday - d.getDay() + 7) % 7;
+    return new Date(year, month, 1 + diff + (n - 1) * 7);
+  }
+  const last = new Date(year, month + 1, 0);
+  return new Date(year, month, last.getDate() - (last.getDay() - weekday + 7) % 7);
+}
+
+function getEaster(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(year, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+
+function getNearbyHoliday(movieNightDate, windowDays = 4) {
+  const y = movieNightDate.getFullYear();
+  const mn = new Date(movieNightDate); mn.setHours(0, 0, 0, 0);
+  const holidays = [
+    { name: "New Year's Day",    date: new Date(y, 0, 1) },
+    { name: "MLK Day",           date: getNthWeekday(y, 0, 1, 3) },
+    { name: "Presidents' Day",   date: getNthWeekday(y, 1, 1, 3) },
+    { name: "St. Patrick's Day", date: new Date(y, 2, 17) },
+    { name: "Easter",            date: getEaster(y) },
+    { name: "Memorial Day",      date: getNthWeekday(y, 4, 1, -1) },
+    { name: "Juneteenth",        date: new Date(y, 5, 19) },
+    { name: "July 4th",          date: new Date(y, 6, 4) },
+    { name: "Labor Day",         date: getNthWeekday(y, 8, 1, 1) },
+    { name: "Columbus Day",      date: getNthWeekday(y, 9, 1, 2) },
+    { name: "Halloween",         date: new Date(y, 9, 31) },
+    { name: "Veterans Day",      date: new Date(y, 10, 11) },
+    { name: "Thanksgiving",      date: getNthWeekday(y, 10, 4, 4) },
+    { name: "Christmas Eve",     date: new Date(y, 11, 24) },
+    { name: "Christmas",         date: new Date(y, 11, 25) },
+    { name: "New Year's Eve",    date: new Date(y, 11, 31) },
+    { name: "New Year's Day",    date: new Date(y + 1, 0, 1) },
+  ];
+  for (const h of holidays) {
+    h.date.setHours(0, 0, 0, 0);
+    const diff = Math.round((h.date - mn) / 86400000);
+    if (Math.abs(diff) <= windowDays) {
+      if (diff === 0) return `${h.name} is today`;
+      if (diff > 0)  return `${h.name} is in ${diff} day${diff === 1 ? '' : 's'}`;
+      return `${h.name} was ${-diff} day${-diff === 1 ? '' : 's'} ago`;
+    }
+  }
+  return null;
+}
+
 // ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
 function MovieNightCountdown({ members }) {
-  const [override, setOverride]     = useState(null);
-  const [rsvps,    setRsvps]        = useState([]);
-  const [picker,   setPicker]       = useState(null); // 'going'|'not_going'|null
-  const [tick,     setTick]         = useState(0);
-  const [ready,    setReady]        = useState(false);
-  const [joinUrl,  setJoinUrl]      = useState('');
+  const [override, setOverride] = useState(null);
+  const [tick,     setTick]     = useState(0);
+  const [ready,    setReady]    = useState(false);
+  const [joinUrl,  setJoinUrl]  = useState('');
 
   const eventDate = getNextMovieNight(override);
   const dateStr   = eventDate.toISOString().split('T')[0];
@@ -2477,9 +2528,6 @@ function MovieNightCountdown({ members }) {
       const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
       setOverride(ov);
       setJoinUrl(url || '');
-      const ev = getNextMovieNight(ov);
-      const ds = ev.toISOString().split('T')[0];
-      setRsvps(await dbLoadRSVPs(ds));
       setReady(true);
     })();
   }, []);
@@ -2489,23 +2537,6 @@ function MovieNightCountdown({ members }) {
     const t = setInterval(() => setTick(n => n + 1), 60000);
     return () => clearInterval(t);
   }, []);
-
-  // Auto-roll when event passes
-  useEffect(() => {
-    if (cd.done && ready && !override) {
-      dbLoadRSVPs(dateStr).then(setRsvps);
-    }
-  }, [tick]);
-
-  async function handleRSVP(memberName) {
-    const status = picker;
-    setPicker(null);
-    await dbSaveRSVP(memberName, status, dateStr);
-    setRsvps(await dbLoadRSVPs(dateStr));
-  }
-
-  const going    = rsvps.filter(r => r.status === 'going');
-  const notGoing = rsvps.filter(r => r.status === 'not_going');
 
   const pad = n => String(n).padStart(2, '0');
 
@@ -2532,42 +2563,11 @@ function MovieNightCountdown({ members }) {
         </a>
       )}
 
-      <div className="mn-rsvp-row">
-        <button className={`mn-btn mn-btn-going ${picker==='going'?'mn-btn-active':''}`}
-          onClick={() => setPicker(picker === 'going' ? null : 'going')}>
-          I'm there
-        </button>
-        <button className={`mn-btn mn-btn-not ${picker==='not_going'?'mn-btn-active':''}`}
-          onClick={() => setPicker(picker === 'not_going' ? null : 'not_going')}>
-          Can't Make It :(
-        </button>
-      </div>
-
-      {picker && (
-        <div className="mn-picker">
-          <div className="mn-picker-label">{picker === 'going' ? 'Who\'s coming?' : 'Who can\'t make it?'}</div>
-          <div className="mn-picker-names">
-            {(members || []).map(m => (
-              <button key={m} className="mn-name-btn" onClick={() => handleRSVP(m)}>{m}</button>
-            ))}
-          </div>
+      {(() => { const h = getNearbyHoliday(eventDate); return h ? (
+        <div style={{fontSize:'0.78rem',color:'#999',textAlign:'center',marginTop:8,fontStyle:'italic'}}>
+          {h}
         </div>
-      )}
-
-      {(going.length > 0 || notGoing.length > 0) && (
-        <div className="mn-tracker">
-          {going.length > 0 && (
-            <span className="mn-tracker-going">
-              <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
-            </span>
-          )}
-          {notGoing.length > 0 && (
-            <span className="mn-tracker-not">
-              :( <strong>{notGoing.length}</strong> can't make it
-            </span>
-          )}
-        </div>
-      )}
+      ) : null; })()}
     </div>
   );
 }
