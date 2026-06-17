@@ -978,77 +978,13 @@
     cursor: pointer;
   }
   .mn-join-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-  .mn-rsvp-row {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 10px;
-  }
-  .mn-btn {
-    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 0.88rem;
-    font-weight: 700;
-    padding: 8px 16px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all 0.15s;
-    border: 2px solid transparent;
-  }
-  .mn-btn-going {
-    background: var(--blue-mid);
-    color: white;
-    border-color: var(--blue-mid);
-  }
-  .mn-btn-going:hover, .mn-btn-going.mn-btn-active { filter: brightness(1.1); box-shadow: 0 2px 8px rgba(93,172,212,0.4); }
-  .mn-btn-not {
-    background: white;
-    color: var(--ink);
-    border-color: #ccc;
-  }
-  .mn-btn-not:hover, .mn-btn-not.mn-btn-active { border-color: var(--ink); }
-  .mn-picker {
-    background: #f5f2ea;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-  }
-  .mn-picker-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #7a6e58;
-    margin-bottom: 8px;
-  }
-  .mn-picker-names {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-  }
-  .mn-name-btn {
-    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 0.84rem;
-    font-weight: 600;
-    padding: 5px 14px;
-    border: 1.5px solid #ccc;
-    border-radius: 999px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .mn-name-btn:hover { border-color: var(--blue-mid); color: var(--blue-mid); }
-  .mn-tracker {
-    display: flex;
-    justify-content: center;
-    gap: 14px;
-    font-size: 0.9rem;
+  .mn-holiday-note {
+    font-size: 0.78rem;
+    color: var(--blue-mid);
     margin-top: 4px;
-    flex-wrap: wrap;
+    margin-bottom: 12px;
+    font-weight: 600;
   }
-  .mn-tracker-going { color: var(--ink); }
-  .mn-tracker-not   { color: #aaa; }
-  .mn-tracker strong { font-size: 1rem; }
 
   /* FOOTER LOGO */
   .footer-logo-section {
@@ -2468,52 +2404,49 @@ function calcCountdown(target) {
 }
 
 // ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
-function MovieNightCountdown({ members }) {
-  const [override, setOverride]     = useState(null);
-  const [rsvps,    setRsvps]        = useState([]);
-  const [picker,   setPicker]       = useState(null); // 'going'|'not_going'|null
-  const [tick,     setTick]         = useState(0);
-  const [ready,    setReady]        = useState(false);
-  const [joinUrl,  setJoinUrl]      = useState('');
+function getNearbyHoliday(date) {
+  var y = date.getFullYear();
+  var fixed = [
+    [0,  1,  "New Year's Day",    "🎉"],
+    [1,  14, "Valentine's Day",   "❤️"],
+    [2,  17, "St. Patrick's Day", "☘️"],
+    [6,  4,  "Independence Day",  "🎆"],
+    [9,  31, "Halloween",         "🎃"],
+    [11, 25, "Christmas",         "🎄"],
+    [11, 31, "New Year's Eve",    "🥂"],
+  ];
+  for (var i = 0; i < fixed.length; i++) {
+    var h = new Date(y, fixed[i][0], fixed[i][1]);
+    if (Math.abs(date - h) / 864e5 <= 5) return fixed[i][3] + ' Near ' + fixed[i][2];
+  }
+  // Thanksgiving: 4th Thursday of November
+  var nov1 = new Date(y, 10, 1);
+  var tgiving = new Date(y, 10, 1 + (4 - nov1.getDay() + 7) % 7 + 21);
+  if (Math.abs(date - tgiving) / 864e5 <= 5) return '🦃 Near Thanksgiving';
+  return null;
+}
 
-  const eventDate = getNextMovieNight(override);
-  const dateStr   = eventDate.toISOString().split('T')[0];
-  const cd        = calcCountdown(eventDate);
+function MovieNightCountdown() {
+  const [override, setOverride] = useState(null);
+  const [tick,     setTick]     = useState(0);
+  const [joinUrl,  setJoinUrl]  = useState('');
+
+  const eventDate   = getNextMovieNight(override);
+  const cd          = calcCountdown(eventDate);
+  const holidayNote = getNearbyHoliday(eventDate);
 
   useEffect(() => {
     (async () => {
       const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
       setOverride(ov);
       setJoinUrl(url || '');
-      const ev = getNextMovieNight(ov);
-      const ds = ev.toISOString().split('T')[0];
-      setRsvps(await dbLoadRSVPs(ds));
-      setReady(true);
     })();
   }, []);
 
-  // 1-minute tick to keep countdown live
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 60000);
     return () => clearInterval(t);
   }, []);
-
-  // Auto-roll when event passes
-  useEffect(() => {
-    if (cd.done && ready && !override) {
-      dbLoadRSVPs(dateStr).then(setRsvps);
-    }
-  }, [tick]);
-
-  async function handleRSVP(memberName) {
-    const status = picker;
-    setPicker(null);
-    await dbSaveRSVP(memberName, status, dateStr);
-    setRsvps(await dbLoadRSVPs(dateStr));
-  }
-
-  const going    = rsvps.filter(r => r.status === 'going');
-  const notGoing = rsvps.filter(r => r.status === 'not_going');
 
   const pad = n => String(n).padStart(2, '0');
 
@@ -2534,47 +2467,12 @@ function MovieNightCountdown({ members }) {
         </div>
       )}
 
+      {holidayNote && <div className="mn-holiday-note">{holidayNote}</div>}
+
       {(cd.days === 0 || cd.done) && joinUrl && (
         <a className="mn-join-btn" href={joinUrl} target="_blank" rel="noopener noreferrer">
           🎬 Join Movie "Night"
         </a>
-      )}
-
-      <div className="mn-rsvp-row">
-        <button className={`mn-btn mn-btn-going ${picker==='going'?'mn-btn-active':''}`}
-          onClick={() => setPicker(picker === 'going' ? null : 'going')}>
-          I'm there
-        </button>
-        <button className={`mn-btn mn-btn-not ${picker==='not_going'?'mn-btn-active':''}`}
-          onClick={() => setPicker(picker === 'not_going' ? null : 'not_going')}>
-          Can't Make It :(
-        </button>
-      </div>
-
-      {picker && (
-        <div className="mn-picker">
-          <div className="mn-picker-label">{picker === 'going' ? 'Who\'s coming?' : 'Who can\'t make it?'}</div>
-          <div className="mn-picker-names">
-            {(members || []).map(m => (
-              <button key={m} className="mn-name-btn" onClick={() => handleRSVP(m)}>{m}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(going.length > 0 || notGoing.length > 0) && (
-        <div className="mn-tracker">
-          {going.length > 0 && (
-            <span className="mn-tracker-going">
-              <strong>{going.length}</strong> {going.length === 1 ? 'person' : 'people'} will be there
-            </span>
-          )}
-          {notGoing.length > 0 && (
-            <span className="mn-tracker-not">
-              :( <strong>{notGoing.length}</strong> can't make it
-            </span>
-          )}
-        </div>
       )}
     </div>
   );
