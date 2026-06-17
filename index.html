@@ -2660,7 +2660,6 @@ function MovieNightCountdown() {
 
   const eventDate   = getNextMovieNight(override);
   const cd          = calcCountdown(eventDate);
-  const holidayNote = getNearbyHoliday(eventDate);
 
   useEffect(() => {
     (async () => {
@@ -2693,8 +2692,6 @@ function MovieNightCountdown() {
           <div className="mn-unit"><span className="mn-val">{pad(cd.minutes)}</span><span className="mn-lbl">min</span></div>
         </div>
       )}
-
-      {holidayNote && <div className="mn-holiday-note">{holidayNote}</div>}
 
       {(cd.days === 0 || cd.done) && joinUrl && (
         <a className="mn-join-btn" href={joinUrl} target="_blank" rel="noopener noreferrer">
@@ -5240,7 +5237,7 @@ function App() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+
   const [scrolled, setScrolled] = useState(false);
   const [footerVisible, setFooterVisible] = useState(false);
   const footerRef = useRef(null);
@@ -5368,22 +5365,14 @@ function App() {
         </div>
       </div>
 
-      {fabMenuOpen && (
-        <>
-          <div style={{position:'fixed',inset:0,zIndex:198}} onClick={() => setFabMenuOpen(false)} />
-          <div className="fab-menu-popup" style={{position:'fixed',bottom:84,right:20,zIndex:199}}>
-            <button className="fab-menu-option" onClick={() => { setFabMenuOpen(false); setPage('watchlist'); }}>
-              🎬 Watch List
-            </button>
-            <button className="fab-menu-option" onClick={() => { setFabMenuOpen(false); handleAdminClick(); }}>
-              ⚙️ Admin
-            </button>
-          </div>
-        </>
-      )}
-      <button className="fab" onClick={() => setFabMenuOpen(f => !f)} title="Menu">
+      <div style={{textAlign:'center', paddingBottom:48}}>
+        <button style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:'0.75rem',padding:'6px 16px',letterSpacing:'0.5px'}}
+          onClick={handleAdminClick}>admin</button>
+      </div>
+
+      <button className="fab" onClick={() => setPage('watchlist')} title="Watch List">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          <path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/>
         </svg>
       </button>
 
