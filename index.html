@@ -1805,34 +1805,39 @@
     border-color: var(--blue-mid) !important;
   }
 
-  .poll-preview-btn {
-    width: 100%;
-    background: none;
-    border: none;
-    text-align: left;
-    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--red);
-    cursor: pointer;
-    padding: 0 0 16px;
-    line-height: 1.4;
+  .poll-card {
     display: block;
+    width: 100%;
+    background: white;
+    border: 2px solid var(--red);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    box-shadow: 4px 4px 0 var(--yellow);
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+    box-sizing: border-box;
   }
-
-  .poll-preview-btn:hover { color: #a93226; }
-
-  .poll-asked-by {
-    font-size: 0.72rem;
+  .poll-card:hover { filter: brightness(0.97); transform: translateY(-1px); }
+  .poll-card-label {
+    font-size: 0.65rem;
     font-weight: 700;
-    background: var(--cream);
-    border: 1.5px solid #ddd;
-    border-radius: 999px;
-    padding: 3px 10px;
-    white-space: nowrap;
-    color: #7a6e58;
-    flex-shrink: 0;
-    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--red);
+    margin-bottom: 4px;
+  }
+  .poll-card-question {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+  .poll-card-asker {
+    font-size: 0.72rem;
+    color: #aaa;
+    margin-top: 5px;
   }
 
   .setup-bracket-btn {
@@ -2406,6 +2411,18 @@ function calcCountdown(target) {
 // ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
 function getNearbyHoliday(date) {
   var y = date.getFullYear();
+  var DAYS = 7;
+  var near = function(h) { return Math.abs(date - h) / 864e5 <= DAYS; };
+  var nthWeekday = function(yr, mo, wday, n) {
+    var d = new Date(yr, mo, 1);
+    var first = (wday - d.getDay() + 7) % 7;
+    return new Date(yr, mo, 1 + first + (n - 1) * 7);
+  };
+  var lastMonday = function(yr, mo) {
+    var last = new Date(yr, mo + 1, 0);
+    return new Date(yr, mo, last.getDate() - (last.getDay() === 0 ? 6 : last.getDay() - 1));
+  };
+
   var fixed = [
     [0,  1,  "New Year's Day",    "🎉"],
     [1,  14, "Valentine's Day",   "❤️"],
@@ -2416,13 +2433,13 @@ function getNearbyHoliday(date) {
     [11, 31, "New Year's Eve",    "🥂"],
   ];
   for (var i = 0; i < fixed.length; i++) {
-    var h = new Date(y, fixed[i][0], fixed[i][1]);
-    if (Math.abs(date - h) / 864e5 <= 5) return fixed[i][3] + ' Near ' + fixed[i][2];
+    if (near(new Date(y, fixed[i][0], fixed[i][1]))) return fixed[i][3] + ' Near ' + fixed[i][2];
   }
-  // Thanksgiving: 4th Thursday of November
-  var nov1 = new Date(y, 10, 1);
-  var tgiving = new Date(y, 10, 1 + (4 - nov1.getDay() + 7) % 7 + 21);
-  if (Math.abs(date - tgiving) / 864e5 <= 5) return '🦃 Near Thanksgiving';
+  if (near(nthWeekday(y, 4, 0, 2)))  return "💐 Near Mother's Day";    // 2nd Sun of May
+  if (near(nthWeekday(y, 5, 0, 3)))  return "👨‍👧 Near Father's Day";   // 3rd Sun of Jun
+  if (near(nthWeekday(y, 10, 4, 4))) return "🦃 Near Thanksgiving";    // 4th Thu of Nov
+  if (near(lastMonday(y, 4)))         return "🎖️ Near Memorial Day";    // last Mon of May
+  if (near(nthWeekday(y, 8, 1, 1)))  return "🌿 Near Labor Day";       // 1st Mon of Sep
   return null;
 }
 
@@ -2610,12 +2627,15 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   if (!movies || movies.length === 0) {
     return (
       <div className="main">
+        <MovieNightCountdown />
         {activePoll && (
-          <button className="poll-preview-btn" onClick={onPollClick}>
-            {activePoll.question}
-          </button>
+          <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
+            onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
+            <div className="poll-card-label">Today's Poll</div>
+            <div className="poll-card-question">{activePoll.question}</div>
+            {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
+          </a>
         )}
-        <MovieNightCountdown members={members} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -2628,12 +2648,15 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
 
   return (
     <div className="main">
+      <MovieNightCountdown />
       {activePoll && (
-        <button className="poll-preview-btn" onClick={onPollClick}>
-          {activePoll.question}
-        </button>
+        <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
+          onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
+          <div className="poll-card-label">Today's Poll</div>
+          <div className="poll-card-question">{activePoll.question}</div>
+          {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
+        </a>
       )}
-      <MovieNightCountdown members={members} />
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <div className="home-movies-grid">
@@ -3889,7 +3912,7 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
       {tab === 'live' && (
         <>
           {/* Ask a question — always at top when no bracket */}
-          {!activeBracket && !showCreatePoll && (
+          {!activeBracket && !activePoll && !showCreatePoll && (
             <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
               onClick={()=>setShowCreatePoll(true)}>
               + Ask a question
@@ -4674,11 +4697,15 @@ function LoginPage({ onLogin, onClose }) {
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
+function slugify(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);
+}
+
 function pageFromPath() {
   const p = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
   if (p === 'ratings') return 'ratings';
-  if (p === 'poll') return 'poll';
-  if (p === 'bracket') return 'bracket'; // full read-only bracket view
+  if (p === 'poll' || p.startsWith('poll/')) return 'poll';
+  if (p === 'bracket') return 'bracket';
   return 'home';
 }
 
@@ -4706,7 +4733,7 @@ function App() {
   function setPage(newPage) {
     const path = newPage === 'home' ? '/' : `/${newPage}`;
     window.history.pushState(null, '', path);
-    _setPage(newPage);
+    _setPage(newPage.split('/')[0]);
   }
 
   useEffect(() => {
@@ -4795,7 +4822,7 @@ function App() {
       </header>
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
-        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} />}
+        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <PollBoundary>
         <PollPage polls={polls} bracket={bracket} members={members}
