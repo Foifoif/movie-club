@@ -1917,7 +1917,25 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<script>
+window.onerror = function() {
+  document.getElementById('root').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;font-family:sans-serif">' +
+    '<div><div style="font-size:2.5rem;margin-bottom:16px">🎬</div>' +
+    '<div style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Sorry yall! Site\'s a lil sick.</div>' +
+    '<div style="font-size:0.9rem;color:#888">Let Ali know and check back soon</div></div></div>';
+};
+</script>
+
+<div id="root">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;font-family:sans-serif">
+    <div>
+      <div style="font-size:2.5rem;margin-bottom:16px">🎬</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Sorry yall! Site's a lil sick.</div>
+      <div style="font-size:0.9rem;color:#888">Let Ali know and check back soon</div>
+    </div>
+  </div>
+</div>
 
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
@@ -2500,16 +2518,16 @@ function getNearbyHoliday(movieNightDate, windowDays = 4) {
     { name: "New Year's Eve",    date: new Date(y, 11, 31) },
     { name: "New Year's Day",    date: new Date(y + 1, 0, 1) },
   ];
-  for (const h of holidays) {
-    h.date.setHours(0, 0, 0, 0);
-    const diff = Math.round((h.date - mn) / 86400000);
+  for (var i = 0; i < holidays.length; i++) {
+    holidays[i].date.setHours(0, 0, 0, 0);
+    var diff = Math.round((holidays[i].date - mn) / 86400000);
     if (Math.abs(diff) <= windowDays) {
-      if (diff === 0) return `Movie night falls on ${h.name}!`;
-      const n = Math.abs(diff);
-      const s = n === 1 ? '' : 's';
+      if (diff === 0) return 'Movie night falls on ' + holidays[i].name + '!';
+      var n = Math.abs(diff);
+      var s = n === 1 ? '' : 's';
       return diff < 0
-        ? `${n} day${s} after ${h.name}`
-        : `${n} day${s} before ${h.name}`;
+        ? n + ' day' + s + ' after ' + holidays[i].name
+        : n + ' day' + s + ' before ' + holidays[i].name;
     }
   }
   return null;
