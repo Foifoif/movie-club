@@ -2468,7 +2468,7 @@ async function dbRecalcAvg(movieId) {
   return rounded;
 }
 
-async function dbAddHistoryMovie({ title, year, description, poster, movieType }) {
+async function dbAddHistoryMovie({ title, year, description, poster, movieType, sessionTheme }) {
   const now = new Date();
   const shownMonth = now.toLocaleString('default', { month: 'long', year: 'numeric' });
   // Use accent color to encode type — no extra DB column needed:
@@ -2479,6 +2479,7 @@ async function dbAddHistoryMovie({ title, year, description, poster, movieType }
     title, year: year || null, description: description || null,
     poster: poster || null, streaming: [], accent,
     rating_scale: '', archived: true, avg_score: null,
+    session_theme: sessionTheme || null,
   };
   // Add shown_month only if the column exists (graceful degradation)
   try { row.shown_month = shownMonth; } catch(_) {}
@@ -2901,6 +2902,7 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [movieType, setMovieType] = useState('impromptu');
+  const [sessionTheme, setSessionTheme] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -2911,13 +2913,13 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
       const row = await dbAddHistoryMovie({
         title: selected.title, year: selected.year,
         description: selected.description, poster: selected.poster,
-        movieType,
+        movieType, sessionTheme: movieType === 'official' ? sessionTheme : '',
       });
       onAdd({
         id: row.id, title: row.title, year: row.year,
         ratingScale: '', avgScore: null, poster: row.poster || null,
         theme: '', month: row.shownMonth || '',
-        sessionTheme: '', movieType,
+        sessionTheme: movieType === 'official' ? sessionTheme : '', movieType,
       });
     } catch(e) { setErr('Failed to add: ' + e.message); }
     setSaving(false);
@@ -2949,6 +2951,14 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
         <button className={`type-btn ${movieType==='impromptu'?'type-impromptu-active':''}`}
           onClick={() => setMovieType('impromptu')}>🟡 Impromptu</button>
       </div>
+      {movieType === 'official' && (
+        <>
+          <label className="form-label" style={{color:'var(--ink)',marginTop:10}}>Session Theme (optional)</label>
+          <input className="form-input" style={{marginBottom:0,fontSize:'0.95rem',padding:'8px 10px'}}
+            value={sessionTheme} onChange={e => setSessionTheme(e.target.value)}
+            placeholder="e.g. Difficult Moms, Heist, Gaslighting…" />
+        </>
+      )}
       {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{err}</div>}
       <div style={{display:'flex',gap:8,marginTop:12}}>
         <button className="home-save-btn" onClick={handleSubmit}
