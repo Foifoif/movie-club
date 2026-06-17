@@ -4902,8 +4902,8 @@ function App() {
         </nav>
       </header>
 
-      {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
-        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} />}
+      {page === 'home' && <SectionBoundary><HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
+        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} /></SectionBoundary>}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <SectionBoundary><PollPage polls={polls} bracket={bracket} members={members}
         onPollUpdate={updatePoll}
@@ -4952,10 +4952,10 @@ class ErrorBoundary extends React.Component {
           <div style={{fontSize:'1.15rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
           <div style={{fontSize:'0.95rem',color:'#888',marginBottom:16}}>Let Ali know and check back soon</div>
           {this.state.error && (
-            <details style={{fontSize:'0.72rem',textAlign:'left'}}>
-              <summary style={{cursor:'pointer',color:'#aaa'}}>Error details (share with Ali)</summary>
-              <pre style={{marginTop:8,whiteSpace:'pre-wrap',wordBreak:'break-word',color:'#aaa',background:'#f8f8f8',padding:8,borderRadius:4}}>{String(this.state.error)}</pre>
-            </details>
+            <div style={{fontSize:'0.72rem',textAlign:'left',maxWidth:360,background:'#f5f5f5',borderRadius:6,padding:'8px 10px',marginTop:4,wordBreak:'break-all'}}>
+              <div style={{fontWeight:700,color:'#555',marginBottom:4}}>Error (share with Ali):</div>
+              <div style={{color:'#333',fontFamily:'monospace'}}>{String(this.state.error)}</div>
+            </div>
           )}
         </div>
       </div>
@@ -4970,13 +4970,12 @@ class SectionBoundary extends React.Component {
   componentDidCatch(err, info) { console.error('Section crash:', err, info); }
   render() {
     if (this.state.crashed) return (
-      <div style={{padding:'12px 16px',textAlign:'center',color:'#999',fontSize:'0.82rem',fontStyle:'italic',border:'1px dashed #ddd',borderRadius:8,margin:'8px 0'}}>
-        <div>This section hit an error.</div>
+      <div style={{padding:'12px 16px',textAlign:'center',border:'1px dashed #ddd',borderRadius:8,margin:'8px 0'}}>
+        <div style={{fontSize:'0.85rem',color:'#666',marginBottom:6}}>This section hit an error.</div>
         {this.state.error && (
-          <details style={{marginTop:6,fontSize:'0.7rem',textAlign:'left'}}>
-            <summary style={{cursor:'pointer'}}>details</summary>
-            <pre style={{marginTop:4,whiteSpace:'pre-wrap',wordBreak:'break-word',color:'#bbb'}}>{String(this.state.error)}</pre>
-          </details>
+          <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:4,padding:'6px 8px',color:'#333',fontFamily:'monospace',wordBreak:'break-all'}}>
+            {String(this.state.error)}
+          </div>
         )}
       </div>
     );
