@@ -4941,42 +4941,41 @@ function App() {
 }
 
 class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false, error: null }; }
-  static getDerivedStateFromError(err) { return { crashed: true, error: err }; }
-  componentDidCatch(err, info) { console.error('App crash:', err, info); }
+  constructor(props) { super(props); this.state = { crashed: false }; this._err = null; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  componentDidCatch(err, info) { this._err = err; console.error('App crash:', err, info); }
   render() {
-    if (this.state.crashed) return (
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:24,textAlign:'center'}}>
-        <div style={{maxWidth:400}}>
-          <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={e=>e.currentTarget.style.display='none'} alt="" />
-          <div style={{fontSize:'1.15rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
-          <div style={{fontSize:'0.95rem',color:'#888',marginBottom:16}}>Let Ali know and check back soon</div>
-          {this.state.error && (
-            <div style={{fontSize:'0.72rem',textAlign:'left',maxWidth:360,background:'#f5f5f5',borderRadius:6,padding:'8px 10px',marginTop:4,wordBreak:'break-all'}}>
+    if (this.state.crashed) {
+      const errText = this._err ? String(this._err) : '(no details)';
+      return (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:24,textAlign:'center'}}>
+          <div style={{maxWidth:400}}>
+            <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={e=>e.currentTarget.style.display='none'} alt="" />
+            <div style={{fontSize:'1.15rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
+            <div style={{fontSize:'0.95rem',color:'#888',marginBottom:16}}>Let Ali know and check back soon</div>
+            <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:6,padding:'8px 10px',wordBreak:'break-all'}}>
               <div style={{fontWeight:700,color:'#555',marginBottom:4}}>Error (share with Ali):</div>
-              <div style={{color:'#333',fontFamily:'monospace'}}>{String(this.state.error)}</div>
+              <div style={{color:'#333',fontFamily:'monospace'}}>{errText}</div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
     return this.props.children;
   }
 }
 
 class SectionBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false, error: null }; }
-  static getDerivedStateFromError(err) { return { crashed: true, error: err }; }
-  componentDidCatch(err, info) { console.error('Section crash:', err, info); }
+  constructor(props) { super(props); this.state = { crashed: false }; this._err = null; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  componentDidCatch(err, info) { this._err = err; console.error('Section crash:', err, info); }
   render() {
     if (this.state.crashed) return (
       <div style={{padding:'12px 16px',textAlign:'center',border:'1px dashed #ddd',borderRadius:8,margin:'8px 0'}}>
         <div style={{fontSize:'0.85rem',color:'#666',marginBottom:6}}>This section hit an error.</div>
-        {this.state.error && (
-          <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:4,padding:'6px 8px',color:'#333',fontFamily:'monospace',wordBreak:'break-all'}}>
-            {String(this.state.error)}
-          </div>
-        )}
+        <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:4,padding:'6px 8px',color:'#333',fontFamily:'monospace',wordBreak:'break-all'}}>
+          {this._err ? String(this._err) : '(no details)'}
+        </div>
       </div>
     );
     return this.props.children;
