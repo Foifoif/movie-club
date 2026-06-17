@@ -4472,12 +4472,43 @@ function WatchedModal({ item, alltime, ratings, members, onClose }) {
 }
 
 function WatchListPage({ members, alltime, ratings }) {
-  const [selectedMember, setSelectedMember] = useState('');
+  const initSlug = useRef((() => {
+    const parts = window.location.pathname.replace(/^\//, '').split('/');
+    return parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : '';
+  })());
+
+  const [selectedMember, _setSelectedMember] = useState('');
   const [list, setList] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [watchedModal, setWatchedModal] = useState(null);
   const [listErr, setListErr] = useState('');
+
+  // Resolve URL slug → actual member name once members list loads
+  useEffect(() => {
+    if (!initSlug.current || selectedMember) return;
+    const match = (members || []).find(m => m.toLowerCase() === initSlug.current);
+    if (match) _setSelectedMember(match);
+  }, [members]);
+
+  // Sync back when browser navigates (back/forward)
+  useEffect(() => {
+    function onPop() {
+      const parts = window.location.pathname.replace(/^\//, '').split('/');
+      const slug = parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : '';
+      const match = slug ? (members || []).find(m => m.toLowerCase() === slug) || '' : '';
+      _setSelectedMember(match);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [members]);
+
+  function selectMember(name) {
+    const next = selectedMember === name ? '' : name;
+    _setSelectedMember(next);
+    window.history.pushState(null, '', next ? `/watchlist/${next.toLowerCase()}` : '/watchlist');
+    if (!next) setShowAddForm(false);
+  }
 
   useEffect(() => {
     if (!selectedMember) { setList([]); return; }
@@ -4516,7 +4547,7 @@ function WatchListPage({ members, alltime, ratings }) {
         {(members || []).map(m => (
           <button key={m}
             className={`wl-member-btn ${selectedMember === m ? 'active' : ''}`}
-            onClick={() => { setSelectedMember(prev => prev === m ? '' : m); setShowAddForm(false); }}>
+            onClick={() => selectMember(m)}>
             {m}
           </button>
         ))}
@@ -5167,7 +5198,7 @@ function pageFromPath() {
   if (p === 'ratings') return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket') return 'bracket';
-  if (p === 'watchlist') return 'watchlist';
+  if (p === 'watchlist' || p.startsWith('watchlist/')) return 'watchlist';
   return 'home';
 }
 
