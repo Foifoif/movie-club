@@ -4937,20 +4937,26 @@ function App() {
 }
 
 class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false }; this._err = null; }
-  static getDerivedStateFromError() { return { crashed: true }; }
-  componentDidCatch(err) { this._err = err; this.forceUpdate(); }
+  constructor(props) { super(props); this.state = { crashed: false, errorMsg: null }; }
+  static getDerivedStateFromError(err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    return { crashed: true, errorMsg: msg };
+  }
+  componentDidCatch(err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    if (!this.state.errorMsg) this.setState({ errorMsg: msg });
+  }
   render() {
     if (!this.state.crashed) return this.props.children;
-    const msg = this._err ? String(this._err.message || this._err) : 'Unknown error';
+    const msg = this.state.errorMsg || 'Unknown error';
     return (
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',textAlign:'center',fontFamily:'sans-serif'}}>
         <div>
-          <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={e=>e.target.style.display='none'} alt="" />
+          <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={function(e){e.target.style.display='none';}} alt="" />
           <div style={{fontSize:'1.1rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
           <div style={{fontSize:'0.9rem',color:'#888',marginBottom:12}}>Let Ali know and check back soon</div>
-          <details style={{fontSize:'0.75rem',color:'#aaa',maxWidth:400,textAlign:'left'}}>
-            <summary style={{cursor:'pointer'}}>Error details</summary>
+          <details style={{fontSize:'0.75rem',color:'#aaa',maxWidth:400,textAlign:'left',cursor:'pointer'}}>
+            <summary>Error details</summary>
             <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-all',marginTop:8}}>{msg}</pre>
           </details>
         </div>
@@ -4960,17 +4966,23 @@ class ErrorBoundary extends React.Component {
 }
 
 class PollBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false }; this._err = null; }
-  static getDerivedStateFromError() { return { crashed: true }; }
-  componentDidCatch(err) { this._err = err; this.forceUpdate(); }
+  constructor(props) { super(props); this.state = { crashed: false, errorMsg: null }; }
+  static getDerivedStateFromError(err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    return { crashed: true, errorMsg: msg };
+  }
+  componentDidCatch(err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    if (!this.state.errorMsg) this.setState({ errorMsg: msg });
+  }
   render() {
     if (!this.state.crashed) return this.props.children;
-    const msg = this._err ? String(this._err.message || this._err) : 'Unknown error';
+    const msg = this.state.errorMsg || 'Unknown error';
     return (
       <div style={{padding:'2rem',textAlign:'center',color:'#888'}}>
         <div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div>
-        <details style={{fontSize:'0.75rem',maxWidth:400,margin:'0 auto',textAlign:'left'}}>
-          <summary style={{cursor:'pointer'}}>Error details</summary>
+        <details style={{fontSize:'0.75rem',maxWidth:400,margin:'0 auto',textAlign:'left',cursor:'pointer'}}>
+          <summary>Error details</summary>
           <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-all',marginTop:8}}>{msg}</pre>
         </details>
       </div>
