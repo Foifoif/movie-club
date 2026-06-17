@@ -2542,6 +2542,8 @@ function MovieNightCountdown({ members }) {
   }, []);
 
   const pad = n => String(n).padStart(2, '0');
+  let holidayNote = null;
+  try { holidayNote = getNearbyHoliday(eventDate); } catch(e) {}
 
   return (
     <div className="mn-card">
@@ -2566,11 +2568,11 @@ function MovieNightCountdown({ members }) {
         </a>
       )}
 
-      {(() => { const h = getNearbyHoliday(eventDate); return h ? (
+      {holidayNote && (
         <div style={{fontSize:'0.78rem',color:'#999',textAlign:'center',marginTop:8,fontStyle:'italic'}}>
-          {h}
+          {holidayNote}
         </div>
-      ) : null; })()}
+      )}
     </div>
   );
 }
@@ -3573,7 +3575,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                       <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
                         <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                          {members.map(m => (
+                          {(members || []).map(m => (
                             <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
                               onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
                               {m}
@@ -3635,7 +3637,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
             <div style={{marginBottom:10}}>
               <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {members.map(m => (
+                {(members || []).map(m => (
                   <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
                     onClick={()=>setSelectedMember(m)}>
                     {m}
