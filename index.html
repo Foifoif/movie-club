@@ -1900,6 +1900,8 @@
   }
   .wl-member-btn:hover { border-color: var(--red); color: var(--red); }
   .wl-member-btn.active { background: var(--red); border-color: var(--red); color: white; }
+  .wl-member-btn.has-items { border-color: #e8a87c; background: #fff8f3; color: #c17a3a; }
+  .wl-member-btn.has-items:hover { border-color: var(--red); color: var(--red); }
 
   .wl-add-btn {
     width: 100%;
@@ -4482,6 +4484,13 @@ function WatchListPage({ members, alltime, ratings }) {
   const [listErr, setListErr] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [descs, setDescs] = useState({});
+  const [membersWithItems, setMembersWithItems] = useState(new Set());
+
+  useEffect(() => {
+    dbLoadWatchlist()
+      .then(all => setMembersWithItems(new Set(all.filter(i => !i.watched).map(i => i.member_name))))
+      .catch(() => {});
+  }, []);
 
   async function fetchDesc(item) {
     if (descs[item.id] !== undefined) return;
@@ -4547,7 +4556,11 @@ function WatchListPage({ members, alltime, ratings }) {
   }
 
   async function handleRemove(item) {
+    const remaining = list.filter(i => i.id !== item.id && !i.watched);
     setList(prev => prev.filter(i => i.id !== item.id));
+    if (remaining.length === 0) {
+      setMembersWithItems(prev => { const s = new Set(prev); s.delete(selectedMember); return s; });
+    }
     try { await dbRemoveFromWatchlist(item.id); } catch(e) { console.error(e); }
   }
 
@@ -4566,7 +4579,7 @@ function WatchListPage({ members, alltime, ratings }) {
       <div className="wl-member-grid">
         {(members || []).map(m => (
           <button key={m}
-            className={`wl-member-btn ${selectedMember === m ? 'active' : ''}`}
+            className={`wl-member-btn ${selectedMember === m ? 'active' : membersWithItems.has(m) ? 'has-items' : ''}`}
             onClick={() => selectMember(m)}>
             {m}
           </button>
@@ -4577,7 +4590,7 @@ function WatchListPage({ members, alltime, ratings }) {
         <>
           {showAddForm
             ? <WatchListAddForm memberName={selectedMember}
-                onAdd={item => { setList(prev => [...prev, item]); setShowAddForm(false); }}
+                onAdd={item => { setList(prev => [...prev, item]); setShowAddForm(false); setMembersWithItems(prev => new Set([...prev, selectedMember])); }}
                 onCancel={() => setShowAddForm(false)} />
             : <button className="wl-add-btn" onClick={() => setShowAddForm(true)}>＋ Add a movie</button>
           }
