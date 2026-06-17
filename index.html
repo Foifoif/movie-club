@@ -4931,7 +4931,25 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { crashed: false }; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  componentDidCatch(err, info) { console.error('App crash:', err, info); }
+  render() {
+    if (this.state.crashed) return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:24,textAlign:'center'}}>
+        <div>
+          <div style={{fontSize:'2.5rem',marginBottom:16}}>🎬</div>
+          <div style={{fontSize:'1.15rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
+          <div style={{fontSize:'0.95rem',color:'#888'}}>Let Ali know and check back soon</div>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
 </body>
 </html>
