@@ -4483,6 +4483,29 @@ function WatchListPage({ members, alltime, ratings }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [watchedModal, setWatchedModal] = useState(null);
   const [listErr, setListErr] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [descs, setDescs] = useState({});
+
+  async function fetchDesc(item) {
+    if (descs[item.id] !== undefined) return;
+    setDescs(prev => ({ ...prev, [item.id]: null }));
+    try {
+      let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(item.title)}&language=en-US&page=1`;
+      if (item.year) url += `&year=${item.year}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const first = (data.results || [])[0];
+      setDescs(prev => ({ ...prev, [item.id]: first?.overview || '' }));
+    } catch(e) {
+      setDescs(prev => ({ ...prev, [item.id]: '' }));
+    }
+  }
+
+  function toggleExpand(item) {
+    const next = expandedId === item.id ? null : item.id;
+    setExpandedId(next);
+    if (next !== null) fetchDesc(item);
+  }
 
   // Resolve URL slug → actual member name once members list loads
   useEffect(() => {
@@ -4567,17 +4590,19 @@ function WatchListPage({ members, alltime, ratings }) {
 
           {!loadingList && !listErr && sorted.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon">🎬</div>
               <div>{selectedMember}'s watch list is empty.<br/>Add some movies above!</div>
             </div>
           )}
 
           {sorted.map(item => {
-            const isReally  = item.urgency === 'really' && !item.watched;
-            const isWatched = item.watched;
+            const isReally   = item.urgency === 'really' && !item.watched;
+            const isWatched  = item.watched;
+            const isExpanded = expandedId === item.id;
             return (
               <div key={item.id}
-                className={`wl-item${isReally?' wl-item-really':''}${isWatched?' wl-item-watched':''}`}>
+                className={`wl-item${isReally?' wl-item-really':''}${isWatched?' wl-item-watched':''}`}
+                style={{flexWrap:'wrap', cursor:'pointer'}}
+                onClick={() => toggleExpand(item)}>
                 {item.poster
                   ? <img src={item.poster} className="wl-poster" alt="" />
                   : <div className="wl-poster-placeholder">🎬</div>}
@@ -4588,12 +4613,20 @@ function WatchListPage({ members, alltime, ratings }) {
                     {isWatched ? 'Watched' : isReally ? 'REALLY want' : 'Want to watch'}
                   </span>
                 </div>
-                <div className="wl-actions">
+                <div className="wl-actions" onClick={e => e.stopPropagation()}>
                   {!isWatched && (
                     <button className="wl-btn wl-btn-watched" onClick={() => handleWatched(item)}>Watched</button>
                   )}
                   <button className="wl-btn wl-btn-remove" onClick={() => handleRemove(item)}>Remove</button>
                 </div>
+                {isExpanded && (
+                  <div style={{flexBasis:'100%', padding:'8px 14px 12px', borderTop:'1px solid var(--cream)', fontSize:'0.83rem', color:'#555', lineHeight:1.55, position:'relative', zIndex:1}}>
+                    {descs[item.id] === undefined || descs[item.id] === null
+                      ? <span style={{color:'#bbb'}}>Loading…</span>
+                      : descs[item.id] || <span style={{color:'#bbb'}}>No description available.</span>
+                    }
+                  </div>
+                )}
               </div>
             );
           })}
@@ -5170,7 +5203,7 @@ function LoginPage({ onLogin, onClose }) {
   }
 
   return (
-    <div className="login-wrap">
+    <div className="login-wrap" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="login-card">
         <button className="login-close" onClick={onClose} aria-label="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
