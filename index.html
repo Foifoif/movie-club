@@ -1855,6 +1855,178 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .setup-bracket-btn:hover { border-color: var(--ink); }
+
+  /* FAB MENU */
+  .fab-menu-popup {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 4px 4px 0 var(--yellow);
+    min-width: 152px;
+  }
+  .fab-menu-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+  }
+  .fab-menu-option:hover { background: var(--cream); }
+
+  /* WATCHLIST */
+  .wl-member-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+  .wl-member-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 5px 15px;
+    border: 1.5px solid #ccc;
+    border-radius: 999px;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .wl-member-btn:hover { border-color: var(--red); color: var(--red); }
+  .wl-member-btn.active { background: var(--red); border-color: var(--red); color: white; }
+
+  .wl-add-btn {
+    width: 100%;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 10px;
+    border: 2px dashed var(--red);
+    border-radius: 8px;
+    background: rgba(192,57,43,0.04);
+    color: var(--red);
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: all 0.15s;
+  }
+  .wl-add-btn:hover { background: rgba(192,57,43,0.1); }
+
+  .wl-add-form {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 18px;
+    box-shadow: 4px 4px 0 var(--yellow);
+  }
+  .wl-urgency-picker { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .wl-urgency-opt {
+    flex: 1;
+    padding: 9px 6px;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    background: white;
+    cursor: pointer;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .wl-urgency-want-active  { border-color: var(--blue); background: rgba(142,197,230,0.12); color: var(--blue-dark); }
+  .wl-urgency-really-active{ border-color: var(--red);  background: rgba(192,57,43,0.08);   color: var(--red); }
+
+  .wl-item {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    box-shadow: 3px 3px 0 var(--yellow);
+    display: flex;
+    align-items: stretch;
+    position: relative;
+  }
+  .wl-item-really {
+    border-color: var(--red);
+    box-shadow: 3px 3px 0 rgba(192,57,43,0.25);
+  }
+  .wl-item-really::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(192,57,43,0.045);
+    pointer-events: none;
+  }
+  .wl-item-watched {
+    border-color: var(--blue-mid);
+    box-shadow: 3px 3px 0 rgba(93,172,212,0.25);
+    opacity: 0.72;
+  }
+  .wl-item-watched::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(93,172,212,0.07);
+    pointer-events: none;
+  }
+  .wl-poster { width: 56px; flex-shrink: 0; object-fit: cover; display: block; align-self: stretch; }
+  .wl-poster-placeholder {
+    width: 56px;
+    flex-shrink: 0;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    align-self: stretch;
+  }
+  .wl-info { flex: 1; padding: 10px 12px; min-width: 0; }
+  .wl-title { font-weight: 700; font-size: 0.95rem; line-height: 1.25; color: var(--ink); }
+  .wl-year  { font-size: 0.75rem; color: #888; margin-top: 2px; }
+  .wl-urgency-tag {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-top: 5px;
+  }
+  .wl-tag-really { background: rgba(192,57,43,0.1);  color: var(--red);       border: 1px solid rgba(192,57,43,0.3); }
+  .wl-tag-want   { background: rgba(142,197,230,0.12);color: var(--blue-mid);  border: 1px solid var(--blue); }
+  .wl-tag-watched{ background: rgba(93,172,212,0.12); color: var(--blue-dark); border: 1px solid var(--blue-mid); }
+  .wl-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px 10px 8px 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .wl-btn {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1.5px solid;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s;
+    background: white;
+  }
+  .wl-btn-watched { border-color: var(--blue-mid); color: var(--blue-dark); }
+  .wl-btn-watched:hover { background: var(--blue-mid); color: white; }
+  .wl-btn-remove  { border-color: #ddd; color: #aaa; }
+  .wl-btn-remove:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
 </style>
 </head>
 <body>
@@ -2357,6 +2529,47 @@ async function dbLoadJoinUrl() {
 }
 async function dbSaveJoinUrl(url) {
   await sb.from('settings').upsert({ key:'movie_night_join_url', value: url });
+}
+
+// ─── WATCHLIST DB ─────────────────────────────────────────────────────────────
+// Run once in Supabase SQL editor:
+//
+// create table watchlist (
+//   id bigint generated by default as identity primary key,
+//   member_name text not null,
+//   title text not null,
+//   year int,
+//   poster text,
+//   urgency text not null default 'want',
+//   watched boolean not null default false,
+//   added_at timestamptz not null default now()
+// );
+// alter table watchlist enable row level security;
+// create policy "anon_all" on watchlist for all to anon using (true) with check (true);
+
+async function dbLoadWatchlist() {
+  const { data, error } = await sb.from('watchlist').select('*').order('added_at');
+  if (error) throw error;
+  return data || [];
+}
+
+async function dbAddToWatchlist({ memberName, title, year, poster, urgency }) {
+  const yr = year ? (parseInt(year, 10) || null) : null;
+  const { data, error } = await sb.from('watchlist')
+    .insert({ member_name: memberName, title, year: yr, poster: poster || null, urgency: urgency || 'want' })
+    .select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function dbMarkWatchlistWatched(id) {
+  const { error } = await sb.from('watchlist').update({ watched: true }).eq('id', id);
+  if (error) throw error;
+}
+
+async function dbRemoveFromWatchlist(id) {
+  const { error } = await sb.from('watchlist').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── MOVIE NIGHT HELPERS ─────────────────────────────────────────────────────
@@ -4112,6 +4325,248 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
   );
 }
 
+// ─── WATCHLIST ───────────────────────────────────────────────────────────────
+function WatchListAddForm({ memberName, onAdd, onCancel }) {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [urgency, setUrgency] = useState('want');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function handleAdd() {
+    if (!selected) { setErr('Search for and select a movie first.'); return; }
+    setSaving(true); setErr('');
+    try {
+      const item = await dbAddToWatchlist({ memberName, title: selected.title, year: selected.year, poster: selected.poster, urgency });
+      onAdd(item);
+    } catch(e) { setErr('Failed to add: ' + e.message); setSaving(false); }
+  }
+
+  return (
+    <div className="wl-add-form">
+      <div style={{fontWeight:700,fontSize:'1.05rem',marginBottom:12,color:'var(--ink)'}}>Add to Watch List</div>
+      <MovieSearch value={search} onChange={setSearch}
+        onSelect={d => { setSelected(d); setSearch(d.title); }}
+        placeholder="Search for a movie..." />
+      {selected && (
+        <>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+            {selected.poster
+              ? <img src={selected.poster} className="mini-poster" alt="" />
+              : <div className="mini-poster-placeholder">🎬</div>}
+            <div>
+              <div style={{fontWeight:700,fontSize:'0.95rem'}}>{selected.title}</div>
+              {selected.year && <div style={{fontSize:'0.78rem',color:'#888'}}>{selected.year}</div>}
+            </div>
+          </div>
+          <label className="form-label">How much do you want to watch this?</label>
+          <div className="wl-urgency-picker">
+            <button className={`wl-urgency-opt ${urgency==='want'?'wl-urgency-want-active':''}`}
+              onClick={() => setUrgency('want')}>Want to watch</button>
+            <button className={`wl-urgency-opt ${urgency==='really'?'wl-urgency-really-active':''}`}
+              onClick={() => setUrgency('really')}>🔥 REALLY want</button>
+          </div>
+        </>
+      )}
+      {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{err}</div>}
+      <div style={{display:'flex',gap:8,marginTop:14}}>
+        <button className="home-save-btn" onClick={handleAdd} disabled={!selected||saving} style={{flex:1,padding:'9px'}}>
+          {saving ? '...' : '+ Add to List'}
+        </button>
+        <button className="home-cancel-btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function WatchedModal({ item, alltime, ratings, members, onClose }) {
+  const existingMovie = (alltime || []).find(m => m.title.toLowerCase() === item.title.toLowerCase());
+  const [ratingMember, setRatingMember] = useState('');
+  const [ratingScore, setRatingScore] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState('');
+
+  const scoreValid = ratingScore !== '' && !isNaN(parseFloat(ratingScore)) && parseFloat(ratingScore) >= 0 && parseFloat(ratingScore) <= 10;
+
+  async function handleRateSave() {
+    if (!ratingMember || !scoreValid || saving) return;
+    setSaving(true);
+    try {
+      await dbSaveRating(existingMovie.id, ratingMember, parseFloat(ratingScore));
+      setDone('✓ Rating saved!');
+      setTimeout(onClose, 1400);
+    } catch(e) { console.error(e); }
+    setSaving(false);
+  }
+
+  async function handleAddToHistory() {
+    setSaving(true);
+    try {
+      await dbAddHistoryMovie({ title: item.title, year: item.year, poster: item.poster, movieType: 'impromptu' });
+      setDone('✓ Added to group history!');
+      setTimeout(onClose, 1400);
+    } catch(e) { console.error(e); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="confirm-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="confirm-card" style={{maxWidth:360}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+          {item.poster
+            ? <img src={item.poster} className="mini-poster" alt="" />
+            : <div className="mini-poster-placeholder" style={{width:40,height:60,fontSize:'1.2rem'}}>🎬</div>}
+          <div>
+            <div style={{fontWeight:700,fontSize:'1rem',lineHeight:1.2,color:'var(--ink)'}}>{item.title}</div>
+            {item.year && <div style={{fontSize:'0.75rem',color:'#888'}}>{item.year}</div>}
+          </div>
+        </div>
+
+        {done
+          ? <div className="alert alert-success" style={{marginBottom:0}}>{done}</div>
+          : existingMovie ? (
+            <>
+              <div className="confirm-card-title">Record a rating?</div>
+              <div className="confirm-card-body">This movie is already in the group's history. Want to add your rating?</div>
+              <select className="form-select" style={{width:'100%',marginBottom:8}} value={ratingMember} onChange={e => setRatingMember(e.target.value)}>
+                <option value="">Who are you?</option>
+                {(members||[]).map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <input type="number" className="form-select" style={{width:'100%',marginBottom:14}} min="0" max="10" step="0.25"
+                value={ratingScore} onChange={e => setRatingScore(e.target.value)} placeholder="Score (0–10)" />
+              <div className="confirm-actions">
+                <button className="confirm-cancel-btn" onClick={onClose}>Skip</button>
+                <button className="confirm-delete-btn" style={{background:'var(--blue-mid)',borderColor:'var(--blue-mid)'}}
+                  onClick={handleRateSave} disabled={!ratingMember||!scoreValid||saving}>
+                  {saving ? '...' : 'Save Rating'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="confirm-card-title">Add to group ratings?</div>
+              <div className="confirm-card-body">Add <strong>"{item.title}"</strong> to the group's history so everyone can rate it?</div>
+              <div className="confirm-actions">
+                <button className="confirm-cancel-btn" onClick={onClose}>Skip</button>
+                <button className="confirm-delete-btn" style={{background:'var(--blue-mid)',borderColor:'var(--blue-mid)'}}
+                  onClick={handleAddToHistory} disabled={saving}>
+                  {saving ? '...' : 'Add to History'}
+                </button>
+              </div>
+            </>
+          )
+        }
+      </div>
+    </div>
+  );
+}
+
+function WatchListPage({ members, alltime, ratings }) {
+  const [selectedMember, setSelectedMember] = useState('');
+  const [list, setList] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [watchedModal, setWatchedModal] = useState(null);
+  const [listErr, setListErr] = useState('');
+
+  useEffect(() => {
+    if (!selectedMember) { setList([]); return; }
+    setLoadingList(true);
+    setListErr('');
+    dbLoadWatchlist()
+      .then(all => setList(all.filter(i => i.member_name === selectedMember)))
+      .catch(e => setListErr(e.message))
+      .finally(() => setLoadingList(false));
+  }, [selectedMember]);
+
+  async function handleWatched(item) {
+    setList(prev => prev.map(i => i.id === item.id ? { ...i, watched: true } : i));
+    try { await dbMarkWatchlistWatched(item.id); } catch(e) { console.error(e); }
+    setWatchedModal(item);
+  }
+
+  async function handleRemove(item) {
+    setList(prev => prev.filter(i => i.id !== item.id));
+    try { await dbRemoveFromWatchlist(item.id); } catch(e) { console.error(e); }
+  }
+
+  // REALLY (unwatched) first → want (unwatched) → watched at bottom
+  const sorted = [...list].sort((a, b) => {
+    if (a.watched !== b.watched) return a.watched ? 1 : -1;
+    if (a.urgency === b.urgency) return 0;
+    return a.urgency === 'really' ? -1 : 1;
+  });
+
+  return (
+    <div className="main">
+      <div className="page-title">Watch List</div>
+      <div className="page-subtitle">What to watch next</div>
+
+      <div className="wl-member-grid">
+        {(members || []).map(m => (
+          <button key={m}
+            className={`wl-member-btn ${selectedMember === m ? 'active' : ''}`}
+            onClick={() => { setSelectedMember(prev => prev === m ? '' : m); setShowAddForm(false); }}>
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {selectedMember && (
+        <>
+          {showAddForm
+            ? <WatchListAddForm memberName={selectedMember}
+                onAdd={item => { setList(prev => [...prev, item]); setShowAddForm(false); }}
+                onCancel={() => setShowAddForm(false)} />
+            : <button className="wl-add-btn" onClick={() => setShowAddForm(true)}>＋ Add a movie</button>
+          }
+
+          {loadingList && <div style={{textAlign:'center',padding:20,color:'#aaa'}}>Loading…</div>}
+          {listErr && <div className="alert alert-error">{listErr}</div>}
+
+          {!loadingList && !listErr && sorted.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">🎬</div>
+              <div>{selectedMember}'s watch list is empty.<br/>Add some movies above!</div>
+            </div>
+          )}
+
+          {sorted.map(item => {
+            const isReally  = item.urgency === 'really' && !item.watched;
+            const isWatched = item.watched;
+            return (
+              <div key={item.id}
+                className={`wl-item${isReally?' wl-item-really':''}${isWatched?' wl-item-watched':''}`}>
+                {item.poster
+                  ? <img src={item.poster} className="wl-poster" alt="" />
+                  : <div className="wl-poster-placeholder">🎬</div>}
+                <div className="wl-info">
+                  <div className="wl-title">{item.title}</div>
+                  {item.year && <div className="wl-year">{item.year}</div>}
+                  <span className={`wl-urgency-tag ${isWatched?'wl-tag-watched':isReally?'wl-tag-really':'wl-tag-want'}`}>
+                    {isWatched ? 'Watched' : isReally ? 'REALLY want' : 'Want to watch'}
+                  </span>
+                </div>
+                <div className="wl-actions">
+                  {!isWatched && (
+                    <button className="wl-btn wl-btn-watched" onClick={() => handleWatched(item)}>Watched</button>
+                  )}
+                  <button className="wl-btn wl-btn-remove" onClick={() => handleRemove(item)}>Remove</button>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {watchedModal && (
+        <WatchedModal item={watchedModal} alltime={alltime} ratings={ratings} members={members}
+          onClose={() => setWatchedModal(null)} />
+      )}
+    </div>
+  );
+}
+
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
 function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls }) {
   const [section, setSection] = useState('movies');
@@ -4702,6 +5157,7 @@ function pageFromPath() {
   if (p === 'ratings') return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket') return 'bracket';
+  if (p === 'watchlist') return 'watchlist';
   return 'home';
 }
 
@@ -4710,6 +5166,7 @@ function App() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [footerVisible, setFooterVisible] = useState(false);
   const footerRef = useRef(null);
@@ -4828,6 +5285,7 @@ function App() {
           onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />
       </PollBoundary>}
       {page === 'bracket' && <BracketReadOnlyPage bracket={bracket} onBack={()=>setPage('poll')} />}
+      {page === 'watchlist' && <WatchListPage members={members} alltime={alltime} ratings={ratings} />}
 
       <div className="footer-logo-section" ref={footerRef}
         onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
@@ -4836,7 +5294,20 @@ function App() {
         </div>
       </div>
 
-      <button className="fab" onClick={handleAdminClick} title="Admin">
+      {fabMenuOpen && (
+        <>
+          <div style={{position:'fixed',inset:0,zIndex:198}} onClick={() => setFabMenuOpen(false)} />
+          <div className="fab-menu-popup" style={{position:'fixed',bottom:84,right:20,zIndex:199}}>
+            <button className="fab-menu-option" onClick={() => { setFabMenuOpen(false); setPage('watchlist'); }}>
+              🎬 Watch List
+            </button>
+            <button className="fab-menu-option" onClick={() => { setFabMenuOpen(false); handleAdminClick(); }}>
+              ⚙️ Admin
+            </button>
+          </div>
+        </>
+      )}
+      <button className="fab" onClick={() => setFabMenuOpen(f => !f)} title="Menu">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
         </svg>
