@@ -5137,7 +5137,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               setMnCurrent(new Date(mnOverride).toISOString());
               setMnOverride('');
               setMnLoading(false);
-              showMsg({ type:'success', text:'Movie night date updated!' });
+              showMsg('Movie night date updated!');
             }}>
               {mnLoading ? 'Saving…' : 'Save Override'}
             </button>
@@ -5152,7 +5152,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 <button className="btn-secondary" onClick={async () => {
                   await dbClearOverride();
                   setMnCurrent(null);
-                  showMsg({ type:'success', text:'Override cleared — back to auto schedule.' });
+                  showMsg('Override cleared — back to auto schedule.');
                 }}>
                   Clear Override
                 </button>
@@ -5174,7 +5174,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               await dbSaveJoinUrl(mnJoinUrl);
               setMnJoinCurrent(mnJoinUrl);
               setMnLoading(false);
-              showMsg({ type:'success', text:'Join link saved!' });
+              showMsg('Join link saved!');
             }}>
               {mnLoading ? 'Saving…' : 'Save Join Link'}
             </button>
