@@ -1917,7 +1917,6 @@
 </style>
 </head>
 <body>
-
 <div id="root">
   <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;font-family:sans-serif">
     <div>
@@ -2468,57 +2467,62 @@ function calcCountdown(target) {
   };
 }
 
-function getNthWeekday(year, month, weekday, n) {
-  if (n > 0) {
-    const d = new Date(year, month, 1);
-    const diff = (weekday - d.getDay() + 7) % 7;
-    return new Date(year, month, 1 + diff + (n - 1) * 7);
+// ─── HOLIDAY NOTE ────────────────────────────────────────────────────────────
+function getNearbyHoliday(movieNightDate, windowDays) {
+  if (!movieNightDate || isNaN(movieNightDate.getTime())) return null;
+  windowDays = windowDays || 4;
+  var y = movieNightDate.getFullYear();
+  var mn = new Date(movieNightDate.getFullYear(), movieNightDate.getMonth(), movieNightDate.getDate());
+
+  function nthWeekday(yr, mo, wd, n) {
+    if (n > 0) {
+      var d = new Date(yr, mo, 1);
+      var diff = (wd - d.getDay() + 7) % 7;
+      return new Date(yr, mo, 1 + diff + (n - 1) * 7);
+    }
+    var last = new Date(yr, mo + 1, 0);
+    return new Date(yr, mo, last.getDate() - (last.getDay() - wd + 7) % 7);
   }
-  const last = new Date(year, month + 1, 0);
-  return new Date(year, month, last.getDate() - (last.getDay() - weekday + 7) % 7);
-}
 
-function getEaster(year) {
-  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  return new Date(year, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
-}
+  function easter(yr) {
+    var a = yr % 19, b = Math.floor(yr / 100), c = yr % 100;
+    var d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    var g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    var i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    var m = Math.floor((a + 11 * h + 22 * l) / 451);
+    return new Date(yr, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+  }
 
-function getNearbyHoliday(movieNightDate, windowDays = 4) {
-  const y = movieNightDate.getFullYear();
-  const mn = new Date(movieNightDate); mn.setHours(0, 0, 0, 0);
-  const holidays = [
+  var holidays = [
     { name: "New Year's Day",    date: new Date(y, 0, 1) },
-    { name: "MLK Day",           date: getNthWeekday(y, 0, 1, 3) },
-    { name: "Presidents' Day",   date: getNthWeekday(y, 1, 1, 3) },
+    { name: "MLK Day",           date: nthWeekday(y, 0, 1, 3) },
+    { name: "Presidents' Day",   date: nthWeekday(y, 1, 1, 3) },
     { name: "St. Patrick's Day", date: new Date(y, 2, 17) },
-    { name: "Easter",            date: getEaster(y) },
-    { name: "Memorial Day",      date: getNthWeekday(y, 4, 1, -1) },
+    { name: "Easter",            date: easter(y) },
+    { name: "Memorial Day",      date: nthWeekday(y, 4, 1, -1) },
     { name: "Juneteenth",        date: new Date(y, 5, 19) },
     { name: "July 4th",          date: new Date(y, 6, 4) },
-    { name: "Labor Day",         date: getNthWeekday(y, 8, 1, 1) },
-    { name: "Columbus Day",      date: getNthWeekday(y, 9, 1, 2) },
+    { name: "Labor Day",         date: nthWeekday(y, 8, 1, 1) },
+    { name: "Columbus Day",      date: nthWeekday(y, 9, 1, 2) },
     { name: "Halloween",         date: new Date(y, 9, 31) },
     { name: "Veterans Day",      date: new Date(y, 10, 11) },
-    { name: "Thanksgiving",      date: getNthWeekday(y, 10, 4, 4) },
+    { name: "Thanksgiving",      date: nthWeekday(y, 10, 4, 4) },
     { name: "Christmas Eve",     date: new Date(y, 11, 24) },
     { name: "Christmas",         date: new Date(y, 11, 25) },
     { name: "New Year's Eve",    date: new Date(y, 11, 31) },
     { name: "New Year's Day",    date: new Date(y + 1, 0, 1) },
   ];
-  for (var i = 0; i < holidays.length; i++) {
-    holidays[i].date.setHours(0, 0, 0, 0);
-    var diff = Math.round((holidays[i].date - mn) / 86400000);
-    if (Math.abs(diff) <= windowDays) {
-      if (diff === 0) return 'Movie night falls on ' + holidays[i].name + '!';
-      var n = Math.abs(diff);
-      var s = n === 1 ? '' : 's';
+
+  for (var idx = 0; idx < holidays.length; idx++) {
+    var hDate = new Date(holidays[idx].date.getFullYear(), holidays[idx].date.getMonth(), holidays[idx].date.getDate());
+    var diff = Math.round((hDate - mn) / 86400000);
+    if (diff >= -windowDays && diff <= windowDays) {
+      if (diff === 0) return 'Movie night falls on ' + holidays[idx].name + '!';
+      var absDiff = Math.abs(diff);
+      var s = absDiff === 1 ? '' : 's';
       return diff < 0
-        ? n + ' day' + s + ' after ' + holidays[i].name
-        : n + ' day' + s + ' before ' + holidays[i].name;
+        ? absDiff + ' day' + s + ' after ' + holidays[idx].name
+        : absDiff + ' day' + s + ' before ' + holidays[idx].name;
     }
   }
   return null;
@@ -2528,11 +2532,9 @@ function getNearbyHoliday(movieNightDate, windowDays = 4) {
 function MovieNightCountdown({ members }) {
   const [override, setOverride] = useState(null);
   const [tick,     setTick]     = useState(0);
-  const [ready,    setReady]    = useState(false);
   const [joinUrl,  setJoinUrl]  = useState('');
 
   const eventDate = getNextMovieNight(override);
-  const dateStr   = eventDate.toISOString().split('T')[0];
   const cd        = calcCountdown(eventDate);
 
   useEffect(() => {
@@ -2540,7 +2542,6 @@ function MovieNightCountdown({ members }) {
       const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
       setOverride(ov);
       setJoinUrl(url || '');
-      setReady(true);
     })();
   }, []);
 
@@ -2551,7 +2552,7 @@ function MovieNightCountdown({ members }) {
   }, []);
 
   const pad = n => String(n).padStart(2, '0');
-  let holidayNote = null;
+  var holidayNote = null;
   try { holidayNote = getNearbyHoliday(eventDate); } catch(e) {}
 
   return (
@@ -2577,11 +2578,11 @@ function MovieNightCountdown({ members }) {
         </a>
       )}
 
-      {holidayNote && (
+      {holidayNote ? (
         <div style={{fontSize:'0.78rem',color:'#999',textAlign:'center',marginTop:8,fontStyle:'italic'}}>
           {holidayNote}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -2723,7 +2724,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
             {activePoll.question}
           </button>
         )}
-        <SectionBoundary><MovieNightCountdown members={members} /></SectionBoundary>
+        <MovieNightCountdown members={members} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -3584,7 +3585,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                       <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
                         <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                          {(members || []).map(m => (
+                          {members.map(m => (
                             <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
                               onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
                               {m}
@@ -3646,7 +3647,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
             <div style={{marginBottom:10}}>
               <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {(members || []).map(m => (
+                {members.map(m => (
                   <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
                     onClick={()=>setSelectedMember(m)}>
                     {m}
@@ -4009,7 +4010,7 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
               <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Poll</div>
               <div className="voter-label">Who are you?</div>
               <div className="voter-grid" style={{marginBottom:14}}>
-                {(members || []).map(m => (
+                {members.map(m => (
                   <button key={m} className={`voter-btn ${newPollAsker===m?'selected':''}`} onClick={()=>setNewPollAsker(m)}>{m}</button>
                 ))}
               </div>
@@ -4902,14 +4903,14 @@ function App() {
         </nav>
       </header>
 
-      {page === 'home' && <SectionBoundary><HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
-        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} /></SectionBoundary>}
+      {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
+        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={()=>setPage('poll')} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
-      {page === 'poll' && <SectionBoundary><PollPage polls={polls} bracket={bracket} members={members}
+      {page === 'poll' && <PollPage polls={polls} bracket={bracket} members={members}
         onPollUpdate={updatePoll}
         onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
         onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
-        onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} /></SectionBoundary>}
+        onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />}
       {page === 'bracket' && <BracketReadOnlyPage bracket={bracket} onBack={()=>setPage('poll')} />}
 
       <div className="footer-logo-section" ref={footerRef}
@@ -4946,38 +4947,21 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(err, info) { this._err = err; console.error('App crash:', err, info); }
   render() {
     if (this.state.crashed) {
-      const errText = this._err ? String(this._err) : '(no details)';
+      var errText = this._err ? String(this._err) : '(no details)';
       return (
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:24,textAlign:'center'}}>
           <div style={{maxWidth:400}}>
-            <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={e=>e.currentTarget.style.display='none'} alt="" />
+            <img src="/movieclub.png" style={{width:64,height:64,objectFit:'contain',marginBottom:16,borderRadius:'50%'}} onError={function(e){e.currentTarget.style.display='none';}} alt="" />
             <div style={{fontSize:'1.15rem',fontWeight:700,marginBottom:8}}>Sorry yall! Site's a lil sick.</div>
             <div style={{fontSize:'0.95rem',color:'#888',marginBottom:16}}>Let Ali know and check back soon</div>
             <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:6,padding:'8px 10px',wordBreak:'break-all'}}>
-              <div style={{fontWeight:700,color:'#555',marginBottom:4}}>Error (share with Ali):</div>
+              <div style={{fontWeight:700,color:'#555',marginBottom:4}}>Error:</div>
               <div style={{color:'#333',fontFamily:'monospace'}}>{errText}</div>
             </div>
           </div>
         </div>
       );
     }
-    return this.props.children;
-  }
-}
-
-class SectionBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false }; this._err = null; }
-  static getDerivedStateFromError() { return { crashed: true }; }
-  componentDidCatch(err, info) { this._err = err; console.error('Section crash:', err, info); }
-  render() {
-    if (this.state.crashed) return (
-      <div style={{padding:'12px 16px',textAlign:'center',border:'1px dashed #ddd',borderRadius:8,margin:'8px 0'}}>
-        <div style={{fontSize:'0.85rem',color:'#666',marginBottom:6}}>This section hit an error.</div>
-        <div style={{fontSize:'0.72rem',textAlign:'left',background:'#f5f5f5',borderRadius:4,padding:'6px 8px',color:'#333',fontFamily:'monospace',wordBreak:'break-all'}}>
-          {this._err ? String(this._err) : '(no details)'}
-        </div>
-      </div>
-    );
     return this.props.children;
   }
 }
