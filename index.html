@@ -5076,6 +5076,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   // Bracket state
   const [showAdminBracketSetup, setShowAdminBracketSetup] = useState(false);
+  const [editingRound1, setEditingRound1] = useState(false);
+  const [round1Edits, setRound1Edits] = useState([]);
 
   // Edit rating state
   const [editMovieId, setEditMovieId] = useState('');
@@ -5219,6 +5221,47 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     } catch(e) {
       showMsg('Error: ' + e.message, 'error');
     }
+  }
+
+  async function saveRound1Edits() {
+    const updated = JSON.parse(JSON.stringify(bracket));
+    updated.rounds[0] = round1Edits.map((edit, i) => ({
+      ...bracket.rounds[0][i],
+      a: edit.a.trim() || bracket.rounds[0][i].a,
+      b: edit.b === 'BYE' ? 'BYE' : (edit.b.trim() || bracket.rounds[0][i].b),
+    }));
+    try {
+      await dbSaveBracket(updated);
+      setBracket(updated);
+      setEditingRound1(false);
+      showMsg('Bracket updated!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
+  async function shuffleRound1() {
+    const pool = [];
+    for (const m of bracket.rounds[0]) {
+      pool.push({ title: m.a, poster: m.aPoster || null });
+      if (m.b !== 'BYE') pool.push({ title: m.b, poster: m.bPoster || null });
+    }
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const newMatchups = [];
+    for (let i = 0; i < pool.length; i += 2) {
+      if (i + 1 < pool.length) {
+        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, b: pool[i+1].title, bPoster: pool[i+1].poster, votes: {} });
+      } else {
+        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, b: 'BYE', bPoster: null, votes: {} });
+      }
+    }
+    const updated = { ...bracket, rounds: [newMatchups, ...bracket.rounds.slice(1)] };
+    try {
+      await dbSaveBracket(updated);
+      setBracket(updated);
+      showMsg('Bracket shuffled!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
   }
 
   async function archiveMovies() {
@@ -5473,6 +5516,43 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <button className="btn-primary" style={{background:'var(--blue)'}} onClick={advanceBracket}>
                     ➡️ Advance to Next Round
                   </button>
+                )}
+                {!bracket.finished && bracket.currentRound === 0 && (
+                  <>
+                    <button className="btn-secondary" style={{marginTop:8}} onClick={() => {
+                      setRound1Edits(bracket.rounds[0].map(m => ({ a: m.a, b: m.b })));
+                      setEditingRound1(v => !v);
+                    }}>
+                      ✏️ {editingRound1 ? 'Cancel Edit' : 'Edit Movies'}
+                    </button>
+                    {editingRound1 && (
+                      <div style={{marginTop:10,background:'#fafaf8',border:'1px solid var(--cream)',borderRadius:8,padding:12}}>
+                        {round1Edits.map((edit, i) => (
+                          <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:8}}>
+                            <input className="form-input" style={{flex:1,padding:'4px 8px',fontSize:'0.85rem'}}
+                              value={edit.a}
+                              onChange={e => setRound1Edits(prev => prev.map((x,j) => j===i ? {...x, a: e.target.value} : x))} />
+                            <span style={{fontSize:'0.75rem',color:'#aaa',flexShrink:0}}>vs</span>
+                            {edit.b === 'BYE'
+                              ? <span style={{flex:1,fontSize:'0.8rem',color:'#aaa',padding:'4px 8px'}}>BYE</span>
+                              : <input className="form-input" style={{flex:1,padding:'4px 8px',fontSize:'0.85rem'}}
+                                  value={edit.b}
+                                  onChange={e => setRound1Edits(prev => prev.map((x,j) => j===i ? {...x, b: e.target.value} : x))} />
+                            }
+                          </div>
+                        ))}
+                        <button className="btn-primary" style={{width:'100%',marginTop:4}} onClick={saveRound1Edits}>
+                          Save Changes
+                        </button>
+                      </div>
+                    )}
+                    <button className="btn-secondary" style={{marginTop:8}} onClick={() => {
+                      if (!window.confirm('Shuffle all matchups? This will clear any existing votes.')) return;
+                      shuffleRound1();
+                    }}>
+                      🔀 Shuffle Matchups
+                    </button>
+                  </>
                 )}
                 <button className="btn-secondary" style={{marginTop:8}} onClick={async () => {
                   if (!window.confirm('Delete this bracket and start over?')) return;
