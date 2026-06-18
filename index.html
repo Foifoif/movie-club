@@ -2883,7 +2883,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
         {bracket && (
           <a className="poll-card" style={{cursor:'pointer'}}
             onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-            <div className="poll-card-label">🏆 Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+            <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
             <div className="poll-card-question">
               {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
             </div>
@@ -2913,7 +2913,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
       {bracket && (
         <a className="poll-card" style={{cursor:'pointer'}}
           onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-          <div className="poll-card-label">🏆 Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+          <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
           <div className="poll-card-question">
             {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
           </div>
@@ -3687,7 +3687,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   return (
     <>
       <div className="poll-card" style={{marginBottom:16,cursor:'default'}}>
-        <div className="poll-card-label">🏆 Bracket · Round {currentRound + 1}{isFinished?' — Final':''}</div>
+        <div className="poll-card-label">Bracket · Round {currentRound + 1}{isFinished?' — Final':''}</div>
         <div className="poll-card-question">
           {isFinished ? `Winner: ${winner}` : `🎬 Round ${currentRound + 1} — Vote now!`}
         </div>
