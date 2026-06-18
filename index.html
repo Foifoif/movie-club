@@ -4484,6 +4484,7 @@ function WatchListPage({ members, alltime, ratings }) {
   const [listErr, setListErr] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [descs, setDescs] = useState({});
+  const [providers, setProviders] = useState({});
   const [membersWithItems, setMembersWithItems] = useState(new Set());
 
   useEffect(() => {
@@ -4495,6 +4496,7 @@ function WatchListPage({ members, alltime, ratings }) {
   async function fetchDesc(item) {
     if (descs[item.id] !== undefined) return;
     setDescs(prev => ({ ...prev, [item.id]: null }));
+    setProviders(prev => ({ ...prev, [item.id]: null }));
     try {
       let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(item.title)}&language=en-US&page=1`;
       if (item.year) url += `&year=${item.year}`;
@@ -4502,8 +4504,22 @@ function WatchListPage({ members, alltime, ratings }) {
       const data = await res.json();
       const first = (data.results || [])[0];
       setDescs(prev => ({ ...prev, [item.id]: first?.overview || '' }));
+      if (first?.id) {
+        try {
+          const wpRes = await fetch(`https://api.themoviedb.org/3/movie/${first.id}/watch/providers?api_key=${TMDB_KEY}`);
+          const wpData = await wpRes.json();
+          const us = wpData?.results?.US || {};
+          const flat = (us.flatrate || []).map(p => p.provider_name);
+          setProviders(prev => ({ ...prev, [item.id]: flat }));
+        } catch(e) {
+          setProviders(prev => ({ ...prev, [item.id]: [] }));
+        }
+      } else {
+        setProviders(prev => ({ ...prev, [item.id]: [] }));
+      }
     } catch(e) {
       setDescs(prev => ({ ...prev, [item.id]: '' }));
+      setProviders(prev => ({ ...prev, [item.id]: [] }));
     }
   }
 
@@ -4635,6 +4651,19 @@ function WatchListPage({ members, alltime, ratings }) {
                       ? <span style={{color:'#bbb'}}>Loading…</span>
                       : descs[item.id] || <span style={{color:'#bbb'}}>No description available.</span>
                     }
+                    {providers[item.id] != null && (
+                      <div style={{marginTop:10}}>
+                        <div className="where-label">Where to watch</div>
+                        {providers[item.id].length > 0
+                          ? <div className="streaming-chips">
+                              {providers[item.id].map((p, i) => (
+                                <span key={i} className="chip" style={{background:'rgba(232,168,124,0.15)', borderColor:'#e8a87c', color:'#c17a3a'}}>{p}</span>
+                              ))}
+                            </div>
+                          : <span style={{color:'#bbb'}}>Not on subscription streaming in the US.</span>
+                        }
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
