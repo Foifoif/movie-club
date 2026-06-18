@@ -3628,10 +3628,39 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   const [viewingPrev, setViewingPrev] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);   // `${idx}-a` or `${idx}-b`, desktop only
   const [mobileOpenIdx, setMobileOpenIdx] = useState(null); // matchup idx open on mobile
-  const isTouch = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+  const [isTouch, setIsTouch] = useState(false);
+  const [descCache, setDescCache] = useState({}); // title -> description, for existing brackets
+
+  useEffect(() => {
+    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.matchMedia('(hover: none)').matches);
+  }, []);
 
   const currentRound = bracket.currentRound || 0;
   const round = bracket.rounds[currentRound];
+
+  // Lazily fetch TMDB descriptions for movies that don't have them stored
+  useEffect(() => {
+    if (!round) return;
+    const missing = [];
+    for (const m of round) {
+      if (!m.aDesc && m.a) missing.push(m.a);
+      if (m.b !== 'BYE' && !m.bDesc && m.b) missing.push(m.b);
+    }
+    if (!missing.length) return;
+    missing.forEach(async (rawTitle) => {
+      if (descCache[rawTitle]) return;
+      try {
+        const title = rawTitle.replace(/\s*\(\d{4}\)\s*$/, '');
+        const year = rawTitle.match(/\((\d{4})\)/)?.[1];
+        let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US&page=1`;
+        if (year) url += `&year=${year}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const overview = d.results?.[0]?.overview;
+        if (overview) setDescCache(prev => ({ ...prev, [rawTitle]: overview }));
+      } catch(e) {}
+    });
+  }, [currentRound, bracket]);
   const prevRound = currentRound > 0 ? bracket.rounds[currentRound - 1] : null;
   const isFinished = bracket.finished;
   const winner = bracket.winner;
@@ -3755,9 +3784,9 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
                             {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
                             <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.a?700:500,wordBreak:'break-word'}}>{matchup.a}</span>
                             {myVote===matchup.a && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
-                            {hoverKey===`${originalIdx}-a` && (matchup.aDesc||'') && (
+                            {hoverKey===`${originalIdx}-a` && (matchup.aDesc||descCache[matchup.a]) && (
                               <span style={{fontSize:'0.72rem',lineHeight:1.45,color:myVote===matchup.a?'rgba(255,255,255,0.85)':'#666',marginTop:6,textAlign:'left',display:'block',fontWeight:400}}>
-                                {(matchup.aDesc).length>160?(matchup.aDesc).slice(0,160)+'…':matchup.aDesc}
+                                {((matchup.aDesc||descCache[matchup.a]||'')).length>160?((matchup.aDesc||descCache[matchup.a]||'')).slice(0,160)+'…':(matchup.aDesc||descCache[matchup.a]||'')}
                               </span>
                             )}
                           </button>
@@ -3770,16 +3799,16 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
                             {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
                             <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.b?700:500,wordBreak:'break-word'}}>{matchup.b}</span>
                             {myVote===matchup.b && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
-                            {hoverKey===`${originalIdx}-b` && (matchup.bDesc||'') && (
+                            {hoverKey===`${originalIdx}-b` && (matchup.bDesc||descCache[matchup.b]) && (
                               <span style={{fontSize:'0.72rem',lineHeight:1.45,color:myVote===matchup.b?'rgba(255,255,255,0.85)':'#666',marginTop:6,textAlign:'left',display:'block',fontWeight:400}}>
-                                {(matchup.bDesc).length>160?(matchup.bDesc).slice(0,160)+'…':matchup.bDesc}
+                                {((matchup.bDesc||descCache[matchup.b]||'')).length>160?((matchup.bDesc||descCache[matchup.b]||'')).slice(0,160)+'…':(matchup.bDesc||descCache[matchup.b]||'')}
                               </span>
                             )}
                           </button>
                         </div>
                         {isTouch && mobileOpenIdx===originalIdx && (
                           <div style={{borderTop:'1px solid var(--cream)',padding:'10px 12px 12px',background:'#fafaf8'}}>
-                            {[{title:matchup.a,desc:matchup.aDesc||'',voted:myVote===matchup.a},{title:matchup.b,desc:matchup.bDesc||'',voted:myVote===matchup.b}].map(({title,desc,voted})=>(
+                            {[{title:matchup.a,desc:matchup.aDesc||descCache[matchup.a]||'',voted:myVote===matchup.a},{title:matchup.b,desc:matchup.bDesc||descCache[matchup.b]||'',voted:myVote===matchup.b}].map(({title,desc,voted})=>(
                               <div key={title} style={{marginBottom:10}}>
                                 <div style={{fontWeight:700,fontSize:'0.85rem',marginBottom:desc?4:0}}>{title}</div>
                                 {desc && <div style={{fontSize:'0.78rem',color:'#666',lineHeight:1.5,marginBottom:6}}>{desc.length>200?desc.slice(0,200)+'…':desc}</div>}
