@@ -2839,7 +2839,7 @@ function TriviaOfTheWeek() {
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick }) {
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -2865,6 +2865,15 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
             <div className="poll-card-label">Today's Poll</div>
             <div className="poll-card-question">{activePoll.question}</div>
             {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
+          </a>
+        )}
+        {bracket && (
+          <a className="poll-card" style={{cursor:'pointer'}}
+            onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
+            <div className="poll-card-label">🏆 Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+            <div className="poll-card-question">
+              {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
+            </div>
           </a>
         )}
         <div className="page-title">🎬 Movie Club</div>
@@ -5682,7 +5691,8 @@ function App() {
       </header>
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
-        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))} />}
+        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
+        bracket={bracket} onBracketClick={()=>setPage('poll')} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <PollBoundary>
         <PollPage polls={polls} bracket={bracket} members={members}
