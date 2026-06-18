@@ -3516,6 +3516,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [selectedMember, setSelectedMember] = useState('');
   const [localPoll, setLocalPoll] = useState(poll);
   const [showAddAnswer, setShowAddAnswer] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [newAnswerText, setNewAnswerText] = useState('');
   const [newAnswerImage, setNewAnswerImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -3608,6 +3609,14 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
   async function handleAddAnswer() {
     if (!selectedMember || !newAnswerText.trim() || submitting) return;
+    // Smart match: if text matches an existing option, vote for it instead of adding a duplicate
+    const inputNorm = newAnswerText.trim().toLowerCase();
+    const existing = (localPoll.options || []).find(o => o.text.trim().toLowerCase() === inputNorm);
+    if (existing) {
+      await handleVoteForOption(existing.id);
+      setNewAnswerText(''); setNewAnswerImage(''); setSearchResults([]); setSearchYear(''); setShowAddAnswer(false);
+      return;
+    }
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -3699,78 +3708,127 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
       </div>
 
 
-      {/* Options */}
-      {optionsWithCounts.length > 0 && (
-        <div style={{marginBottom:12}}>
-          {optionsWithCounts.map(opt => {
-            const pct = totalVotes ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
-            const isMyVote = opt.id === myOptionId;
-            const isEditingThis = editingOptionId === opt.id;
-            return (
-              <div key={opt.id}>
-                {isEditingThis ? (
-                  <div style={{marginBottom:8}}>
-                    <input className="form-input" style={{marginBottom:6}} value={editedOptionText}
-                      onChange={e=>setEditedOptionText(e.target.value)}
-                      onKeyDown={e=>{ if(e.key==='Enter') handleSaveOption(); if(e.key==='Escape') setEditingOptionId(null); }}
-                      autoFocus />
-                    <div style={{display:'flex',gap:6}}>
-                      <button className="home-save-btn" style={{padding:'5px 14px'}} onClick={handleSaveOption}>Save</button>
-                      <button className="home-cancel-btn" onClick={()=>setEditingOptionId(null)}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
-                      style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
-                      onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
-                        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-                          {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
-                          <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
-                        </div>
-                        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                          {isMyVote && selectedMember && (
-                            <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
-                              style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:0,lineHeight:1}}>
-                              ✏️
-                            </button>
-                          )}
-                          <span style={{fontSize:'0.78rem',color:'#888'}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
+      {(revealed || myOptionId) ? (
+        /* ── RESULTS VIEW ── */
+        <>
+          {optionsWithCounts.length > 0 && (
+            <div style={{marginBottom:12}}>
+              {optionsWithCounts.map(opt => {
+                const pct = totalVotes ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
+                const isMyVote = opt.id === myOptionId;
+                const isEditingThis = editingOptionId === opt.id;
+                return (
+                  <div key={opt.id}>
+                    {isEditingThis ? (
+                      <div style={{marginBottom:8}}>
+                        <input className="form-input" style={{marginBottom:6}} value={editedOptionText}
+                          onChange={e=>setEditedOptionText(e.target.value)}
+                          onKeyDown={e=>{ if(e.key==='Enter') handleSaveOption(); if(e.key==='Escape') setEditingOptionId(null); }}
+                          autoFocus />
+                        <div style={{display:'flex',gap:6}}>
+                          <button className="home-save-btn" style={{padding:'5px 14px'}} onClick={handleSaveOption}>Save</button>
+                          <button className="home-cancel-btn" onClick={()=>setEditingOptionId(null)}>Cancel</button>
                         </div>
                       </div>
-                      <div className="progress-bar-wrap">
-                        <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
-                      </div>
-                    </div>
-                    {pendingOptionId===opt.id && (
-                      <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
-                        <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                          {members.map(m => (
-                            <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
-                              onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
-                              {m}
-                            </button>
-                          ))}
+                    ) : (
+                      <>
+                        <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
+                          style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
+                          onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+                            <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+                              {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
+                              <span style={{fontWeight:isMyVote?700:400,fontSize:'0.95rem'}}>{opt.text}</span>
+                            </div>
+                            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                              {isMyVote && selectedMember && (
+                                <button onClick={e=>{e.stopPropagation();setEditingOptionId(opt.id);setEditedOptionText(opt.text);}}
+                                  style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',color:'var(--blue-mid)',padding:0,lineHeight:1}}>
+                                  ✏️
+                                </button>
+                              )}
+                              <span style={{fontSize:'0.78rem',color:'#888'}}>{opt.voteCount} {opt.voteCount===1?'vote':'votes'}</span>
+                            </div>
+                          </div>
+                          <div className="progress-bar-wrap">
+                            <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
+                          </div>
                         </div>
-                      </div>
+                        {pendingOptionId===opt.id && (
+                          <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
+                            <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
+                            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                              {members.map(m => (
+                                <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
+                                  onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
+                                  {m}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
-                  </>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!myOptionId && !showAddAnswer && (
+            <button className="home-add-btn" onClick={()=>{setShowAddAnswer(true);setPendingOptionId(null);}}>+ Add your answer</button>
+          )}
+          {!myOptionId && showAddAnswer && (
+            <div style={{marginTop:4}}>
+              <div style={{position:'relative'}}>
+                <input className="form-input" style={{marginBottom:4}} value={newAnswerText}
+                  onChange={e => handleAnswerInput(e.target.value)}
+                  placeholder="Type a movie, person, or anything…"
+                  onKeyDown={e => e.key === 'Enter' && handleAddAnswer()} />
+                <input className="form-input" style={{marginBottom:4,fontSize:'0.88rem',padding:'6px 10px'}}
+                  value={searchYear} onChange={e => handleYearInput(e.target.value)}
+                  placeholder="Year (optional)" />
+                {searching && <div style={{fontSize:'0.75rem',color:'#999',marginBottom:4}}>Searching…</div>}
+                {searchResults.length > 0 && (
+                  <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',marginBottom:8,overflow:'hidden',position:'relative',zIndex:10}}>
+                    {searchResults.map(r => {
+                      const name = r.media_type==='movie' ? r.title : r.name;
+                      const year = r.release_date ? r.release_date.split('-')[0] : '';
+                      const img = r.poster_path || r.profile_path;
+                      return (
+                        <div key={r.id} style={{padding:'7px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
+                          onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                          onMouseLeave={e=>e.currentTarget.style.background='white'}
+                          onClick={()=>{ setNewAnswerText(name+(year?` (${year})`:''));setNewAnswerImage(img?`https://image.tmdb.org/t/p/w92${img}`:'');setSearchResults([]); }}>
+                          {img ? <img src={`https://image.tmdb.org/t/p/w92${img}`} style={{width:24,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                            : <div style={{width:24,height:36,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem'}}>🎬</div>}
+                          <div><div style={{fontWeight:600,fontSize:'0.9rem'}}>{name}</div>{year && <div style={{fontSize:'0.72rem',color:'#888'}}>{year}</div>}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add answer */}
-      {!showAddAnswer ? (
-        <button className="home-add-btn" onClick={()=>{setShowAddAnswer(true);setPendingOptionId(null);}}>
-          + Add your answer
-        </button>
+              {!selectedMember && (
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {members.map(m => <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}} onClick={()=>setSelectedMember(m)}>{m}</button>)}
+                  </div>
+                </div>
+              )}
+              {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Adding as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
+              {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
+              <div style={{display:'flex',gap:8}}>
+                <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer} disabled={!newAnswerText.trim()||!selectedMember||submitting}>{submitting?'…':'Submit Answer'}</button>
+                <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchYear('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
-        <div style={{marginTop:4}}>
+        /* ── INPUT VIEW — answer without seeing others' votes ── */
+        <div>
           <div style={{position:'relative'}}>
             <input className="form-input" style={{marginBottom:4}} value={newAnswerText}
               onChange={e => handleAnswerInput(e.target.value)}
@@ -3778,27 +3836,22 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               onKeyDown={e => e.key === 'Enter' && handleAddAnswer()} />
             <input className="form-input" style={{marginBottom:4,fontSize:'0.88rem',padding:'6px 10px'}}
               value={searchYear} onChange={e => handleYearInput(e.target.value)}
-              placeholder="Year (optional — helps narrow it down, e.g. 2010)" />
+              placeholder="Year (optional — helps narrow it down)" />
             {searching && <div style={{fontSize:'0.75rem',color:'#999',marginBottom:4}}>Searching…</div>}
             {searchResults.length > 0 && (
               <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',marginBottom:8,overflow:'hidden',position:'relative',zIndex:10}}>
                 {searchResults.map(r => {
-                  const name = r.media_type === 'movie' ? r.title : r.name;
+                  const name = r.media_type==='movie' ? r.title : r.name;
                   const year = r.release_date ? r.release_date.split('-')[0] : '';
                   const img = r.poster_path || r.profile_path;
                   return (
-                    <div key={r.id}
-                      style={{padding:'7px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
+                    <div key={r.id} style={{padding:'7px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
                       onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
                       onMouseLeave={e=>e.currentTarget.style.background='white'}
-                      onClick={() => { setNewAnswerText(name + (year?` (${year})`:''));setNewAnswerImage(img ? `https://image.tmdb.org/t/p/w92${img}` : '');setSearchResults([]); }}>
-                      {img
-                        ? <img src={`https://image.tmdb.org/t/p/w92${img}`} style={{width:24,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                      onClick={()=>{ setNewAnswerText(name+(year?` (${year})`:''));setNewAnswerImage(img?`https://image.tmdb.org/t/p/w92${img}`:'');setSearchResults([]); }}>
+                      {img ? <img src={`https://image.tmdb.org/t/p/w92${img}`} style={{width:24,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
                         : <div style={{width:24,height:36,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem'}}>🎬</div>}
-                      <div>
-                        <div style={{fontWeight:600,fontSize:'0.9rem'}}>{name}</div>
-                        {year && <div style={{fontSize:'0.72rem',color:'#888'}}>{year}</div>}
-                      </div>
+                      <div><div style={{fontWeight:600,fontSize:'0.9rem'}}>{name}</div>{year && <div style={{fontSize:'0.72rem',color:'#888'}}>{year}</div>}</div>
                     </div>
                   );
                 })}
@@ -3807,25 +3860,17 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
           </div>
           {!selectedMember && (
             <div style={{marginBottom:10}}>
-              <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
+              <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who are you?</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {members.map(m => (
-                  <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
-                    onClick={()=>setSelectedMember(m)}>
-                    {m}
-                  </button>
-                ))}
+                {members.map(m => <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}} onClick={()=>setSelectedMember(m)}>{m}</button>)}
               </div>
             </div>
           )}
-          {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Adding as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
+          {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Answering as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
           {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
-          <div style={{display:'flex',gap:8}}>
-            <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer}
-              disabled={!newAnswerText.trim()||!selectedMember||submitting}>
-              {submitting?'…':'Submit Answer'}
-            </button>
-            <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchYear('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer} disabled={!newAnswerText.trim()||!selectedMember||submitting}>{submitting?'…':'Submit Answer'}</button>
+            <button onClick={()=>setRevealed(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'#aaa',padding:'7px 2px',whiteSpace:'nowrap'}}>Reveal results →</button>
           </div>
         </div>
       )}
