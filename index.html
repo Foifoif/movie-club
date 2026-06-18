@@ -580,6 +580,27 @@
     margin-bottom: 20px;
     overflow: hidden;
     box-shadow: 5px 5px 0 var(--ink);
+    position: relative;
+  }
+
+  @keyframes matchup-fly-down {
+    0%   { transform: scale(1)     translateY(0);     box-shadow: 5px 5px 0 var(--ink);            opacity: 1; }
+    18%  { transform: scale(1.04)  translateY(-14px); box-shadow: 0 22px 55px rgba(0,0,0,0.28);   opacity: 1; }
+    88%  { transform: scale(1.01)  translateY(480px); box-shadow: 0 6px 18px rgba(0,0,0,0.1);     opacity: 0.55; }
+    100% { transform: scale(1)     translateY(500px); box-shadow: 5px 5px 0 var(--ink);            opacity: 0; }
+  }
+  @keyframes matchup-land {
+    0%   { opacity: 0; transform: translateY(-18px) scale(0.97); }
+    55%  { opacity: 1; transform: translateY(5px)   scale(1.01); }
+    100% { opacity: 1; transform: translateY(0)     scale(1);    }
+  }
+  .matchup-card-flying {
+    z-index: 100;
+    animation: matchup-fly-down 0.72s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none;
+  }
+  .matchup-card-landing {
+    animation: matchup-land 0.38s ease-out;
   }
 
   .matchup-header {
@@ -3628,6 +3649,8 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   const [viewingPrev, setViewingPrev] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);   // `${idx}-a` or `${idx}-b`, desktop only
   const [mobileOpenIdx, setMobileOpenIdx] = useState(null); // matchup idx open on mobile
+  const [animatingIdx, setAnimatingIdx] = useState(null); // card currently flying
+  const [landingIdx, setLandingIdx] = useState(null);     // card that just landed
   const [isTouch, setIsTouch] = useState(false);
   const [descCache, setDescCache] = useState({}); // title -> description, for existing brackets
 
@@ -3666,13 +3689,19 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   const winner = bracket.winner;
 
   async function castVote(originalIdx, movieTitle) {
-    if (!selectedMember) return;
+    if (!selectedMember || animatingIdx !== null) return;
     const updated = JSON.parse(JSON.stringify(bracket));
     const matchup = updated.rounds[currentRound][originalIdx];
     matchup.votes = matchup.votes || {};
     matchup.votes[selectedMember] = movieTitle;
-    try { await dbSaveBracket(updated); } catch(e) { console.error('Failed to save vote:', e); }
-    onVoteUpdate(updated);
+    setAnimatingIdx(originalIdx);
+    dbSaveBracket(updated).catch(e => console.error('Failed to save vote:', e));
+    setTimeout(() => {
+      setAnimatingIdx(null);
+      setLandingIdx(originalIdx);
+      onVoteUpdate(updated);
+      setTimeout(() => setLandingIdx(null), 420);
+    }, 740);
   }
 
   const sortedMatchups = round
@@ -3762,7 +3791,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
                 const isBye = matchup.b === 'BYE';
                 const myVote = selectedMember ? (matchup.votes || {})[selectedMember] : null;
                 return (
-                  <div key={originalIdx} className="matchup-card">
+                  <div key={originalIdx} className={`matchup-card${animatingIdx===originalIdx?' matchup-card-flying':landingIdx===originalIdx?' matchup-card-landing':''}`}>
                     <div className="matchup-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                       <span>Matchup {originalIdx + 1}</span>
                       {isBye && <span style={{fontWeight:400,fontSize:'0.68rem',color:'#888',textTransform:'none',letterSpacing:0}}>Auto-advancing</span>}
