@@ -3672,7 +3672,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
               </button>
             </div>
           )}
-          {viewingPrev ? (
+          {(viewingPrev && prevRound) ? (
             <>
               <div style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'2px',color:'#aaa',marginBottom:10}}>
                 Round {currentRound} Results
@@ -3713,13 +3713,15 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
             </>
           ) : (
             <>
-              <div className="voter-label">Who are you?</div>
-              <div className="voter-grid" style={{marginBottom:20}}>
-                {members.map(m => (
-                  <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
-                ))}
+              <div style={{position:'sticky',top:0,zIndex:10,background:'white',paddingTop:8,paddingBottom:8,marginBottom:4,borderBottom:'2px solid var(--cream)'}}>
+                <div className="voter-label">Who are you?</div>
+                <div className="voter-grid">
+                  {(members || []).map(m => (
+                    <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
+                  ))}
+                </div>
               </div>
-              {!selectedMember && <div className="alert alert-error">👆 Pick your name to vote</div>}
+              {!selectedMember && <div className="alert alert-error" style={{marginTop:8}}>👆 Pick your name to vote</div>}
               {sortedMatchups.map(({ matchup, originalIdx }) => {
                 const isBye = matchup.b === 'BYE';
                 const myVote = selectedMember ? (matchup.votes || {})[selectedMember] : null;
