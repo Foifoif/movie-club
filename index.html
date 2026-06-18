@@ -3534,6 +3534,24 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [editingOptionId, setEditingOptionId] = useState(null);
   const [editedOptionText, setEditedOptionText] = useState('');
 
+  const [pollTick, setPollTick] = useState(0);
+  const expiresAt = localPoll.created_at ? new Date(localPoll.created_at).getTime() + 24 * 60 * 60 * 1000 : null;
+  const msLeft = expiresAt != null ? Math.max(0, expiresAt - Date.now()) : null;
+  const cdHours = msLeft != null ? Math.floor(msLeft / 3600000) : 0;
+  const cdMins  = msLeft != null ? Math.floor((msLeft % 3600000) / 60000) : 0;
+
+  useEffect(() => {
+    if (msLeft == null) return;
+    if (msLeft === 0) {
+      dbClosePoll(localPoll.id)
+        .then(() => { if (onUpdate) onUpdate({ ...localPoll, is_active: false, closed_at: new Date().toISOString() }); })
+        .catch(console.error);
+      return;
+    }
+    const t = setTimeout(() => setPollTick(n => n + 1), Math.min(msLeft, 60000));
+    return () => clearTimeout(t);
+  }, [pollTick]);
+
   useEffect(() => { setLocalPoll(poll); setEditedQuestion(poll.question); }, [poll]);
 
   const myVote = (localPoll.votes || []).find(v => v.member_name === selectedMember);
@@ -3919,6 +3937,11 @@ function PastPollCard({ poll, members, onUpdate }) {
           )}
         </div>
         {localPoll.created_by && !editingQuestion && <span className="poll-asked-by" style={{marginRight:6}}>{localPoll.created_by}</span>}
+        {msLeft != null && msLeft > 0 && !editingQuestion && (
+          <span style={{fontSize:'0.7rem',color:'#e8a87c',fontWeight:600,marginRight:6,whiteSpace:'nowrap'}}>
+            {cdHours > 0 ? `${cdHours}h ${cdMins}m` : `${cdMins}m`}
+          </span>
+        )}
         <span style={{fontSize:'0.72rem',color:'#bbb',marginLeft:4}}>{expanded?'▲':'▼'}</span>
       </div>
 
