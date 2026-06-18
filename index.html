@@ -592,14 +592,17 @@
     border-bottom: 2px solid var(--cream);
   }
 
-  .matchup-options { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .matchup-options { padding: 8px 12px 12px; display: flex; flex-direction: row; gap: 8px; align-items: stretch; }
 
   .matchup-vs {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-    font-size: 1rem;
+    font-size: 0.85rem;
     color: var(--red);
-    margin: -4px 0;
+    padding: 0 2px;
+    flex-shrink: 0;
   }
 
   .vote-btn {
@@ -621,6 +624,25 @@
   .vote-btn:hover { background: var(--yellow); transform: translateX(3px); }
   .vote-btn.voted { background: var(--green); color: white; border-color: var(--green); box-shadow: 3px 3px 0 var(--ink); }
   .vote-btn.lost { opacity: 0.4; }
+
+  .vote-btn-h {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    min-width: 0;
+    gap: 3px;
+  }
+  .vote-btn-h:hover:not(:disabled) { border-color: var(--yellow); background: rgba(255,224,78,0.15); }
+  .vote-btn-h.voted { background: var(--green); color: white; border-color: var(--green); }
+  .vote-btn-h.lost { opacity: 0.45; }
 
   .vote-count {
     font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
@@ -3436,29 +3458,172 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
   );
 }
 
+// ─── BRACKET SETUP FORM ───────────────────────────────────────────────────────
+function BracketSetupForm({ onDone, onCancel }) {
+  const [movies, setMovies] = useState([]);
+  const [search, setSearch] = useState('');
+  const [searchYear, setSearchYear] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [byeIdx, setByeIdx] = useState(null);
+  const timer = useRef(null);
+
+  const needsBye = movies.length >= 3 && movies.length % 2 !== 0;
+  const canStart = movies.length >= 2 && (!needsBye || byeIdx !== null);
+
+  function doSearch(text, yr) {
+    clearTimeout(timer.current);
+    if (text.length < 2) { setResults([]); return; }
+    timer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1`;
+        if (yr && /^\d{4}$/.test(yr)) url += `&year=${yr}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        setResults((d.results || []).slice(0, 6));
+      } catch(e) {}
+      setSearching(false);
+    }, 400);
+  }
+
+  function pickMovie(r) {
+    const year = r.release_date ? r.release_date.split('-')[0] : '';
+    const title = r.title + (year ? ` (${year})` : '');
+    const poster = r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null;
+    setMovies(prev => [...prev, { title, poster }]);
+    setSearch(''); setSearchYear(''); setResults([]);
+    setByeIdx(null);
+  }
+
+  function removeMovie(i) {
+    setMovies(prev => prev.filter((_, j) => j !== i));
+    setByeIdx(prev => prev === i ? null : prev !== null && prev > i ? prev - 1 : prev);
+  }
+
+  function submit() {
+    if (movies.length < 2) return;
+    let list = [...movies];
+    if (list.length % 2 !== 0 && byeIdx !== null) {
+      const [bye] = list.splice(byeIdx, 1);
+      list.push(bye);
+    }
+    const matchups = [];
+    for (let i = 0; i < list.length; i += 2) {
+      if (i + 1 < list.length) {
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, b: list[i+1].title, bPoster: list[i+1].poster, votes: {} });
+      } else {
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, b: 'BYE', bPoster: null, votes: {} });
+      }
+    }
+    onDone(matchups);
+  }
+
+  return (
+    <div style={{marginTop:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
+      <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>Set Up Bracket</div>
+
+      {movies.length > 0 && (
+        <div style={{marginBottom:12}}>
+          {movies.map((m, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid var(--cream)'}}>
+              {m.poster
+                ? <img src={m.poster} style={{width:26,height:39,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                : <div style={{width:26,height:39,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.65rem'}}>🎬</div>}
+              <span style={{flex:1,fontSize:'0.88rem',fontWeight:600}}>{m.title}</span>
+              {needsBye && (
+                <button
+                  style={{fontSize:'0.7rem',background:byeIdx===i?'var(--yellow)':'none',border:`1px solid ${byeIdx===i?'var(--ink)':'#ddd'}`,borderRadius:4,padding:'2px 6px',cursor:'pointer',color:byeIdx===i?'var(--ink)':'#aaa',fontFamily:'inherit'}}
+                  onClick={() => setByeIdx(byeIdx === i ? null : i)}>
+                  bye
+                </button>
+              )}
+              <button onClick={() => removeMovie(i)} style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:'1.1rem',lineHeight:1,padding:'0 2px'}}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {needsBye && byeIdx === null && (
+        <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:8,fontFamily:"'Special Elite',monospace"}}>
+          Odd number of movies — tap "bye" next to the one that should auto-advance this round.
+        </div>
+      )}
+
+      <input className="form-input" style={{marginBottom:4}} value={search}
+        onChange={e => { setSearch(e.target.value); doSearch(e.target.value, searchYear); }}
+        placeholder="Search for a movie to add…" />
+      <input className="form-input" style={{marginBottom:6,fontSize:'0.85rem',padding:'6px 10px'}} value={searchYear}
+        onChange={e => { setSearchYear(e.target.value); doSearch(search, e.target.value); }}
+        placeholder="Filter by year (optional)" />
+      {searching && <div style={{fontSize:'0.72rem',color:'#999',marginBottom:4}}>Searching…</div>}
+      {results.length > 0 && (
+        <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',overflow:'hidden',marginBottom:8}}>
+          {results.map(r => {
+            const yr = r.release_date ? r.release_date.split('-')[0] : '';
+            return (
+              <div key={r.id}
+                style={{padding:'6px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
+                onMouseEnter={e => e.currentTarget.style.background='var(--cream)'}
+                onMouseLeave={e => e.currentTarget.style.background='white'}
+                onClick={() => pickMovie(r)}>
+                {r.poster_path
+                  ? <img src={`https://image.tmdb.org/t/p/w92${r.poster_path}`} style={{width:22,height:33,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                  : <div style={{width:22,height:33,background:'var(--cream)',borderRadius:3,flexShrink:0}} />}
+                <div>
+                  <div style={{fontWeight:600,fontSize:'0.88rem'}}>{r.title}</div>
+                  {yr && <div style={{fontSize:'0.7rem',color:'#888'}}>{yr}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:8,marginTop:8}}>
+        <button className="home-save-btn" style={{flex:1,padding:'8px'}} disabled={!canStart} onClick={submit}>
+          🏆 Start Bracket ({movies.length} movie{movies.length !== 1 ? 's' : ''})
+        </button>
+        <button className="home-cancel-btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── BRACKET VOTE VIEW (used inside Poll page) ───────────────────────────────
 function BracketVoteView({ bracket, members, onVoteUpdate }) {
   const [selectedMember, setSelectedMember] = useState('');
+  const [viewingPrev, setViewingPrev] = useState(false);
+
   const currentRound = bracket.currentRound || 0;
   const round = bracket.rounds[currentRound];
-  const totalRounds = bracket.rounds.length;
+  const prevRound = currentRound > 0 ? bracket.rounds[currentRound - 1] : null;
   const isFinished = bracket.finished;
   const winner = bracket.winner;
 
-  async function castVote(matchupIdx, movieTitle) {
+  async function castVote(originalIdx, movieTitle) {
     if (!selectedMember) return;
     const updated = JSON.parse(JSON.stringify(bracket));
-    const matchup = updated.rounds[currentRound][matchupIdx];
+    const matchup = updated.rounds[currentRound][originalIdx];
     matchup.votes = matchup.votes || {};
     matchup.votes[selectedMember] = movieTitle;
     try { await dbSaveBracket(updated); } catch(e) { console.error('Failed to save vote:', e); }
     onVoteUpdate(updated);
   }
 
+  const sortedMatchups = round
+    ? [...round.map((m, i) => ({ matchup: m, originalIdx: i }))].sort((x, y) => {
+        const xv = selectedMember && !!(x.matchup.votes || {})[selectedMember];
+        const yv = selectedMember && !!(y.matchup.votes || {})[selectedMember];
+        if (xv === yv) return 0;
+        return xv ? 1 : -1;
+      })
+    : [];
+
   return (
     <>
       <div className="bracket-status">
-        {isFinished ? `🏆 Winner: ${winner}` : `🎬 Round ${currentRound + 1} of ${totalRounds} — Vote now!`}
+        {isFinished ? `🏆 Winner: ${winner}` : `🎬 Round ${currentRound + 1} — Vote now!`}
       </div>
       {isFinished && winner && (
         <div className="bracket-winner">
@@ -3468,43 +3633,99 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
       )}
       {!isFinished && (
         <>
-          <div className="voter-label">Who are you?</div>
-          <div className="voter-grid" style={{marginBottom:20}}>
-            {members.map(m => (
-              <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
-            ))}
-          </div>
-          {!selectedMember && <div className="alert alert-error">👆 Pick your name to vote</div>}
-          {round && round.map((matchup, i) => {
-            const votes = matchup.votes || {};
-            const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
-            const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
-            const total = aVotes + bVotes;
-            const myVote = votes[selectedMember];
-            return (
-              <div key={i} className="matchup-card">
-                <div className="matchup-header">Matchup {i + 1}</div>
-                <div className="matchup-options">
-                  <button className={`vote-btn ${myVote===matchup.a?'voted':''}`} onClick={() => castVote(i, matchup.a)} disabled={!selectedMember}>
-                    <span>{matchup.a}</span>
-                    {total > 0 && <span className="vote-count">{aVotes} vote{aVotes!==1?'s':''}</span>}
-                  </button>
-                  <div className="matchup-vs">VS</div>
-                  <button className={`vote-btn ${myVote===matchup.b?'voted':''}`} onClick={() => castVote(i, matchup.b)} disabled={!selectedMember}>
-                    <span>{matchup.b}</span>
-                    {total > 0 && <span className="vote-count">{bVotes} vote{bVotes!==1?'s':''}</span>}
-                  </button>
-                </div>
-                {total > 0 && (
-                  <div style={{padding:'0 12px 12px'}}>
-                    <div className="progress-bar-wrap">
-                      <div className="progress-bar" style={{width: total ? `${(aVotes/total)*100}%` : '50%'}} />
-                    </div>
-                  </div>
-                )}
+          {prevRound && (
+            <div style={{display:'flex',justifyContent:'flex-end',marginBottom:10}}>
+              <button onClick={() => setViewingPrev(v => !v)}
+                style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0,fontFamily:'inherit'}}>
+                {viewingPrev ? '← Back to voting' : `View Round ${currentRound} results →`}
+              </button>
+            </div>
+          )}
+          {viewingPrev ? (
+            <>
+              <div style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'2px',color:'#aaa',marginBottom:10}}>
+                Round {currentRound} Results
               </div>
-            );
-          })}
+              {prevRound.map((matchup, i) => {
+                const isBye = matchup.b === 'BYE';
+                const votes = matchup.votes || {};
+                const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
+                const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
+                const rWinner = isBye ? matchup.a : (aVotes >= bVotes ? matchup.a : matchup.b);
+                return (
+                  <div key={i} className="matchup-card">
+                    <div className="matchup-header">Matchup {i + 1}</div>
+                    {isBye ? (
+                      <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px 12px'}}>
+                        {matchup.aPoster && <img src={matchup.aPoster} style={{width:34,height:51,objectFit:'cover',borderRadius:4,flexShrink:0}} alt="" />}
+                        <span style={{fontWeight:700,fontSize:'0.9rem',flex:1}}>{matchup.a}</span>
+                        <span style={{fontSize:'0.78rem',color:'var(--green)',fontWeight:700}}>Auto-advanced</span>
+                      </div>
+                    ) : (
+                      <div className="matchup-options">
+                        <div className={`vote-btn-h${rWinner===matchup.a?' voted':' lost'}`} style={{cursor:'default'}}>
+                          {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',wordBreak:'break-word'}}>{matchup.a}</span>
+                          <span style={{fontSize:'0.7rem',color:rWinner===matchup.a?'inherit':'#aaa',marginTop:3}}>{aVotes} vote{aVotes!==1?'s':''}</span>
+                        </div>
+                        <div className="matchup-vs">VS</div>
+                        <div className={`vote-btn-h${rWinner===matchup.b?' voted':' lost'}`} style={{cursor:'default'}}>
+                          {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',wordBreak:'break-word'}}>{matchup.b}</span>
+                          <span style={{fontSize:'0.7rem',color:rWinner===matchup.b?'inherit':'#aaa',marginTop:3}}>{bVotes} vote{bVotes!==1?'s':''}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              <div className="voter-label">Who are you?</div>
+              <div className="voter-grid" style={{marginBottom:20}}>
+                {members.map(m => (
+                  <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
+                ))}
+              </div>
+              {!selectedMember && <div className="alert alert-error">👆 Pick your name to vote</div>}
+              {sortedMatchups.map(({ matchup, originalIdx }) => {
+                const isBye = matchup.b === 'BYE';
+                const myVote = selectedMember ? (matchup.votes || {})[selectedMember] : null;
+                return (
+                  <div key={originalIdx} className="matchup-card">
+                    <div className="matchup-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span>Matchup {originalIdx + 1}</span>
+                      {isBye && <span style={{fontWeight:400,fontSize:'0.68rem',color:'#888',textTransform:'none',letterSpacing:0}}>Auto-advancing</span>}
+                    </div>
+                    {isBye ? (
+                      <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px 12px'}}>
+                        {matchup.aPoster && <img src={matchup.aPoster} style={{width:34,height:51,objectFit:'cover',borderRadius:4,flexShrink:0}} alt="" />}
+                        <span style={{fontWeight:700,fontSize:'0.9rem',flex:1}}>{matchup.a}</span>
+                        <span style={{fontSize:'0.78rem',color:'var(--green)',fontWeight:700,whiteSpace:'nowrap'}}>→ Next round</span>
+                      </div>
+                    ) : (
+                      <div className="matchup-options">
+                        <button className={`vote-btn-h${myVote===matchup.a?' voted':''}`}
+                          onClick={() => castVote(originalIdx, matchup.a)} disabled={!selectedMember}>
+                          {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.a?700:500,wordBreak:'break-word'}}>{matchup.a}</span>
+                          {myVote===matchup.a && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
+                        </button>
+                        <div className="matchup-vs">VS</div>
+                        <button className={`vote-btn-h${myVote===matchup.b?' voted':''}`}
+                          onClick={() => castVote(originalIdx, matchup.b)} disabled={!selectedMember}>
+                          {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.b?700:500,wordBreak:'break-word'}}>{matchup.b}</span>
+                          {myVote===matchup.b && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </>
       )}
     </>
@@ -4114,25 +4335,35 @@ function BracketReadOnlyPage({ bracket, onBack }) {
             Round {rIdx + 1}{rIdx === bracket.rounds.length - 1 ? ' (Final)' : ''}
           </div>
           {round.map((matchup, i) => {
+            const isBye = matchup.b === 'BYE';
             const votes = matchup.votes || {};
             const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
             const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
-            const total = aVotes + bVotes;
-            const roundWinner = aVotes >= bVotes ? matchup.a : matchup.b;
+            const roundWinner = isBye ? matchup.a : (aVotes >= bVotes ? matchup.a : matchup.b);
             return (
               <div key={i} className="matchup-card">
                 <div className="matchup-header">Matchup {i + 1}</div>
-                <div className="matchup-options">
-                  <div className={`vote-btn ${roundWinner===matchup.a?'voted':'lost'}`} style={{cursor:'default'}}>
-                    <span>{matchup.a}</span>
-                    {total > 0 && <span className="vote-count">{aVotes}</span>}
+                {isBye ? (
+                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px 12px'}}>
+                    {matchup.aPoster && <img src={matchup.aPoster} style={{width:34,height:51,objectFit:'cover',borderRadius:4,flexShrink:0}} alt="" />}
+                    <span style={{fontWeight:700,fontSize:'0.9rem',flex:1}}>{matchup.a}</span>
+                    <span style={{fontSize:'0.78rem',color:'var(--green)',fontWeight:700}}>Auto-advanced</span>
                   </div>
-                  <div className="matchup-vs">VS</div>
-                  <div className={`vote-btn ${roundWinner===matchup.b?'voted':'lost'}`} style={{cursor:'default'}}>
-                    <span>{matchup.b}</span>
-                    {total > 0 && <span className="vote-count">{bVotes}</span>}
+                ) : (
+                  <div className="matchup-options">
+                    <div className={`vote-btn-h${roundWinner===matchup.a?' voted':' lost'}`} style={{cursor:'default'}}>
+                      {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                      <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',wordBreak:'break-word'}}>{matchup.a}</span>
+                      <span style={{fontSize:'0.7rem',color:roundWinner===matchup.a?'inherit':'#aaa',marginTop:3}}>{aVotes} vote{aVotes!==1?'s':''}</span>
+                    </div>
+                    <div className="matchup-vs">VS</div>
+                    <div className={`vote-btn-h${roundWinner===matchup.b?' voted':' lost'}`} style={{cursor:'default'}}>
+                      {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                      <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',wordBreak:'break-word'}}>{matchup.b}</span>
+                      <span style={{fontSize:'0.7rem',color:roundWinner===matchup.b?'inherit':'#aaa',marginTop:3}}>{bVotes} vote{bVotes!==1?'s':''}</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
@@ -4146,8 +4377,6 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
-  const [bracketMovies, setBracketMovies] = useState('');
-  const [bracketMsg, setBracketMsg] = useState('');
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
   const [newPollAsker, setNewPollAsker] = useState('');
@@ -4171,25 +4400,6 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
       setShowCreatePoll(false);
     } catch(e) { setCreateErr('Error: ' + e.message); }
     setCreating(false);
-  }
-
-  async function handleBuildBracket() {
-    const films = bracketMovies.split('\n').map(s=>s.trim()).filter(Boolean);
-    if (films.length < 2) { setBracketMsg('Enter at least 2 movies'); return; }
-    const padded = [...films];
-    if (padded.length % 2 !== 0) padded.push('BYE');
-    const matchups = [];
-    for (let i = 0; i < padded.length; i += 2) {
-      matchups.push({ a: padded[i], b: padded[i+1], votes: {} });
-    }
-    const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
-    try {
-      await dbSaveBracket(newBracket);
-      onBracketUpdate(newBracket);
-      setShowBracketSetup(false);
-      setBracketMovies('');
-      setBracketMsg('');
-    } catch(e) { setBracketMsg('Error: ' + e.message); }
   }
 
   return (
@@ -4255,17 +4465,17 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
           )}
 
           {adminAuthed && showBracketSetup && (
-            <div style={{marginTop:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
-              <div style={{fontWeight:700,marginBottom:10,fontSize:'1rem'}}>Set Up Bracket</div>
-              <label className="form-label">Enter nominated movies (one per line)</label>
-              <textarea className="form-input" rows={6} value={bracketMovies} onChange={e=>setBracketMovies(e.target.value)}
-                placeholder={"The Dark Knight\nInception\nThe Godfather\n…"} style={{resize:'vertical'}} />
-              {bracketMsg && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{bracketMsg}</div>}
-              <div style={{display:'flex',gap:8}}>
-                <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleBuildBracket}>🏆 Build Bracket</button>
-                <button className="home-cancel-btn" onClick={()=>{setShowBracketSetup(false);setBracketMsg('');}}>Cancel</button>
-              </div>
-            </div>
+            <BracketSetupForm
+              onDone={async (matchups) => {
+                const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
+                try {
+                  await dbSaveBracket(newBracket);
+                  onBracketUpdate(newBracket);
+                  setShowBracketSetup(false);
+                } catch(e) { console.error('Error creating bracket:', e); }
+              }}
+              onCancel={() => setShowBracketSetup(false)}
+            />
           )}
         </>
       )}
@@ -4824,7 +5034,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [localMembers, setLocalMembers] = useState([...members]);
 
   // Bracket state
-  const [bracketMovies, setBracketMovies] = useState('');
+  const [showAdminBracketSetup, setShowAdminBracketSetup] = useState(false);
 
   // Edit rating state
   const [editMovieId, setEditMovieId] = useState('');
@@ -4914,60 +5124,51 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setLocalMembers(prev => prev.filter(m => m !== name));
   }
 
-  async function buildBracket() {
-    const films = bracketMovies.split('\n').map(s=>s.trim()).filter(Boolean);
-    if (films.length < 2) { showMsg('Enter at least 2 movies', 'error'); return; }
-    const padded = [...films];
-    if (padded.length % 2 !== 0) padded.push('BYE');
-    const matchups = [];
-    for (let i = 0; i < padded.length; i += 2) {
-      matchups.push({ a: padded[i], b: padded[i+1], votes: {} });
-    }
-    const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
-    try {
-      await dbSaveBracket(newBracket);
-      setBracket(newBracket);
-      showMsg('Bracket created!');
-    } catch(e) {
-      showMsg('Error: ' + e.message, 'error');
-    }
-  }
-
   async function advanceBracket() {
     if (!bracket || bracket.finished) return;
     const round = bracket.rounds[bracket.currentRound];
-    const winners = round.map(matchup => {
+
+    // Build winners with poster + vote count for bye assignment
+    const winnerObjs = round.map(matchup => {
+      if (matchup.b === 'BYE') {
+        return { title: matchup.a, poster: matchup.aPoster || null, voteCount: 0 };
+      }
       const votes = matchup.votes || {};
       const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
       const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
-      return aVotes >= bVotes ? matchup.a : matchup.b;
+      const isA = aVotes >= bVotes;
+      return { title: isA ? matchup.a : matchup.b, poster: isA ? (matchup.aPoster||null) : (matchup.bPoster||null), voteCount: isA ? aVotes : bVotes };
     });
 
-    if (winners.length === 1) {
-      const final = { ...bracket, finished: true, winner: winners[0] };
+    if (winnerObjs.length === 1) {
+      const final = { ...bracket, finished: true, winner: winnerObjs[0].title };
       try {
         await dbSaveBracket(final);
         setBracket(final);
-        showMsg(`🏆 ${winners[0]} wins!`);
+        showMsg(`🏆 ${winnerObjs[0].title} wins!`);
       } catch(e) {
         showMsg('Error: ' + e.message, 'error');
       }
       return;
     }
 
+    // If odd winners, give the bye to the one with the most votes
+    if (winnerObjs.length % 2 !== 0) {
+      const maxVotes = Math.max(...winnerObjs.map(w => w.voteCount));
+      const byeIdx = winnerObjs.findIndex(w => w.voteCount === maxVotes);
+      const [byeWinner] = winnerObjs.splice(byeIdx, 1);
+      winnerObjs.push(byeWinner);
+    }
+
     const nextMatchups = [];
-    for (let i = 0; i < winners.length; i += 2) {
-      if (i + 1 < winners.length) {
-        nextMatchups.push({ a: winners[i], b: winners[i+1], votes: {} });
+    for (let i = 0; i < winnerObjs.length; i += 2) {
+      if (i + 1 < winnerObjs.length) {
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, b: winnerObjs[i+1].title, bPoster: winnerObjs[i+1].poster, votes: {} });
       } else {
-        nextMatchups.push({ a: winners[i], b: 'BYE', votes: {} });
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, b: 'BYE', bPoster: null, votes: {} });
       }
     }
-    const updated = {
-      ...bracket,
-      rounds: [...bracket.rounds, nextMatchups],
-      currentRound: bracket.currentRound + 1
-    };
+    const updated = { ...bracket, rounds: [...bracket.rounds, nextMatchups], currentRound: bracket.currentRound + 1 };
     try {
       await dbSaveBracket(updated);
       setBracket(updated);
@@ -5197,15 +5398,30 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {/* BRACKET SECTION */}
         {section === 'bracket' && (
           <>
-            <div className="admin-section-title">Create Bracket</div>
-            <label className="form-label">Enter nominated movies (one per line)</label>
-            <textarea className="form-input" rows={8} value={bracketMovies} onChange={e=>setBracketMovies(e.target.value)} placeholder={"The French Connection\nDr. Strangelove\n48 Hrs\nThe Godfather\n..."} style={{resize:'vertical'}} />
-            <button className="btn-primary" onClick={buildBracket}>🏆 Build Bracket</button>
-
-            {bracket && bracket.rounds && (
+            <div className="admin-section-title">Bracket</div>
+            {(!bracket || !bracket.rounds) ? (
               <>
-                <hr className="section-divider" />
-                <div className="admin-section-title">Current Bracket</div>
+                {!showAdminBracketSetup ? (
+                  <button className="btn-primary" onClick={() => setShowAdminBracketSetup(true)}>
+                    🏆 Create New Bracket
+                  </button>
+                ) : (
+                  <BracketSetupForm
+                    onDone={async (matchups) => {
+                      const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
+                      try {
+                        await dbSaveBracket(newBracket);
+                        setBracket(newBracket);
+                        setShowAdminBracketSetup(false);
+                        showMsg('Bracket created!');
+                      } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+                    }}
+                    onCancel={() => setShowAdminBracketSetup(false)}
+                  />
+                )}
+              </>
+            ) : (
+              <>
                 <div style={{fontFamily:"'Special Elite',monospace",fontSize:'0.85rem',color:'#666',marginBottom:12}}>
                   Round {(bracket.currentRound||0)+1} of {bracket.rounds.length} · {bracket.finished ? '✅ Finished' : '🔴 Active'}
                   {bracket.winner && ` · Winner: ${bracket.winner}`}
