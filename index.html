@@ -5431,11 +5431,14 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     ➡️ Advance to Next Round
                   </button>
                 )}
-                {bracket.finished && (
-                  <button className="btn-primary" onClick={async () => { await dbSaveBracket(null); setBracket(null); showMsg('Bracket cleared'); }}>
-                    🗑️ Clear Bracket
-                  </button>
-                )}
+                <button className="btn-secondary" style={{marginTop:8}} onClick={async () => {
+                  if (!window.confirm('Delete this bracket and start over?')) return;
+                  await dbSaveBracket(null);
+                  setBracket(null);
+                  showMsg('Bracket deleted');
+                }}>
+                  🗑️ Delete Bracket
+                </button>
               </>
             )}
           </>
