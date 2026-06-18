@@ -2282,8 +2282,9 @@ async function loadAll() {
   const bracketData = bracketRes.data ? bracketRes.data.data : null;
   const membersData = (membersRes.data || []).map(r => r.name);
   const pollsData = await dbLoadPolls().catch(() => []);
+  const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
 
-  return { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData };
+  return { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData, bracketHistoryData };
 }
 
 async function dbSaveMovies(existingMovies, newMovieData) {
@@ -2330,6 +2331,18 @@ async function dbSaveBracket(bracketData) {
   }
   const { error } = await sb.from('bracket').upsert({ id: 1, data: bracketData });
   if (error) throw error;
+}
+
+async function dbSaveBracketHistory(bracketData) {
+  const { data, error } = await sb.from('bracket_history').insert({ data: bracketData }).select('id, finished_at').single();
+  if (error) throw error;
+  return data;
+}
+
+async function dbLoadBracketHistory() {
+  const { data, error } = await sb.from('bracket_history').select('id, data, finished_at').order('finished_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 async function dbSaveMembers(members) {
@@ -4305,15 +4318,20 @@ function PastPollCard({ poll, members, onUpdate }) {
 }
 
 // ─── PAST BRACKET CARD ────────────────────────────────────────────────────────
-function PastBracketCard({ bracket, onViewFull }) {
+function PastBracketCard({ bracket, finishedAt, onViewFull }) {
+  const dateLabel = finishedAt
+    ? new Date(finishedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : null;
   return (
     <div className="movie-rating-card" style={{marginBottom:20,cursor:'pointer'}} onClick={onViewFull}>
       <div className="rating-card-header">
         <div style={{flex:1}}>
-          <div className="rating-movie-title">🏆 Bracket — {bracket.winner}</div>
-          <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2}}>Tap to view full bracket →</div>
+          <div className="rating-movie-title">🏆 {bracket.winner}</div>
+          <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2}}>
+            {dateLabel ? `${dateLabel} · ` : ''}Tap to view bracket →
+          </div>
         </div>
-        <div className="avg-badge" style={{fontSize:'0.72rem',background:'var(--yellow)'}}>Finished</div>
+        <div className="avg-badge" style={{fontSize:'0.72rem',background:'var(--yellow)'}}>Bracket</div>
       </div>
     </div>
   );
@@ -4383,7 +4401,7 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
@@ -4395,7 +4413,6 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
   const activePoll = (polls || []).find(p => p.is_active);
   const pastPolls = (polls || []).filter(p => !p.is_active).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   const activeBracket = bracket && !bracket.finished ? bracket : null;
-  const finishedBracket = bracket && bracket.finished ? bracket : null;
 
   async function handleCreatePoll() {
     if (!newPollAsker) { setCreateErr('Select your name first'); return; }
@@ -4491,10 +4508,11 @@ function PollPage({ polls, bracket, members, onPollUpdate, onBracketUpdate, admi
 
       {tab === 'past' && (
         <>
-          {finishedBracket && (
-            <PastBracketCard bracket={finishedBracket} onViewFull={()=>onNavigate('bracket')} />
-          )}
-          {pastPolls.length === 0 && !finishedBracket && (
+          {(bracketHistory || []).map(record => (
+            <PastBracketCard key={record.id} bracket={record.data} finishedAt={record.finished_at}
+              onViewFull={() => onNavigate(`bracket/${record.id}`)} />
+          ))}
+          {pastPolls.length === 0 && (bracketHistory || []).length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
               <div>No past polls yet.</div>
@@ -4975,7 +4993,7 @@ function WatchListPage({ members, alltime, ratings }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd }) {
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
@@ -5153,7 +5171,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       const final = { ...bracket, finished: true, winner: winnerObjs[0].title };
       try {
         await dbSaveBracket(final);
+        const record = await dbSaveBracketHistory(final);
         setBracket(final);
+        if (onBracketHistoryAdd && record) onBracketHistoryAdd({ id: record.id, data: final, finished_at: record.finished_at });
         showMsg(`🏆 ${winnerObjs[0].title} wins!`);
       } catch(e) {
         showMsg('Error: ' + e.message, 'error');
@@ -5572,7 +5592,7 @@ function pageFromPath() {
   const p = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
   if (p === 'ratings') return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
-  if (p === 'bracket') return 'bracket';
+  if (p === 'bracket' || p.startsWith('bracket/')) return 'bracket';
   if (p === 'watchlist' || p.startsWith('watchlist/')) return 'watchlist';
   return 'home';
 }
@@ -5590,6 +5610,11 @@ function App() {
   const [movies, setMovies] = useState([]);
   const [ratings, setRatings] = useState({});
   const [bracket, setBracket] = useState(null);
+  const [bracketHistory, setBracketHistory] = useState([]);
+  const [bracketViewId, setBracketViewId] = useState(() => {
+    const match = window.location.pathname.match(/^\/bracket\/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  });
   const [members, setMembers] = useState([]);
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
@@ -5603,10 +5628,16 @@ function App() {
     const path = newPage === 'home' ? '/' : `/${newPage}`;
     window.history.pushState(null, '', path);
     _setPage(newPage.split('/')[0]);
+    const bracketMatch = newPage.match(/^bracket\/(\d+)$/);
+    setBracketViewId(bracketMatch ? parseInt(bracketMatch[1]) : null);
   }
 
   useEffect(() => {
-    const onPop = () => _setPage(pageFromPath());
+    const onPop = () => {
+      _setPage(pageFromPath());
+      const match = window.location.pathname.match(/^\/bracket\/(\d+)/);
+      setBracketViewId(match ? parseInt(match[1]) : null);
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -5635,6 +5666,7 @@ function App() {
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
+        if (bracketHistoryData.length) setBracketHistory(bracketHistoryData);
         if (membersData.length) setMembers(membersData);
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
@@ -5695,13 +5727,15 @@ function App() {
         bracket={bracket} onBracketClick={()=>setPage('poll')} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <PollBoundary>
-        <PollPage polls={polls} bracket={bracket} members={members}
+        <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
           onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
           onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />
       </PollBoundary>}
-      {page === 'bracket' && <BracketReadOnlyPage bracket={bracket} onBack={()=>setPage('poll')} />}
+      {page === 'bracket' && <BracketReadOnlyPage
+        bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}
+        onBack={() => { setBracketViewId(null); setPage('poll'); }} />}
       {page === 'watchlist' && <WatchListPage members={members} alltime={alltime} ratings={ratings} />}
 
       <div className="footer-logo-section" ref={footerRef}
@@ -5731,6 +5765,7 @@ function App() {
           alltime={alltime} setAlltime={setAlltime}
           ratings={ratings} setRatings={setRatings}
           polls={polls} setPolls={setPolls}
+          onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
         />
       )}
     </>
