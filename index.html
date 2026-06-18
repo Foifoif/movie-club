@@ -3653,8 +3653,11 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
 
   return (
     <>
-      <div className="bracket-status">
-        {isFinished ? `🏆 Winner: ${winner}` : `🎬 Round ${currentRound + 1} — Vote now!`}
+      <div className="poll-card" style={{marginBottom:16,cursor:'default'}}>
+        <div className="poll-card-label">🏆 Bracket · Round {currentRound + 1}{isFinished?' — Final':''}</div>
+        <div className="poll-card-question">
+          {isFinished ? `Winner: ${winner}` : `🎬 Round ${currentRound + 1} — Vote now!`}
+        </div>
       </div>
       {isFinished && winner && (
         <div className="bracket-winner">
@@ -3713,7 +3716,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
             </>
           ) : (
             <>
-              <div style={{position:'sticky',top:0,zIndex:10,background:'white',paddingTop:8,paddingBottom:8,marginBottom:4,borderBottom:'2px solid var(--cream)'}}>
+              <div style={{marginBottom:12}}>
                 <div className="voter-label">Who are you?</div>
                 <div className="voter-grid">
                   {(members || []).map(m => (
@@ -5673,11 +5676,11 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData, bracketHistoryData } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
-        if (bracketHistoryData.length) setBracketHistory(bracketHistoryData);
+        if (bracketHistoryData && bracketHistoryData.length) setBracketHistory(bracketHistoryData);
         if (membersData.length) setMembers(membersData);
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
