@@ -2910,6 +2910,15 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
         </a>
       )}
+      {bracket && (
+        <a className="poll-card" style={{cursor:'pointer'}}
+          onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
+          <div className="poll-card-label">🏆 Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+          <div className="poll-card-question">
+            {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
+          </div>
+        </a>
+      )}
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <div className="home-movies-grid">
