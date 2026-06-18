@@ -3522,7 +3522,8 @@ function BracketSetupForm({ onDone, onCancel }) {
     const year = r.release_date ? r.release_date.split('-')[0] : '';
     const title = r.title + (year ? ` (${year})` : '');
     const poster = r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null;
-    setMovies(prev => [...prev, { title, poster }]);
+    const desc = r.overview || '';
+    setMovies(prev => [...prev, { title, poster, desc }]);
     setSearch(''); setSearchYear(''); setResults([]);
     setByeIdx(null);
   }
@@ -3542,9 +3543,9 @@ function BracketSetupForm({ onDone, onCancel }) {
     const matchups = [];
     for (let i = 0; i < list.length; i += 2) {
       if (i + 1 < list.length) {
-        matchups.push({ a: list[i].title, aPoster: list[i].poster, b: list[i+1].title, bPoster: list[i+1].poster, votes: {} });
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', b: list[i+1].title, bPoster: list[i+1].poster, bDesc: list[i+1].desc||'', votes: {} });
       } else {
-        matchups.push({ a: list[i].title, aPoster: list[i].poster, b: 'BYE', bPoster: null, votes: {} });
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', b: 'BYE', bPoster: null, bDesc: '', votes: {} });
       }
     }
     onDone(matchups);
@@ -3625,6 +3626,9 @@ function BracketSetupForm({ onDone, onCancel }) {
 function BracketVoteView({ bracket, members, onVoteUpdate }) {
   const [selectedMember, setSelectedMember] = useState('');
   const [viewingPrev, setViewingPrev] = useState(false);
+  const [hoverKey, setHoverKey] = useState(null);   // `${idx}-a` or `${idx}-b`, desktop only
+  const [mobileOpenIdx, setMobileOpenIdx] = useState(null); // matchup idx open on mobile
+  const isTouch = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
 
   const currentRound = bracket.currentRound || 0;
   const round = bracket.rounds[currentRound];
@@ -3741,21 +3745,58 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
                         <span style={{fontSize:'0.78rem',color:'var(--green)',fontWeight:700,whiteSpace:'nowrap'}}>→ Next round</span>
                       </div>
                     ) : (
-                      <div className="matchup-options">
-                        <button className={`vote-btn-h${myVote===matchup.a?' voted':''}`}
-                          onClick={() => castVote(originalIdx, matchup.a)} disabled={!selectedMember}>
-                          {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
-                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.a?700:500,wordBreak:'break-word'}}>{matchup.a}</span>
-                          {myVote===matchup.a && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
-                        </button>
-                        <div className="matchup-vs">VS</div>
-                        <button className={`vote-btn-h${myVote===matchup.b?' voted':''}`}
-                          onClick={() => castVote(originalIdx, matchup.b)} disabled={!selectedMember}>
-                          {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
-                          <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.b?700:500,wordBreak:'break-word'}}>{matchup.b}</span>
-                          {myVote===matchup.b && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
-                        </button>
-                      </div>
+                      <>
+                        <div className="matchup-options">
+                          <button className={`vote-btn-h${myVote===matchup.a?' voted':''}`}
+                            onClick={() => { if (isTouch) { setMobileOpenIdx(originalIdx); } else { castVote(originalIdx, matchup.a); } }}
+                            onMouseEnter={() => { if (!isTouch) setHoverKey(`${originalIdx}-a`); }}
+                            onMouseLeave={() => setHoverKey(null)}
+                            disabled={!selectedMember}>
+                            {matchup.aPoster && <img src={matchup.aPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                            <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.a?700:500,wordBreak:'break-word'}}>{matchup.a}</span>
+                            {myVote===matchup.a && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
+                            {hoverKey===`${originalIdx}-a` && (matchup.aDesc||'') && (
+                              <span style={{fontSize:'0.72rem',lineHeight:1.45,color:myVote===matchup.a?'rgba(255,255,255,0.85)':'#666',marginTop:6,textAlign:'left',display:'block',fontWeight:400}}>
+                                {(matchup.aDesc).length>160?(matchup.aDesc).slice(0,160)+'…':matchup.aDesc}
+                              </span>
+                            )}
+                          </button>
+                          <div className="matchup-vs">VS</div>
+                          <button className={`vote-btn-h${myVote===matchup.b?' voted':''}`}
+                            onClick={() => { if (isTouch) { setMobileOpenIdx(originalIdx); } else { castVote(originalIdx, matchup.b); } }}
+                            onMouseEnter={() => { if (!isTouch) setHoverKey(`${originalIdx}-b`); }}
+                            onMouseLeave={() => setHoverKey(null)}
+                            disabled={!selectedMember}>
+                            {matchup.bPoster && <img src={matchup.bPoster} style={{width:44,height:66,objectFit:'cover',borderRadius:5,marginBottom:5,flexShrink:0}} alt="" />}
+                            <span style={{fontSize:'0.82rem',lineHeight:1.3,textAlign:'center',fontWeight:myVote===matchup.b?700:500,wordBreak:'break-word'}}>{matchup.b}</span>
+                            {myVote===matchup.b && <span style={{fontSize:'0.7rem',marginTop:3}}>✓ Voted</span>}
+                            {hoverKey===`${originalIdx}-b` && (matchup.bDesc||'') && (
+                              <span style={{fontSize:'0.72rem',lineHeight:1.45,color:myVote===matchup.b?'rgba(255,255,255,0.85)':'#666',marginTop:6,textAlign:'left',display:'block',fontWeight:400}}>
+                                {(matchup.bDesc).length>160?(matchup.bDesc).slice(0,160)+'…':matchup.bDesc}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                        {isTouch && mobileOpenIdx===originalIdx && (
+                          <div style={{borderTop:'1px solid var(--cream)',padding:'10px 12px 12px',background:'#fafaf8'}}>
+                            {[{title:matchup.a,desc:matchup.aDesc||'',voted:myVote===matchup.a},{title:matchup.b,desc:matchup.bDesc||'',voted:myVote===matchup.b}].map(({title,desc,voted})=>(
+                              <div key={title} style={{marginBottom:10}}>
+                                <div style={{fontWeight:700,fontSize:'0.85rem',marginBottom:desc?4:0}}>{title}</div>
+                                {desc && <div style={{fontSize:'0.78rem',color:'#666',lineHeight:1.5,marginBottom:6}}>{desc.length>200?desc.slice(0,200)+'…':desc}</div>}
+                                <button disabled={!selectedMember}
+                                  onClick={() => { castVote(originalIdx, title); setMobileOpenIdx(null); }}
+                                  style={{background:voted?'var(--green)':selectedMember?'var(--ink)':'#ccc',color:'white',border:'none',borderRadius:6,padding:'6px 16px',fontSize:'0.82rem',fontWeight:700,cursor:selectedMember?'pointer':'default',fontFamily:'inherit'}}>
+                                  {voted?'✓ Voted':'Vote →'}
+                                </button>
+                              </div>
+                            ))}
+                            <button onClick={()=>setMobileOpenIdx(null)}
+                              style={{background:'none',border:'none',fontSize:'0.75rem',color:'#aaa',cursor:'pointer',padding:0,fontFamily:'inherit',marginTop:2}}>
+                              ✕ Close
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -5174,13 +5215,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     // Build winners with poster + vote count for bye assignment
     const winnerObjs = round.map(matchup => {
       if (matchup.b === 'BYE') {
-        return { title: matchup.a, poster: matchup.aPoster || null, voteCount: 0 };
+        return { title: matchup.a, poster: matchup.aPoster || null, desc: matchup.aDesc || '', voteCount: 0 };
       }
       const votes = matchup.votes || {};
       const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
       const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
       const isA = aVotes >= bVotes;
-      return { title: isA ? matchup.a : matchup.b, poster: isA ? (matchup.aPoster||null) : (matchup.bPoster||null), voteCount: isA ? aVotes : bVotes };
+      return { title: isA ? matchup.a : matchup.b, poster: isA ? (matchup.aPoster||null) : (matchup.bPoster||null), desc: isA ? (matchup.aDesc||'') : (matchup.bDesc||''), voteCount: isA ? aVotes : bVotes };
     });
 
     if (winnerObjs.length === 1) {
@@ -5208,9 +5249,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const nextMatchups = [];
     for (let i = 0; i < winnerObjs.length; i += 2) {
       if (i + 1 < winnerObjs.length) {
-        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, b: winnerObjs[i+1].title, bPoster: winnerObjs[i+1].poster, votes: {} });
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', b: winnerObjs[i+1].title, bPoster: winnerObjs[i+1].poster, bDesc: winnerObjs[i+1].desc||'', votes: {} });
       } else {
-        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, b: 'BYE', bPoster: null, votes: {} });
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', b: 'BYE', bPoster: null, bDesc: '', votes: {} });
       }
     }
     const updated = { ...bracket, rounds: [...bracket.rounds, nextMatchups], currentRound: bracket.currentRound + 1 };
@@ -5241,8 +5282,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   async function shuffleRound1() {
     const pool = [];
     for (const m of bracket.rounds[0]) {
-      pool.push({ title: m.a, poster: m.aPoster || null });
-      if (m.b !== 'BYE') pool.push({ title: m.b, poster: m.bPoster || null });
+      pool.push({ title: m.a, poster: m.aPoster || null, desc: m.aDesc || '' });
+      if (m.b !== 'BYE') pool.push({ title: m.b, poster: m.bPoster || null, desc: m.bDesc || '' });
     }
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -5251,9 +5292,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const newMatchups = [];
     for (let i = 0; i < pool.length; i += 2) {
       if (i + 1 < pool.length) {
-        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, b: pool[i+1].title, bPoster: pool[i+1].poster, votes: {} });
+        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, aDesc: pool[i].desc, b: pool[i+1].title, bPoster: pool[i+1].poster, bDesc: pool[i+1].desc, votes: {} });
       } else {
-        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, b: 'BYE', bPoster: null, votes: {} });
+        newMatchups.push({ a: pool[i].title, aPoster: pool[i].poster, aDesc: pool[i].desc, b: 'BYE', bPoster: null, bDesc: '', votes: {} });
       }
     }
     const updated = { ...bracket, rounds: [newMatchups, ...bracket.rounds.slice(1)] };
