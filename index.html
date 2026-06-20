@@ -674,6 +674,64 @@
   }
 
   /* ADMIN */
+  .trailer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .trailer-modal {
+    position: relative;
+    width: 100%;
+    max-width: 820px;
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  }
+  .trailer-modal iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+  .trailer-close-btn {
+    position: absolute;
+    top: -36px;
+    right: 0;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    opacity: 0.85;
+  }
+  .trailer-close-btn:hover { opacity: 1; }
+  .watch-trailer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: 1.5px solid currentColor;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    opacity: 0.82;
+    transition: opacity 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .watch-trailer-btn:hover { opacity: 1; }
   .admin-overlay {
     position: fixed;
     inset: 0;
@@ -2119,6 +2177,16 @@ const SUPABASE_ANON_KEY = 'sb_publishable_BLeS65tH-8Fxd4nbAX8acA_TAIMtcNn';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TMDB_KEY = 'aeb55fbbade0da7a94cd4e2ca7743ebf';
 
+async function fetchTrailerUrl(tmdbId) {
+  if (!tmdbId) return null;
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}/videos?api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const trailer = (data.results || []).find(v => v.type === 'Trailer' && v.site === 'YouTube');
+    return trailer ? `https://www.youtube.com/embed/${trailer.key}?rel=0` : null;
+  } catch(e) { return null; }
+}
+
 // Theme + month metadata for the 40 archived movies, in insertion order
 // (French Connection = 0, Exorcist III = 39)
 const HISTORY_META = [
@@ -2254,6 +2322,8 @@ function rowToMovie(row) {
     ratingScale: row.rating_scale || '',
     sessionTheme: row.session_theme || '',
     shownMonth: row.shown_month || '',
+    tmdbId: row.tmdb_id || null,
+    trailerUrl: row.trailer_url || null,
     // Derive type from movie_type column if it exists, else fall back to accent color:
     // gold (#f5c518) = impromptu, anything else = official
     movieType: row.movie_type || (row.accent === '#f5c518' ? 'impromptu' : 'official'),
@@ -2283,6 +2353,8 @@ async function loadAll() {
         ratingScale: row.rating_scale || '',
         avgScore: row.avg_score,
         poster: row.poster || null,
+        tmdbId: row.tmdb_id || null,
+        trailerUrl: row.trailer_url || null,
         // For HISTORY_META movies: theme = the per-movie theme label
         // For new movies: use ratingScale as the label
         theme: meta?.theme || row.rating_scale || '',
@@ -2321,6 +2393,8 @@ async function dbSaveMovies(existingMovies, newMovieData) {
       accent: m.accent || null,
       rating_scale: m.ratingScale || '',
       session_theme: m.sessionTheme || null,
+      tmdb_id: m.tmdbId || null,
+      trailer_url: m.trailerUrl || null,
       archived: false,
     };
     const existing = existingMovies[i];
@@ -2526,7 +2600,7 @@ async function dbRecalcAvg(movieId) {
   return rounded;
 }
 
-async function dbAddHistoryMovie({ title, year, description, poster, movieType, sessionTheme }) {
+async function dbAddHistoryMovie({ title, year, description, poster, movieType, sessionTheme, tmdbId, trailerUrl }) {
   const now = new Date();
   const shownMonth = now.toLocaleString('default', { month: 'long', year: 'numeric' });
   // Use accent color to encode type — no extra DB column needed:
@@ -2538,6 +2612,8 @@ async function dbAddHistoryMovie({ title, year, description, poster, movieType, 
     poster: poster || null, streaming: [], accent,
     rating_scale: '', archived: true, avg_score: null,
     session_theme: sessionTheme || null,
+    tmdb_id: tmdbId || null,
+    trailer_url: trailerUrl || null,
   };
   // Add shown_month only if the column exists (graceful degradation)
   try { row.shown_month = shownMonth; } catch(_) {}
@@ -2811,10 +2887,49 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
 }
 
 // ─── MOVIE CARD ──────────────────────────────────────────────────────────────
+function TrailerModal({ url, title, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="trailer-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="trailer-modal">
+        <button className="trailer-close-btn" onClick={onClose} aria-label="Close trailer">✕</button>
+        <iframe
+          src={url}
+          title={title ? `${title} — Trailer` : 'Trailer'}
+          allow="autoplay; encrypted-media; fullscreen"
+          allowFullScreen
+        />
+      </div>
+    </div>
+  );
+}
+
+function TrailerButton({ trailerUrl, title, color }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      {open && <TrailerModal url={trailerUrl} title={title} onClose={() => setOpen(false)} />}
+      <button
+        className="watch-trailer-btn"
+        style={{ color: color || 'var(--blue-mid)' }}
+        onClick={e => { e.stopPropagation(); setOpen(true); }}>
+        ▶ Trailer
+      </button>
+    </>
+  );
+}
+
 function MovieCard({ movie, index, movieRatings, members, onRate }) {
   const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
+  const [showTrailer, setShowTrailer] = React.useState(false);
   return (
     <div className="movie-card">
+      {showTrailer && <TrailerModal url={movie.trailerUrl} title={movie.title} onClose={() => setShowTrailer(false)} />}
       <div className="movie-card-accent" style={{color: accent}}>
         <span className="now-showing-bar" style={{background: accent}} />
         <span className="now-showing-text">Now Showing</span>
@@ -2837,6 +2952,11 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
         <div className="movie-title">{movie.title}</div>
         {movie.year && <div className="movie-year">{movie.year}</div>}
         {movie.description && <div className="movie-desc">{movie.description}</div>}
+        {movie.trailerUrl && (
+          <button className="watch-trailer-btn" style={{color: accent, marginTop: 8}} onClick={() => setShowTrailer(true)}>
+            ▶ Watch Trailer
+          </button>
+        )}
         {movie.streaming && movie.streaming.length > 0 && (
           <>
             <div className="where-label">Where to watch</div>
@@ -2987,12 +3107,16 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
         title: selected.title, year: selected.year,
         description: selected.description, poster: selected.poster,
         movieType, sessionTheme: movieType === 'official' ? sessionTheme : '',
+        tmdbId: selected.tmdbId || null,
+        trailerUrl: selected.trailerUrl || null,
       });
       onAdd({
         id: row.id, title: row.title, year: row.year,
         ratingScale: '', avgScore: null, poster: row.poster || null,
         theme: '', month: row.shownMonth || '',
         sessionTheme: movieType === 'official' ? sessionTheme : '', movieType,
+        tmdbId: row.tmdb_id || null,
+        trailerUrl: row.trailer_url || null,
       });
     } catch(e) { setErr('Failed to add: ' + e.message); }
     setSaving(false);
@@ -3235,6 +3359,9 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                         <span className={`type-badge ${isImpromptu ? 'type-badge-impromptu' : 'type-badge-official'}`}>
                           {isImpromptu ? 'Impromptu' : 'Official'}
                         </span>
+                        {movie.trailerUrl && (
+                          <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} />
+                        )}
                       </div>
                     </div>
                     {(() => { const show = !isCurrentMonth || monthRevealed || revealedMovies.has(movie.id); return (
@@ -3441,6 +3568,9 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
                   <span className={`type-badge ${movie.movieType==='impromptu'?'type-badge-impromptu':'type-badge-official'}`}>
                     {movie.movieType==='impromptu'?'Impromptu':'Official'}
                   </span>
+                  {movie.trailerUrl && (
+                    <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} />
+                  )}
                 </div>
               </div>
               <div className="alltime-score">{movie.avgScore}</div>
@@ -3539,12 +3669,13 @@ function BracketSetupForm({ onDone, onCancel }) {
     }, 400);
   }
 
-  function pickMovie(r) {
+  async function pickMovie(r) {
     const year = r.release_date ? r.release_date.split('-')[0] : '';
     const title = r.title + (year ? ` (${year})` : '');
     const poster = r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null;
     const desc = r.overview || '';
-    setMovies(prev => [...prev, { title, poster, desc }]);
+    const trailerUrl = await fetchTrailerUrl(r.id);
+    setMovies(prev => [...prev, { title, poster, desc, tmdbId: r.id, trailerUrl }]);
     setSearch(''); setSearchYear(''); setResults([]);
     setByeIdx(null);
   }
@@ -3564,9 +3695,9 @@ function BracketSetupForm({ onDone, onCancel }) {
     const matchups = [];
     for (let i = 0; i < list.length; i += 2) {
       if (i + 1 < list.length) {
-        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', b: list[i+1].title, bPoster: list[i+1].poster, bDesc: list[i+1].desc||'', votes: {} });
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', aTrailer: list[i].trailerUrl||null, b: list[i+1].title, bPoster: list[i+1].poster, bDesc: list[i+1].desc||'', bTrailer: list[i+1].trailerUrl||null, votes: {} });
       } else {
-        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', b: 'BYE', bPoster: null, bDesc: '', votes: {} });
+        matchups.push({ a: list[i].title, aPoster: list[i].poster, aDesc: list[i].desc||'', aTrailer: list[i].trailerUrl||null, b: 'BYE', bPoster: null, bDesc: '', bTrailer: null, votes: {} });
       }
     }
     onDone(matchups);
@@ -3835,17 +3966,30 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
                             )}
                           </button>
                         </div>
+                        {(matchup.aTrailer || matchup.bTrailer) && (
+                          <div style={{display:'flex',gap:8,padding:'0 12px 10px',justifyContent:'center'}}>
+                            {matchup.aTrailer && (
+                              <TrailerButton trailerUrl={matchup.aTrailer} title={matchup.a} color="var(--blue-mid)" />
+                            )}
+                            {matchup.bTrailer && (
+                              <TrailerButton trailerUrl={matchup.bTrailer} title={matchup.b} color="var(--blue-mid)" />
+                            )}
+                          </div>
+                        )}
                         {isTouch && mobileOpenIdx===originalIdx && (
                           <div style={{borderTop:'1px solid var(--cream)',padding:'10px 12px 12px',background:'#fafaf8'}}>
-                            {[{title:matchup.a,desc:matchup.aDesc||descCache[matchup.a]||'',voted:myVote===matchup.a},{title:matchup.b,desc:matchup.bDesc||descCache[matchup.b]||'',voted:myVote===matchup.b}].map(({title,desc,voted})=>(
+                            {[{title:matchup.a,desc:matchup.aDesc||descCache[matchup.a]||'',trailer:matchup.aTrailer||null,voted:myVote===matchup.a},{title:matchup.b,desc:matchup.bDesc||descCache[matchup.b]||'',trailer:matchup.bTrailer||null,voted:myVote===matchup.b}].map(({title,desc,trailer,voted})=>(
                               <div key={title} style={{marginBottom:10}}>
                                 <div style={{fontWeight:700,fontSize:'0.85rem',marginBottom:desc?4:0}}>{title}</div>
                                 {desc && <div style={{fontSize:'0.78rem',color:'#666',lineHeight:1.5,marginBottom:6}}>{desc.length>200?desc.slice(0,200)+'…':desc}</div>}
-                                <button disabled={!selectedMember}
-                                  onClick={() => { castVote(originalIdx, title); setMobileOpenIdx(null); }}
-                                  style={{background:voted?'var(--green)':selectedMember?'var(--ink)':'#ccc',color:'white',border:'none',borderRadius:6,padding:'6px 16px',fontSize:'0.82rem',fontWeight:700,cursor:selectedMember?'pointer':'default',fontFamily:'inherit'}}>
-                                  {voted?'✓ Voted':'Vote →'}
-                                </button>
+                                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                                  <button disabled={!selectedMember}
+                                    onClick={() => { castVote(originalIdx, title); setMobileOpenIdx(null); }}
+                                    style={{background:voted?'var(--green)':selectedMember?'var(--ink)':'#ccc',color:'white',border:'none',borderRadius:6,padding:'6px 16px',fontSize:'0.82rem',fontWeight:700,cursor:selectedMember?'pointer':'default',fontFamily:'inherit'}}>
+                                    {voted?'✓ Voted':'Vote →'}
+                                  </button>
+                                  {trailer && <TrailerButton trailerUrl={trailer} title={title} />}
+                                </div>
                               </div>
                             ))}
                             <button onClick={()=>setMobileOpenIdx(null)}
@@ -4699,13 +4843,16 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
     onChange(movie.title);
     setLoading(true);
     try {
-      const provRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/watch/providers?api_key=${TMDB_KEY}`);
+      const [provRes, trailerUrl] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/movie/${movie.id}/watch/providers?api_key=${TMDB_KEY}`),
+        fetchTrailerUrl(movie.id),
+      ]);
       const provData = await provRes.json();
       const flatrate = provData.results?.US?.flatrate || [];
       const streaming = flatrate.map(p => p.provider_name);
       const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null;
       const yr = movie.release_date ? movie.release_date.split('-')[0] : '';
-      onSelect({ title: movie.title, year: yr, description: movie.overview || '', poster, streaming });
+      onSelect({ title: movie.title, year: yr, description: movie.overview || '', poster, streaming, tmdbId: movie.id, trailerUrl });
     } catch(e) { console.error(e); }
     setLoading(false);
   }
@@ -5161,12 +5308,16 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [movie1Stream, setMovie1Stream] = useState(movies[0]?.streaming?.join(', ') || '');
   const [movie1Scale, setMovie1Scale] = useState(movies[0]?.ratingScale || '');
   const [movie1Poster, setMovie1Poster] = useState(movies[0]?.poster || '');
+  const [movie1TmdbId, setMovie1TmdbId] = useState(movies[0]?.tmdbId || null);
+  const [movie1Trailer, setMovie1Trailer] = useState(movies[0]?.trailerUrl || '');
   const [movie2Title, setMovie2Title] = useState(movies[1]?.title || '');
   const [movie2Year, setMovie2Year] = useState(movies[1]?.year || '');
   const [movie2Desc, setMovie2Desc] = useState(movies[1]?.description || '');
   const [movie2Stream, setMovie2Stream] = useState(movies[1]?.streaming?.join(', ') || '');
   const [movie2Scale, setMovie2Scale] = useState(movies[1]?.ratingScale || '');
   const [movie2Poster, setMovie2Poster] = useState(movies[1]?.poster || '');
+  const [movie2TmdbId, setMovie2TmdbId] = useState(movies[1]?.tmdbId || null);
+  const [movie2Trailer, setMovie2Trailer] = useState(movies[1]?.trailerUrl || '');
   const [sessionThemeInput, setSessionThemeInput] = useState(movies[0]?.sessionTheme || '');
 
   // Members state
@@ -5224,7 +5375,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         ratingScale: movie1Scale,
         sessionTheme: sessionThemeInput,
         poster: movie1Poster || null,
-        accent: ACCENT_COLORS[0]
+        accent: ACCENT_COLORS[0],
+        tmdbId: movie1TmdbId || null,
+        trailerUrl: movie1Trailer || null,
       },
       {
         title: movie2Title,
@@ -5234,7 +5387,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         ratingScale: movie2Scale,
         sessionTheme: sessionThemeInput,
         poster: movie2Poster || null,
-        accent: ACCENT_COLORS[1]
+        accent: ACCENT_COLORS[1],
+        tmdbId: movie2TmdbId || null,
+        trailerUrl: movie2Trailer || null,
       }
     ].filter(m => m.title);
     try {
@@ -5273,13 +5428,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     // Build winners with poster + vote count for bye assignment
     const winnerObjs = round.map(matchup => {
       if (matchup.b === 'BYE') {
-        return { title: matchup.a, poster: matchup.aPoster || null, desc: matchup.aDesc || '', voteCount: 0 };
+        return { title: matchup.a, poster: matchup.aPoster || null, desc: matchup.aDesc || '', trailerUrl: matchup.aTrailer || null, voteCount: 0 };
       }
       const votes = matchup.votes || {};
       const aVotes = Object.values(votes).filter(v => v === matchup.a).length;
       const bVotes = Object.values(votes).filter(v => v === matchup.b).length;
       const isA = aVotes >= bVotes;
-      return { title: isA ? matchup.a : matchup.b, poster: isA ? (matchup.aPoster||null) : (matchup.bPoster||null), desc: isA ? (matchup.aDesc||'') : (matchup.bDesc||''), voteCount: isA ? aVotes : bVotes };
+      return { title: isA ? matchup.a : matchup.b, poster: isA ? (matchup.aPoster||null) : (matchup.bPoster||null), desc: isA ? (matchup.aDesc||'') : (matchup.bDesc||''), trailerUrl: isA ? (matchup.aTrailer||null) : (matchup.bTrailer||null), voteCount: isA ? aVotes : bVotes };
     });
 
     if (winnerObjs.length === 1) {
@@ -5307,9 +5462,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const nextMatchups = [];
     for (let i = 0; i < winnerObjs.length; i += 2) {
       if (i + 1 < winnerObjs.length) {
-        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', b: winnerObjs[i+1].title, bPoster: winnerObjs[i+1].poster, bDesc: winnerObjs[i+1].desc||'', votes: {} });
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', aTrailer: winnerObjs[i].trailerUrl||null, b: winnerObjs[i+1].title, bPoster: winnerObjs[i+1].poster, bDesc: winnerObjs[i+1].desc||'', bTrailer: winnerObjs[i+1].trailerUrl||null, votes: {} });
       } else {
-        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', b: 'BYE', bPoster: null, bDesc: '', votes: {} });
+        nextMatchups.push({ a: winnerObjs[i].title, aPoster: winnerObjs[i].poster, aDesc: winnerObjs[i].desc||'', aTrailer: winnerObjs[i].trailerUrl||null, b: 'BYE', bPoster: null, bDesc: '', bTrailer: null, votes: {} });
       }
     }
     const updated = { ...bracket, rounds: [...bracket.rounds, nextMatchups], currentRound: bracket.currentRound + 1 };
@@ -5376,6 +5531,43 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
   }
 
+  const [fetchingTrailers, setFetchingTrailers] = React.useState(false);
+  async function fetchMissingTrailers() {
+    const allMovies = [...(movies || []), ...(alltime || [])];
+    const missing = allMovies.filter(m => !m.trailerUrl);
+    if (!missing.length) { showMsg('All movies already have trailers!'); return; }
+    setFetchingTrailers(true);
+    let updated = 0, failed = 0;
+    for (const m of missing) {
+      try {
+        let tmdbId = m.tmdbId;
+        if (!tmdbId) {
+          const q = encodeURIComponent(m.title.replace(/\s*\(\d{4}\)$/, ''));
+          const yr = m.year || '';
+          let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${q}&language=en-US&page=1`;
+          if (yr) url += `&year=${yr}`;
+          const r = await fetch(url);
+          const d = await r.json();
+          const first = (d.results || [])[0];
+          if (!first) { failed++; continue; }
+          tmdbId = first.id;
+        }
+        const trailerUrl = await fetchTrailerUrl(tmdbId);
+        if (!trailerUrl) { failed++; continue; }
+        await sb.from('movies').update({ tmdb_id: tmdbId, trailer_url: trailerUrl }).eq('id', m.id);
+        if (movies.find(x => x.id === m.id)) {
+          setMovies(prev => prev.map(x => x.id === m.id ? { ...x, tmdbId, trailerUrl } : x));
+        }
+        if ((alltime || []).find(x => x.id === m.id)) {
+          setAlltime(prev => prev.map(x => x.id === m.id ? { ...x, tmdbId, trailerUrl } : x));
+        }
+        updated++;
+      } catch(e) { failed++; }
+    }
+    setFetchingTrailers(false);
+    showMsg(`Trailers fetched: ${updated} updated, ${failed} not found.`, failed > 0 ? 'error' : 'success');
+  }
+
   const scaleOptions = ['stars','berets','skulls','tacos','flames','cups','bombs'];
 
   return (
@@ -5415,7 +5607,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               value={movie1Title}
               onChange={setMovie1Title}
               placeholder="Search for a movie..."
-              onSelect={d => { setMovie1Title(d.title); setMovie1Year(d.year); setMovie1Desc(d.description); setMovie1Poster(d.poster||''); setMovie1Stream(d.streaming.join(', ')); }}
+              onSelect={d => { setMovie1Title(d.title); setMovie1Year(d.year); setMovie1Desc(d.description); setMovie1Poster(d.poster||''); setMovie1Stream(d.streaming.join(', ')); setMovie1TmdbId(d.tmdbId||null); setMovie1Trailer(d.trailerUrl||''); }}
             />
             <label className="form-label">Year</label>
             <input className="form-input" value={movie1Year} onChange={e=>setMovie1Year(e.target.value)} placeholder="1971" />
@@ -5436,7 +5628,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               value={movie2Title}
               onChange={setMovie2Title}
               placeholder="Search for a movie..."
-              onSelect={d => { setMovie2Title(d.title); setMovie2Year(d.year); setMovie2Desc(d.description); setMovie2Poster(d.poster||''); setMovie2Stream(d.streaming.join(', ')); }}
+              onSelect={d => { setMovie2Title(d.title); setMovie2Year(d.year); setMovie2Desc(d.description); setMovie2Poster(d.poster||''); setMovie2Stream(d.streaming.join(', ')); setMovie2TmdbId(d.tmdbId||null); setMovie2Trailer(d.trailerUrl||''); }}
             />
             <label className="form-label">Year</label>
             <input className="form-input" value={movie2Year} onChange={e=>setMovie2Year(e.target.value)} placeholder="1964" />
@@ -5456,6 +5648,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <button className="btn-primary" onClick={saveMovies}>💾 Save Movies</button>
             <button className="btn-secondary" onClick={archiveMovies}>📦 Archive to All Time List</button>
+            <button className="btn-secondary" onClick={fetchMissingTrailers} disabled={fetchingTrailers} style={{marginTop:6}}>
+              {fetchingTrailers ? '⏳ Fetching trailers…' : '🎬 Fetch Missing Trailers'}
+            </button>
           </>
         )}
 
