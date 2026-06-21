@@ -2720,11 +2720,9 @@ function getFourthSunday(year, month) {
 
 function getNextMovieNight(override) {
   const now = Date.now();
-  const oneHour = 3600000;
   if (override) {
     const ov = new Date(override).getTime();
-    // Show override event until 1 hour after it starts, then roll to next auto date
-    if (ov > now - oneHour) return new Date(override);
+    if (ov > now) return new Date(override); // still in the future
   }
   const d = new Date(now);
   let year = d.getFullYear(), month = d.getMonth();
@@ -2733,7 +2731,7 @@ function getNextMovieNight(override) {
     if (sun) {
       // 9 AM PST = 17:00 UTC
       const ev = new Date(Date.UTC(sun.getFullYear(), sun.getMonth(), sun.getDate(), 17, 0, 0));
-      if (ev.getTime() > now - oneHour) return ev;
+      if (ev.getTime() > now) return ev;
     }
     month++;
     if (month > 11) { month = 0; year++; }
@@ -5402,6 +5400,11 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function saveMovies() {
+    // Always re-fetch trailers from TMDB so old URLs don't carry over when movies change
+    const [t1, t2] = await Promise.all([
+      movie1TmdbId ? fetchTrailerUrl(movie1TmdbId) : Promise.resolve(null),
+      movie2TmdbId ? fetchTrailerUrl(movie2TmdbId) : Promise.resolve(null),
+    ]);
     const newData = [
       {
         title: movie1Title,
@@ -5413,7 +5416,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         poster: movie1Poster || null,
         accent: ACCENT_COLORS[0],
         tmdbId: movie1TmdbId || null,
-        trailerUrl: movie1Trailer || null,
+        trailerUrl: t1,
       },
       {
         title: movie2Title,
@@ -5425,7 +5428,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         poster: movie2Poster || null,
         accent: ACCENT_COLORS[1],
         tmdbId: movie2TmdbId || null,
-        trailerUrl: movie2Trailer || null,
+        trailerUrl: t2,
       }
     ].filter(m => m.title);
     try {
