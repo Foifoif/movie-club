@@ -3222,7 +3222,7 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
 // Current month string e.g. "June 2026"
 const NOW_MONTH = new Date().toLocaleString('en-US', { month:'long' }) + ' ' + new Date().getFullYear();
 
-function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed }) {
+function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed, filter }) {
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
@@ -3288,6 +3288,15 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
     byMonth[m].push(movie);
   }
   monthOrder.sort((a, b) => parseMonthYear(b) - parseMonthYear(a));
+  // Within each month: official first (insertion order), then impromptu (newest first)
+  for (const month of monthOrder) {
+    byMonth[month].sort((a, b) => {
+      const aOff = (a.movieType || 'official') !== 'impromptu';
+      const bOff = (b.movieType || 'official') !== 'impromptu';
+      if (aOff !== bOff) return aOff ? -1 : 1;
+      return aOff ? (a.id||0) - (b.id||0) : (b.id||0) - (a.id||0);
+    });
+  }
 
   return (
     <>
@@ -3301,7 +3310,11 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
       )}
 
       {monthOrder.map(month => {
-        const sessionTheme = byMonth[month][0]?.sessionTheme;
+        const monthMovies = filter && filter !== 'all'
+          ? byMonth[month].filter(m => (m.movieType || 'official') === filter)
+          : byMonth[month];
+        if (!monthMovies.length) return null;
+        const sessionTheme = byMonth[month].find(m => m.sessionTheme)?.sessionTheme;
         const isCurrentMonth = month === NOW_MONTH;
         const monthRevealed = revealedMonths.has(month);
         return (
@@ -3317,7 +3330,7 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                 </button>
               )}
             </div>
-            {byMonth[month].map(movie => {
+            {monthMovies.map(movie => {
               const movieRatings = localRatings[movie.id] || {};
               const scores = Object.values(movieRatings).filter(v => v > 0);
               const average = scores.length
@@ -3413,7 +3426,8 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
 // ─── RATINGS PAGE URL HELPERS ────────────────────────────────────────────────
 function parseRatingsUrl() {
   const parts = window.location.pathname.replace(/^\//, '').split('/');
-  // parts: ['ratings', 'top'?, filter?]
+  // parts: ['ratings', 'top'?/'watchlist'?, filter?]
+  if (parts[0] === 'watchlist' || parts[1] === 'watchlist') return { tab: 'watchlist', topFilter: 'movies', movieSubFilter: 'all' };
   if (parts[1] !== 'top') return { tab: 'history', topFilter: 'movies', movieSubFilter: 'all' };
   const seg = parts[2] || '';
   if (seg === 'leaderboard') return { tab: 'alltime', topFilter: 'leaderboard', movieSubFilter: 'all' };
@@ -3424,6 +3438,7 @@ function parseRatingsUrl() {
 }
 
 function buildRatingsUrl(tab, topFilter, movieSubFilter) {
+  if (tab === 'watchlist') return '/ratings/watchlist';
   if (tab !== 'alltime') return '/ratings';
   if (topFilter === 'leaderboard') return '/ratings/top/leaderboard';
   if (topFilter === 'personal')    return '/ratings/top/personal';
@@ -3439,6 +3454,7 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
   const [topFilter,     _setTopFilter]     = useState(init.topFilter);
   const [movieSubFilter,_setMovieSubFilter] = useState(init.movieSubFilter);
   const [selectedMember, setSelectedMember] = useState('');
+  const [historyFilter, setHistoryFilter]   = useState('all');
 
   // Push URL whenever tab/filter changes
   function setTab(t) {
@@ -3470,19 +3486,43 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  const tabBar = (
+    <div className="ratings-tabs">
+      <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>Ratings</button>
+      <button className={`ratings-tab ${tab==='watchlist'?'active':''}`} onClick={()=>setTab('watchlist')}>Watchlist</button>
+      <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+    </div>
+  );
+
+  // Watchlist tab
+  if (tab === 'watchlist') {
+    return (
+      <div className="main">
+        <div className="page-title">Movies</div>
+        <div className="page-subtitle">What to watch next</div>
+        {tabBar}
+        <WatchListPage members={members} alltime={alltime} ratings={ratings} embedded />
+      </div>
+    );
+  }
+
   // History / Ratings tab (default)
   if (tab === 'history') {
     return (
       <div className="main">
-        <div className="page-title">Ratings</div>
+        <div className="page-title">Movies</div>
         <div className="page-subtitle">Every screening, every score</div>
-        <div className="ratings-tabs">
-          <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>Ratings</button>
-          <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
+        {tabBar}
+        <div className="type-filter" style={{marginBottom:16}}>
+          {['all','official','impromptu'].map(f => (
+            <button key={f} className={`type-btn${historyFilter===f?' active':''}`} onClick={()=>setHistoryFilter(f)}>
+              {f==='all'?'All':f==='official'?'Official':'Impromptu'}
+            </button>
+          ))}
         </div>
         <TriviaOfTheWeek />
         <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
-          setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />
+          setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} filter={historyFilter} />
       </div>
     );
   }
@@ -3523,12 +3563,9 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
 
   return (
     <div className="main">
-      <div className="page-title">Ratings</div>
+      <div className="page-title">Movies</div>
       <div className="page-subtitle">The hall of fame</div>
-      <div className="ratings-tabs">
-        <button className={`ratings-tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>Ratings</button>
-        <button className={`ratings-tab ${tab==='alltime'?'active':''}`} onClick={()=>setTab('alltime')}>Top</button>
-      </div>
+      {tabBar}
 
       {/* ── TOP-LEVEL FILTER ── */}
       <div className="type-filter">
@@ -5042,7 +5079,7 @@ function WatchedModal({ item, alltime, ratings, members, onClose }) {
   );
 }
 
-function WatchListPage({ members, alltime, ratings }) {
+function WatchListPage({ members, alltime, ratings, embedded }) {
   const initSlug = useRef((() => {
     const parts = window.location.pathname.replace(/^\//, '').split('/');
     return parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : '';
@@ -5159,10 +5196,10 @@ function WatchListPage({ members, alltime, ratings }) {
     return a.urgency === 'really' ? -1 : 1;
   });
 
-  return (
-    <div className="main">
-      <div className="page-title">Watch List</div>
-      <div className="page-subtitle">What to watch next</div>
+  const watchlistContent = (
+    <div className={embedded ? undefined : 'main'}>
+      {!embedded && <div className="page-title">Watch List</div>}
+      {!embedded && <div className="page-subtitle">What to watch next</div>}
 
       <div className="wl-member-grid">
         {(members || []).map(m => (
@@ -5213,7 +5250,7 @@ function WatchListPage({ members, alltime, ratings }) {
                 </div>
                 <div className="wl-actions" onClick={e => e.stopPropagation()}>
                   {!isWatched && (
-                    <button className="wl-btn wl-btn-watched" onClick={() => handleWatched(item)}>Watched</button>
+                    <button className="wl-btn wl-btn-watched" onClick={() => handleWatched(item)}>Mark as Watched</button>
                   )}
                   <button className="wl-btn wl-btn-remove" onClick={() => handleRemove(item)}>Remove</button>
                 </div>
@@ -5250,6 +5287,7 @@ function WatchListPage({ members, alltime, ratings }) {
       )}
     </div>
   );
+  return watchlistContent;
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
@@ -5978,10 +6016,9 @@ function slugify(str) {
 
 function pageFromPath() {
   const p = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
-  if (p === 'ratings') return 'ratings';
+  if (p === 'ratings' || p.startsWith('ratings/') || p === 'watchlist' || p.startsWith('watchlist/')) return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket' || p.startsWith('bracket/')) return 'bracket';
-  if (p === 'watchlist' || p.startsWith('watchlist/')) return 'watchlist';
   return 'home';
 }
 
@@ -6100,7 +6137,7 @@ function App() {
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
           </button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>
-            <span className="nav-label">Ratings</span>
+            <span className="nav-label">Movies</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></span>
           </button>
           <button className={`nav-btn ${page==='poll'||page==='bracket'?'active':''}`} onClick={()=>setPage('poll')}>
@@ -6124,7 +6161,6 @@ function App() {
       {page === 'bracket' && <BracketReadOnlyPage
         bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}
         onBack={() => { setBracketViewId(null); setPage('poll'); }} />}
-      {page === 'watchlist' && <WatchListPage members={members} alltime={alltime} ratings={ratings} />}
 
       <div className="footer-logo-section" ref={footerRef}
         onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
@@ -6138,11 +6174,6 @@ function App() {
           onClick={handleAdminClick}>admin</button>
       </div>
 
-      <button className="fab" onClick={() => setPage('watchlist')} title="Watch List">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/>
-        </svg>
-      </button>
 
       {adminOpen && adminAuthed && (
         <AdminPanel
