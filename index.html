@@ -2719,20 +2719,26 @@ function getFourthSunday(year, month) {
 }
 
 function getNextMovieNight(override) {
-  if (override) return new Date(override);
-  const now = new Date();
-  let year = now.getFullYear(), month = now.getMonth();
+  const now = Date.now();
+  const oneHour = 3600000;
+  if (override) {
+    const ov = new Date(override).getTime();
+    // Show override event until 1 hour after it starts, then roll to next auto date
+    if (ov > now - oneHour) return new Date(override);
+  }
+  const d = new Date(now);
+  let year = d.getFullYear(), month = d.getMonth();
   for (let i = 0; i < 3; i++) {
     const sun = getFourthSunday(year, month);
     if (sun) {
       // 9 AM PST = 17:00 UTC
       const ev = new Date(Date.UTC(sun.getFullYear(), sun.getMonth(), sun.getDate(), 17, 0, 0));
-      if (ev > now) return ev;
+      if (ev.getTime() > now - oneHour) return ev;
     }
     month++;
     if (month > 11) { month = 0; year++; }
   }
-  return new Date();
+  return new Date(now);
 }
 
 function fmtEventDate(d) {
@@ -2952,11 +2958,6 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
         <div className="movie-title">{movie.title}</div>
         {movie.year && <div className="movie-year">{movie.year}</div>}
         {movie.description && <div className="movie-desc">{movie.description}</div>}
-        {movie.trailerUrl && (
-          <button className="watch-trailer-btn" style={{color: accent, marginTop: 8}} onClick={() => setShowTrailer(true)}>
-            ▶ Watch Trailer
-          </button>
-        )}
         {movie.streaming && movie.streaming.length > 0 && (
           <>
             <div className="where-label">Where to watch</div>
@@ -2968,13 +2969,12 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
           </>
         )}
       </div>
-      {members && onRate && (
-        <HomeRatingArea
-          movieId={movie.id}
-          movieRatings={movieRatings || {}}
-          members={members}
-          onSave={onRate}
-        />
+      {movie.trailerUrl && (
+        <div style={{padding:'0 16px 14px'}}>
+          <button className="watch-trailer-btn" style={{color: accent}} onClick={() => setShowTrailer(true)}>
+            ▶ Watch Trailer
+          </button>
+        </div>
       )}
     </div>
   );
@@ -3513,12 +3513,10 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
         <div className="page-title">Movies</div>
         <div className="page-subtitle">Every screening, every score</div>
         {tabBar}
-        <div className="type-filter" style={{marginBottom:16}}>
-          {['all','official','impromptu'].map(f => (
-            <button key={f} className={`type-btn${historyFilter===f?' active':''}`} onClick={()=>setHistoryFilter(f)}>
-              {f==='all'?'All':f==='official'?'Official':'Impromptu'}
-            </button>
-          ))}
+        <div className="type-filter">
+          <button className={`type-filter-btn ${historyFilter==='all'?'active-all':''}`} onClick={()=>setHistoryFilter('all')}>All</button>
+          <button className={`type-filter-btn ${historyFilter==='official'?'active-official':''}`} onClick={()=>setHistoryFilter('official')}>Official</button>
+          <button className={`type-filter-btn ${historyFilter==='impromptu'?'active-impromptu':''}`} onClick={()=>setHistoryFilter('impromptu')}>Impromptu</button>
         </div>
         <TriviaOfTheWeek />
         <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
