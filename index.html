@@ -3172,14 +3172,15 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
   const [poster, setPoster] = useState(movie.poster || '');
   const [title, setTitle] = useState(movie.title || '');
   const [year, setYear] = useState(movie.year || '');
+  const [ratingScale, setRatingScale] = useState(movie.ratingScale || movie.theme || '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   async function handleSave() {
     setSaving(true); setErr('');
     try {
-      await dbUpdateHistoryMovie(movie.id, { poster: poster || null, title, year: year || null });
-      onSave({ poster: poster || null, title, year: year || null });
+      await dbUpdateHistoryMovie(movie.id, { poster: poster || null, title, year: year || null, rating_scale: ratingScale || null });
+      onSave({ poster: poster || null, title, year: year || null, ratingScale: ratingScale || '', theme: ratingScale || '' });
     } catch(e) { setErr('Save failed: ' + e.message); }
     setSaving(false);
   }
@@ -3205,6 +3206,9 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
           <span style={{fontSize:'0.75rem',color:'#888',wordBreak:'break-all'}}>{title} {year && `(${year})`}</span>
         </div>
       )}
+      <label className="form-label" style={{color:'var(--ink)', marginTop:6}}>Theme label (e.g. "Eddie", "Pimp Suits")</label>
+      <input className="form-input" value={ratingScale} onChange={e => setRatingScale(e.target.value)}
+        placeholder="Optional theme label..." style={{marginBottom:8}} />
       {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{err}</div>}
       <div style={{display:'flex',gap:8}}>
         <button className="home-save-btn" onClick={handleSave} disabled={saving} style={{flex:1,padding:'8px'}}>
