@@ -2072,6 +2072,77 @@
   .wl-btn-watched:hover { background: var(--blue-mid); color: white; }
   .wl-btn-remove  { border-color: #ddd; color: #aaa; }
   .wl-btn-remove:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+  /* ── User identity chip in header ── */
+  .user-chip {
+    font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: blur(18px) saturate(1.9);
+    -webkit-backdrop-filter: blur(18px) saturate(1.9);
+    border: 1px solid rgba(255,255,255,0.65);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    padding: 5px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .user-chip:hover {
+    background: rgba(255,255,255,0.65);
+    transform: translateY(-1px);
+  }
+  /* ── Acting As inline widget ── */
+  .acting-as {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 8px;
+  }
+  .acting-as-change {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--blue-mid);
+    padding: 0;
+    font-family: inherit;
+  }
+  .acting-as-change:hover { text-decoration: underline; }
+  /* ── User Picker Modal ── */
+  .user-picker-card {
+    background: white;
+    border-radius: 14px;
+    padding: 28px 24px 24px;
+    max-width: 380px;
+    width: 90vw;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  }
+  .user-picker-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .user-picker-subtitle {
+    font-size: 0.82rem;
+    color: #888;
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .user-picker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
 </style>
 </head>
 <body>
@@ -2118,6 +2189,20 @@ const SUPABASE_URL = 'https://schtizxdezxteulbvynp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_BLeS65tH-8Fxd4nbAX8acA_TAIMtcNn';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TMDB_KEY = 'aeb55fbbade0da7a94cd4e2ca7743ebf';
+
+// ─── USER IDENTITY ────────────────────────────────────────────────────────────
+// currentUser shape: { id: number, name: string } | { id: null, name: 'Anonymous' } | null
+// null = never chosen (will trigger first-load picker)
+function readUserCookie() {
+  const m = document.cookie.match(/(?:^|;\s*)movieclub_user=([^;]*)/);
+  if (!m) return null;
+  try { return JSON.parse(decodeURIComponent(m[1])); } catch { return null; }
+}
+function writeUserCookie(userObj) {
+  const exp = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
+  document.cookie = `movieclub_user=${encodeURIComponent(JSON.stringify(userObj))};expires=${exp};path=/`;
+}
+const UserContext = React.createContext(null);
 
 // Theme + month metadata for the 40 archived movies, in insertion order
 // (French Connection = 0, Exorcist III = 39)
@@ -2265,7 +2350,7 @@ async function loadAll() {
     sb.from('movies').select('*').order('id'),
     sb.from('ratings').select('*'),
     sb.from('bracket').select('data').eq('id', 1).maybeSingle(),
-    sb.from('members').select('name, sort_order').order('sort_order').order('name'),
+    sb.from('members').select('id, name, sort_order').order('sort_order').order('name'),
   ]);
 
   const allMovies = moviesRes.data || [];
@@ -2302,10 +2387,11 @@ async function loadAll() {
 
   const bracketData = bracketRes.data ? bracketRes.data.data : null;
   const membersData = (membersRes.data || []).map(r => r.name);
+  const memberObjectsData = (membersRes.data || []).map(r => ({ id: r.id, name: r.name }));
   const pollsData = await dbLoadPolls().catch(() => []);
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
 
-  return { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData, bracketHistoryData };
+  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData };
 }
 
 async function dbSaveMovies(existingMovies, newMovieData) {
@@ -2761,9 +2847,10 @@ function MovieNightCountdown() {
 }
 
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
-function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
+function HomeRatingArea({ movieId, movieRatings, onSave }) {
+  const { currentUser } = React.useContext(UserContext);
+  const member = currentUser?.id ? currentUser.name : '';
   const [open, setOpen] = useState(false);
-  const [member, setMember] = useState('');
   const [score, setScore] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2776,7 +2863,7 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
     await onSave(member, parseFloat(score));
     setSaving(false);
     setSaved(true);
-    setTimeout(() => { setSaved(false); setOpen(false); setMember(''); setScore(''); }, 1500);
+    setTimeout(() => { setSaved(false); setOpen(false); setScore(''); }, 1500);
   }
 
   return (
@@ -2788,23 +2875,22 @@ function HomeRatingArea({ movieId, movieRatings, members, onSave }) {
         <button className="home-add-btn" onClick={() => setOpen(true)}>+ Add Rating</button>
       )}
       {open && !saved && (
-        <div className="home-rating-form">
-          <select className="form-select" value={member} onChange={e => setMember(e.target.value)}>
-            <option value="">Who are you?</option>
-            {members.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <input
-            type="number" className="form-select"
-            style={{width:'68px'}}
-            min="0" max="10" step="0.25"
-            value={score} onChange={e => setScore(e.target.value)}
-            placeholder="0–5"
-          />
-          <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !scoreValid}>
-            {saving ? '...' : 'Save'}
-          </button>
-          <button className="home-cancel-btn" onClick={() => { setOpen(false); setMember(''); setScore(''); }}>✕</button>
-        </div>
+        <>
+          <ActingAs />
+          <div className="home-rating-form">
+            <input
+              type="number" className="form-select"
+              style={{width:'68px'}}
+              min="0" max="10" step="0.25"
+              value={score} onChange={e => setScore(e.target.value)}
+              placeholder="0–5"
+            />
+            <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !scoreValid}>
+              {saving ? '...' : 'Save'}
+            </button>
+            <button className="home-cancel-btn" onClick={() => { setOpen(false); setScore(''); }}>✕</button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -2848,11 +2934,10 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
           </>
         )}
       </div>
-      {members && onRate && (
+      {onRate && (
         <HomeRatingArea
           movieId={movie.id}
           movieRatings={movieRatings || {}}
-          members={members}
           onSave={onRate}
         />
       )}
@@ -3255,7 +3340,6 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                   <HomeRatingArea
                     movieId={movie.id}
                     movieRatings={movieRatings}
-                    members={members}
                     onSave={(member, score) => handleRate(movie.id, member, score)}
                   />
                 </div>
@@ -3307,11 +3391,12 @@ function buildRatingsUrl(tab, topFilter, movieSubFilter) {
 
 // ─── RATINGS PAGE ────────────────────────────────────────────────────────────
 function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members, adminAuthed }) {
+  const { currentUser } = React.useContext(UserContext);
   const init = parseRatingsUrl();
   const [tab,           _setTab]           = useState(init.tab);
   const [topFilter,     _setTopFilter]     = useState(init.topFilter);
   const [movieSubFilter,_setMovieSubFilter] = useState(init.movieSubFilter);
-  const [selectedMember, setSelectedMember] = useState('');
+  const [selectedMember, setSelectedMember] = useState(() => currentUser?.id ? currentUser.name : '');
 
   // Push URL whenever tab/filter changes
   function setTab(t) {
@@ -3645,7 +3730,8 @@ function BracketSetupForm({ onDone, onCancel }) {
 
 // ─── BRACKET VOTE VIEW (used inside Poll page) ───────────────────────────────
 function BracketVoteView({ bracket, members, onVoteUpdate }) {
-  const [selectedMember, setSelectedMember] = useState('');
+  const { currentUser } = React.useContext(UserContext);
+  const selectedMember = currentUser?.id ? currentUser.name : '';
   const [viewingPrev, setViewingPrev] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);   // `${idx}-a` or `${idx}-b`, desktop only
   const [mobileOpenIdx, setMobileOpenIdx] = useState(null); // matchup idx open on mobile
@@ -3779,12 +3865,7 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
           ) : (
             <>
               <div style={{marginBottom:12}}>
-                <div className="voter-label">Who are you?</div>
-                <div className="voter-grid">
-                  {(members || []).map(m => (
-                    <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`} onClick={()=>setSelectedMember(m)}>{m}</button>
-                  ))}
-                </div>
+                <ActingAs />
               </div>
               {!selectedMember && <div className="alert alert-error" style={{marginTop:8}}>👆 Pick your name to vote</div>}
               {sortedMatchups.map(({ matchup, originalIdx }) => {
@@ -3869,7 +3950,8 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
 
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
 function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
-  const [selectedMember, setSelectedMember] = useState('');
+  const { currentUser } = React.useContext(UserContext);
+  const selectedMember = currentUser?.id ? currentUser.name : '';
   const [localPoll, setLocalPoll] = useState(poll);
   const [showAddAnswer, setShowAddAnswer] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -3877,7 +3959,6 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [newAnswerImage, setNewAnswerImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [pendingOptionId, setPendingOptionId] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchYear, setSearchYear] = useState('');
@@ -3924,11 +4005,9 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
   const isCreator = selectedMember && selectedMember === localPoll.created_by;
 
-  async function handleVoteForOption(optionId, withMember) {
-    const member = withMember || selectedMember;
+  async function handleVoteForOption(optionId) {
+    const member = selectedMember;
     if (!member || submitting || editingOptionId) return;
-    if (withMember) setSelectedMember(withMember);
-    setPendingOptionId(null);
     setSubmitting(true);
     try {
       await dbVoteForOption(localPoll.id, optionId, member);
@@ -4089,8 +4168,8 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                     ) : (
                       <>
                         <div className={`poll-option-btn${isMyVote?' poll-option-selected':''}`}
-                          style={{cursor:!submitting?'pointer':'default',marginBottom: pendingOptionId===opt.id?4:8}}
-                          onClick={() => { if(submitting||editingOptionId) return; selectedMember ? handleVoteForOption(opt.id) : setPendingOptionId(pendingOptionId===opt.id?null:opt.id); }}>
+                          style={{cursor:!submitting?'pointer':'default',marginBottom:8}}
+                          onClick={() => { if(submitting||editingOptionId) return; if(selectedMember) handleVoteForOption(opt.id); }}>
                           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
                             <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
                               {opt.image_url && <img src={opt.image_url} style={{width:28,height:42,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />}
@@ -4110,19 +4189,6 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                             <div className="progress-bar" style={{width:`${pct}%`,background:isMyVote?'var(--green)':'var(--blue-mid)'}} />
                           </div>
                         </div>
-                        {pendingOptionId===opt.id && (
-                          <div style={{background:'var(--cream)',border:'1px solid #ddd',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
-                            <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's voting?</div>
-                            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                              {members.map(m => (
-                                <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}}
-                                  onClick={e=>{e.stopPropagation();handleVoteForOption(opt.id,m);}}>
-                                  {m}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </>
                     )}
                   </div>
@@ -4132,7 +4198,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
           )}
 
           {!myOptionId && !showAddAnswer && (
-            <button className="home-add-btn" onClick={()=>{setShowAddAnswer(true);setPendingOptionId(null);}}>+ Add your answer</button>
+            <button className="home-add-btn" onClick={()=>setShowAddAnswer(true)}>+ Add your answer</button>
           )}
           {!myOptionId && showAddAnswer && (
             <div style={{marginTop:4}}>
@@ -4165,15 +4231,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
                   </div>
                 )}
               </div>
-              {!selectedMember && (
-                <div style={{marginBottom:10}}>
-                  <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who's adding this?</div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                    {members.map(m => <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}} onClick={()=>setSelectedMember(m)}>{m}</button>)}
-                  </div>
-                </div>
-              )}
-              {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Adding as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
+              <ActingAs />
               {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
               <div style={{display:'flex',gap:8}}>
                 <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer} disabled={!newAnswerText.trim()||!selectedMember||submitting}>{submitting?'…':'Submit Answer'}</button>
@@ -4214,15 +4272,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
               </div>
             )}
           </div>
-          {!selectedMember && (
-            <div style={{marginBottom:10}}>
-              <div style={{fontSize:'0.78rem',fontWeight:700,color:'#888',marginBottom:8}}>Who are you?</div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {members.map(m => <button key={m} className="voter-btn" style={{fontSize:'0.85rem',padding:'4px 12px'}} onClick={()=>setSelectedMember(m)}>{m}</button>)}
-              </div>
-            </div>
-          )}
-          {selectedMember && <div style={{fontSize:'0.78rem',color:'#888',marginBottom:8}}>Answering as <strong>{selectedMember}</strong> · <button onClick={()=>setSelectedMember('')} style={{background:'none',border:'none',cursor:'pointer',fontSize:'0.78rem',color:'var(--blue-mid)',padding:0}}>change</button></div>}
+          <ActingAs />
           {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer} disabled={!newAnswerText.trim()||!selectedMember||submitting}>{submitting?'…':'Submit Answer'}</button>
@@ -4246,9 +4296,10 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
 // ─── PAST POLL CARD ───────────────────────────────────────────────────────────
 function PastPollCard({ poll, members, onUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
+  const selectedMember = currentUser?.id ? currentUser.name : '';
   const [localPoll, setLocalPoll] = useState(poll);
   const [expanded, setExpanded] = useState(false);
-  const [selectedMember, setSelectedMember] = useState('');
   const [showAddAnswer, setShowAddAnswer] = useState(false);
   const [newAnswerText, setNewAnswerText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -4401,12 +4452,8 @@ function PastPollCard({ poll, members, onUpdate }) {
           })}
 
           <div style={{borderTop:'1px dashed var(--cream)',paddingTop:10,marginTop:4}}>
-            <div className="voter-label">Vote as:</div>
-            <div className="voter-grid" style={{marginBottom:10}}>
-              {members.map(m => (
-                <button key={m} className={`voter-btn ${selectedMember===m?'selected':''}`}
-                  onClick={()=>setSelectedMember(m)} style={{fontSize:'0.85rem',padding:'4px 12px'}}>{m}</button>
-              ))}
+            <div style={{marginBottom:10}}>
+              <ActingAs />
             </div>
             {selectedMember && !showAddAnswer && (
               <button className="home-add-btn" style={{fontSize:'0.82rem'}} onClick={()=>setShowAddAnswer(true)}>+ Add new answer</button>
@@ -4515,11 +4562,12 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
 function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+  const { currentUser } = React.useContext(UserContext);
+  const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
-  const [newPollAsker, setNewPollAsker] = useState('');
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState('');
 
@@ -4528,14 +4576,13 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
   const activeBracket = bracket && !bracket.finished ? bracket : null;
 
   async function handleCreatePoll() {
-    if (!newPollAsker) { setCreateErr('Select your name first'); return; }
+    if (!newPollAsker) { setCreateErr('Pick your identity first'); return; }
     if (!newQuestion.trim()) { setCreateErr('Enter a question first'); return; }
     setCreating(true); setCreateErr('');
     try {
       const newPoll = await dbCreatePoll(newQuestion.trim(), newPollAsker);
       if (onPollsAdd) onPollsAdd(newPoll);
       setNewQuestion('');
-      setNewPollAsker('');
       setShowCreatePoll(false);
     } catch(e) { setCreateErr('Error: ' + e.message); }
     setCreating(false);
@@ -4564,12 +4611,7 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
           {!activeBracket && showCreatePoll && (
             <div style={{marginBottom:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
               <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Poll</div>
-              <div className="voter-label">Who are you?</div>
-              <div className="voter-grid" style={{marginBottom:14}}>
-                {members.map(m => (
-                  <button key={m} className={`voter-btn ${newPollAsker===m?'selected':''}`} onClick={()=>setNewPollAsker(m)}>{m}</button>
-                ))}
-              </div>
+              <ActingAs />
               <label className="form-label">Your question</label>
               <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
                 placeholder="Ask the group anything…"
@@ -4580,7 +4622,7 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
                   disabled={!newQuestion.trim()||!newPollAsker||creating}>
                   {creating ? '…' : 'Post Poll'}
                 </button>
-                <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setNewPollAsker('');setCreateErr('');}}>Cancel</button>
+                <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setCreateErr('');}}>Cancel</button>
               </div>
             </div>
           )}
@@ -4813,9 +4855,10 @@ function WatchListAddForm({ memberName, onAdd, onCancel }) {
   );
 }
 
-function WatchedModal({ item, alltime, ratings, members, onClose }) {
+function WatchedModal({ item, alltime, ratings, onClose }) {
+  const { currentUser } = React.useContext(UserContext);
+  const ratingMember = currentUser?.id ? currentUser.name : '';
   const existingMovie = (alltime || []).find(m => m.title.toLowerCase() === item.title.toLowerCase());
-  const [ratingMember, setRatingMember] = useState('');
   const [ratingScore, setRatingScore] = useState('');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState('');
@@ -4862,10 +4905,7 @@ function WatchedModal({ item, alltime, ratings, members, onClose }) {
             <>
               <div className="confirm-card-title">Record a rating?</div>
               <div className="confirm-card-body">This movie is already in the group's history. Want to add your rating?</div>
-              <select className="form-select" style={{width:'100%',marginBottom:8}} value={ratingMember} onChange={e => setRatingMember(e.target.value)}>
-                <option value="">Who are you?</option>
-                {(members||[]).map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <ActingAs />
               <input type="number" className="form-select" style={{width:'100%',marginBottom:14}} min="0" max="10" step="0.25"
                 value={ratingScore} onChange={e => setRatingScore(e.target.value)} placeholder="Score (0–10)" />
               <div className="confirm-actions">
@@ -4896,12 +4936,17 @@ function WatchedModal({ item, alltime, ratings, members, onClose }) {
 }
 
 function WatchListPage({ members, alltime, ratings }) {
+  const { currentUser } = React.useContext(UserContext);
   const initSlug = useRef((() => {
     const parts = window.location.pathname.replace(/^\//, '').split('/');
     return parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : '';
   })());
 
-  const [selectedMember, _setSelectedMember] = useState('');
+  const [selectedMember, _setSelectedMember] = useState(() => {
+    // URL slug takes priority; fall back to currentUser
+    if (initSlug.current) return ''; // resolved after members load via useEffect
+    return currentUser?.id ? currentUser.name : '';
+  });
   const [list, setList] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -5098,7 +5143,7 @@ function WatchListPage({ members, alltime, ratings }) {
       )}
 
       {watchedModal && (
-        <WatchedModal item={watchedModal} alltime={alltime} ratings={ratings} members={members}
+        <WatchedModal item={watchedModal} alltime={alltime} ratings={ratings}
           onClose={() => setWatchedModal(null)} />
       )}
     </div>
@@ -5790,6 +5835,48 @@ function pageFromPath() {
   return 'home';
 }
 
+// ─── USER PICKER MODAL ───────────────────────────────────────────────────────
+function UserPickerModal({ memberObjects, canDismiss, onClose }) {
+  const { setCurrentUser } = React.useContext(UserContext);
+
+  function select(userObj) {
+    writeUserCookie(userObj);
+    setCurrentUser(userObj);
+    onClose();
+  }
+
+  return (
+    <div className="confirm-overlay"
+      onClick={e => { if (canDismiss && e.target === e.currentTarget) onClose(); }}>
+      <div className="user-picker-card">
+        <div className="user-picker-title">Who are you?</div>
+        <div className="user-picker-subtitle">Pick your name — your choice carries across every page and reload.</div>
+        <div className="user-picker-grid">
+          {(memberObjects || []).map(u => (
+            <button key={u.id} className="voter-btn" onClick={() => select(u)}>{u.name}</button>
+          ))}
+          <button className="voter-btn" style={{fontStyle:'italic',opacity:0.75}}
+            onClick={() => select({ id: null, name: 'Anonymous' })}>
+            A girl has no name
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ACTING AS ───────────────────────────────────────────────────────────────
+function ActingAs() {
+  const { currentUser, openUserPicker } = React.useContext(UserContext);
+  const display = currentUser?.name || 'Anonymous';
+  return (
+    <div className="acting-as">
+      Acting as <strong>{display}</strong>.{' '}
+      <button className="acting-as-change" onClick={openUserPicker}>change</button>
+    </div>
+  );
+}
+
 function App() {
   const [page, _setPage] = useState(pageFromPath);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -5809,9 +5896,19 @@ function App() {
     return match ? parseInt(match[1]) : null;
   });
   const [members, setMembers] = useState([]);
+  const [memberObjects, setMemberObjects] = useState([]);
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
   const [loaded, setLoaded] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState(() => readUserCookie());
+  const [showUserPicker, setShowUserPicker] = useState(false);
+  const [isInitialPick, setIsInitialPick] = useState(false);
+
+  function openUserPicker() {
+    setIsInitialPick(false);
+    setShowUserPicker(true);
+  }
 
   function updatePoll(updatedPoll) {
     setPolls(prev => (prev || []).map(p => p.id === updatedPoll.id ? updatedPoll : p));
@@ -5855,12 +5952,13 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, alltimeMovies, pollsData, bracketHistoryData } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
         if (bracketHistoryData && bracketHistoryData.length) setBracketHistory(bracketHistoryData);
         if (membersData.length) setMembers(membersData);
+        if (memberObjectsData.length) setMemberObjects(memberObjectsData);
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
       } catch(e) {
@@ -5870,6 +5968,13 @@ function App() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (loaded && readUserCookie() === null) {
+      setIsInitialPick(true);
+      setShowUserPicker(true);
+    }
+  }, [loaded]);
 
   function handleAdminClick() {
     if (adminAuthed) {
@@ -5892,7 +5997,7 @@ function App() {
   }
 
   return (
-    <>
+    <UserContext.Provider value={{ currentUser, setCurrentUser, openUserPicker }}>
       <header className={`site-header${scrolled ? ' header-scrolled' : ''}`}>
         <div className={`logo${footerVisible ? ' logo-hidden' : ''}`} onClick={() => setPage('home')}>
           <div className="logo-circle">
@@ -5913,6 +6018,9 @@ function App() {
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></span>
           </button>
         </nav>
+        <button className="user-chip" onClick={openUserPicker} title="Change identity">
+          {currentUser?.id ? currentUser.name : '?'}
+        </button>
       </header>
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
@@ -5961,7 +6069,15 @@ function App() {
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
         />
       )}
-    </>
+
+      {showUserPicker && (
+        <UserPickerModal
+          memberObjects={memberObjects}
+          canDismiss={!isInitialPick}
+          onClose={() => setShowUserPicker(false)}
+        />
+      )}
+    </UserContext.Provider>
   );
 }
 
