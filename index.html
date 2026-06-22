@@ -2412,6 +2412,12 @@ async function dbSaveMovies(existingMovies, newMovieData) {
 }
 
 async function dbSaveRating(movieId, memberName, score) {
+  if (score === 0) {
+    const { error } = await sb.from('ratings').delete()
+      .eq('movie_id', movieId).eq('member_name', memberName);
+    if (error) throw error;
+    return;
+  }
   const { error } = await sb.from('ratings').upsert(
     { movie_id: movieId, member_name: memberName, score },
     { onConflict: 'movie_id,member_name' }
@@ -3001,7 +3007,14 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   async function handleRate(movieId, member, score) {
     try {
       await dbSaveRating(movieId, member, score);
-      const updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
+      let updated;
+      if (score === 0) {
+        const mr = { ...(localRatings[movieId] || {}) };
+        delete mr[member];
+        updated = { ...localRatings, [movieId]: mr };
+      } else {
+        updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
+      }
       setLocalRatings(updated);
       if (setRatings) setRatings(updated);
     } catch(e) { console.error('Failed to save rating:', e); }
@@ -3249,11 +3262,18 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   async function handleRate(movieId, member, score) {
     try {
       await dbSaveRating(movieId, member, score);
-      const updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
+      let updated;
+      if (score === 0) {
+        const mr = { ...(localRatings[movieId] || {}) };
+        delete mr[member];
+        updated = { ...localRatings, [movieId]: mr };
+      } else {
+        updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
+      }
       setLocalRatings(updated);
       if (setRatings) setRatings(updated);
       dbRecalcAvg(movieId).catch(console.error);
-      revealMovie(movieId); // auto-reveal this movie's ratings after submitting
+      revealMovie(movieId);
     } catch(e) { console.error('Failed to save rating:', e); }
   }
 
@@ -5010,8 +5030,9 @@ function WatchedModal({ item, alltime, ratings, members, onClose }) {
     if (!ratingMember || !scoreValid || saving) return;
     setSaving(true);
     try {
-      await dbSaveRating(existingMovie.id, ratingMember, parseFloat(ratingScore));
-      setDone('✓ Rating saved!');
+      const sc = parseFloat(ratingScore);
+      await dbSaveRating(existingMovie.id, ratingMember, sc);
+      setDone(sc === 0 ? '✓ Rating deleted!' : '✓ Rating saved!');
       setTimeout(onClose, 1400);
     } catch(e) { console.error(e); }
     setSaving(false);
@@ -5379,11 +5400,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     if (isNaN(sc) || sc < 0 || sc > 10) { showMsg('Score must be a number 0–10', 'error'); return; }
     try {
       await dbSaveRating(mid, editMember, sc);
-      // Update local ratings state
       if (setRatings) {
-        setRatings(prev => ({ ...prev, [mid]: { ...(prev[mid] || {}), [editMember]: sc } }));
+        if (sc === 0) {
+          setRatings(prev => { const mr = { ...(prev[mid] || {}) }; delete mr[editMember]; return { ...prev, [mid]: mr }; });
+        } else {
+          setRatings(prev => ({ ...prev, [mid]: { ...(prev[mid] || {}), [editMember]: sc } }));
+        }
       }
-      // If archived movie, recalculate avg and update alltime list
       const isArchived = alltime.some(m => m.id === mid);
       if (isArchived) {
         const newAvg = await dbRecalcAvg(mid);
@@ -5391,7 +5414,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           setAlltime(prev => prev.map(m => m.id === mid ? { ...m, avgScore: newAvg } : m));
         }
       }
-      showMsg(`Rating saved: ${editMember} → ${sc} on movie #${mid}`);
+      showMsg(sc === 0 ? `Rating deleted: ${editMember} on movie #${mid}` : `Rating saved: ${editMember} → ${sc} on movie #${mid}`);
       setEditScore('');
     } catch(e) {
       showMsg('Error: ' + e.message, 'error');
