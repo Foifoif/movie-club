@@ -134,6 +134,9 @@
   .nav-icon { display: none; line-height: 1; }
   .nav-label { display: inline; }
 
+  /* Hidden on desktop; shown via the mobile media query below */
+  .mobile-identity-bar { display: none; }
+
   /* ── Mobile: smaller logo + tighter nav ── */
   @media (max-width: 600px) {
     .logo-circle {
@@ -146,6 +149,27 @@
     .nav-btn {
       font-size: 0.78rem;
       padding: 6px 10px;
+    }
+
+    /* Identity bar replaces user-chip on mobile */
+    .site-header {
+      flex-wrap: wrap;
+      padding-bottom: 10px;
+    }
+    .mobile-identity-bar {
+      display: flex;
+      width: 100%;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 4px;
+      padding-bottom: 8px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid rgba(18, 16, 30, 0.18);
+      font-size: 0.8rem;
+      color: var(--ink);
+    }
+    .user-chip {
+      display: none;
     }
   }
 
@@ -2130,6 +2154,21 @@
   .wl-btn-watched:hover { background: var(--blue-mid); color: white; }
   .wl-btn-remove  { border-color: #ddd; color: #aaa; }
   .wl-btn-remove:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+  /* ── Mobile-only identity bar (top of header) ── */
+  .mobile-identity-change {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: inherit;
+    color: var(--blue-mid);
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .mobile-identity-change:hover {
+    color: var(--blue-dark);
+  }
 
   /* ── User identity chip in header ── */
   .user-chip {
@@ -6267,6 +6306,10 @@ function App() {
   return (
     <UserContext.Provider value={{ currentUser, setCurrentUser, openUserPicker }}>
       <header className={`site-header${scrolled ? ' header-scrolled' : ''}`}>
+        <div className="mobile-identity-bar">
+          <span>Hello, <strong>{currentUser?.name || 'there'}</strong></span>
+          <button className="mobile-identity-change" onClick={openUserPicker}>(change)</button>
+        </div>
         <div className={`logo${footerVisible ? ' logo-hidden' : ''}`} onClick={() => setPage('home')}>
           <div className="logo-circle">
             <img src="/movieclub.png" className="logo-img" alt="Movie Club logo" />
