@@ -1,12 +1,8 @@
-// ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
-  const now = new Date();
-  const monthName = now.toLocaleString('default', { month: 'long' });
-  const [localRatings, setLocalRatings] = useState(ratings || {});
-
-  useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
-
-  async function handleRate(movieId, member, score) {
+// ─── SHARED RATE HANDLER ─────────────────────────────────────────────────────
+// Returns an async handleRate(movieId, member, score) function.
+// Pass onAfterSave(movieId) for any post-save side effects (e.g. recalc avg, reveal).
+function makeHandleRate(localRatings, setLocalRatings, setRatings, { onAfterSave } = {}) {
+  return async function handleRate(movieId, member, score) {
     try {
       await dbSaveRating(movieId, member, score);
       let updated;
@@ -19,8 +15,20 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
       }
       setLocalRatings(updated);
       if (setRatings) setRatings(updated);
+      if (onAfterSave) onAfterSave(movieId);
     } catch(e) { console.error('Failed to save rating:', e); }
-  }
+  };
+}
+
+// ─── HOME PAGE ───────────────────────────────────────────────────────────────
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
+  const now = new Date();
+  const monthName = now.toLocaleString('default', { month: 'long' });
+  const [localRatings, setLocalRatings] = useState(ratings || {});
+
+  useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
+
+  const handleRate = makeHandleRate(localRatings, setLocalRatings, setRatings);
 
   if (!movies || movies.length === 0) {
     return (
@@ -114,23 +122,9 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
 
   useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
 
-  async function handleRate(movieId, member, score) {
-    try {
-      await dbSaveRating(movieId, member, score);
-      let updated;
-      if (score === 0) {
-        const mr = { ...(localRatings[movieId] || {}) };
-        delete mr[member];
-        updated = { ...localRatings, [movieId]: mr };
-      } else {
-        updated = { ...localRatings, [movieId]: { ...(localRatings[movieId] || {}), [member]: score } };
-      }
-      setLocalRatings(updated);
-      if (setRatings) setRatings(updated);
-      dbRecalcAvg(movieId).catch(console.error);
-      revealMovie(movieId);
-    } catch(e) { console.error('Failed to save rating:', e); }
-  }
+  const handleRate = makeHandleRate(localRatings, setLocalRatings, setRatings, {
+    onAfterSave: (movieId) => { dbRecalcAvg(movieId).catch(console.error); revealMovie(movieId); }
+  });
 
   function handleMovieAdded(movie) {
     if (setAlltime) setAlltime(prev => [...prev, movie]);
@@ -542,40 +536,16 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
 // ─── BRACKET SETUP FORM ───────────────────────────────────────────────────────
 function BracketSetupForm({ onDone, onCancel }) {
   const [movies, setMovies] = useState([]);
-  const [search, setSearch] = useState('');
-  const [searchYear, setSearchYear] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [byeIdx, setByeIdx] = useState(null);
-  const timer = useRef(null);
 
   const needsBye = movies.length >= 3 && movies.length % 2 !== 0;
   const canStart = movies.length >= 2 && (!needsBye || byeIdx !== null);
 
-  function doSearch(text, yr) {
-    clearTimeout(timer.current);
-    if (text.length < 2) { setResults([]); return; }
-    timer.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1`;
-        if (yr && /^\d{4}$/.test(yr)) url += `&year=${yr}`;
-        const r = await fetch(url);
-        const d = await r.json();
-        setResults((d.results || []).slice(0, 6));
-      } catch(e) {}
-      setSearching(false);
-    }, 400);
-  }
-
-  async function pickMovie(r) {
-    const year = r.release_date ? r.release_date.split('-')[0] : '';
-    const title = r.title + (year ? ` (${year})` : '');
-    const poster = r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null;
-    const desc = r.overview || '';
-    const trailerUrl = await fetchTrailerUrl(r.id);
-    setMovies(prev => [...prev, { title, poster, desc, tmdbId: r.id, trailerUrl }]);
-    setSearch(''); setSearchYear(''); setResults([]);
+  function handleBracketSelect(selected) {
+    const title = selected.title + (selected.year ? ` (${selected.year})` : '');
+    setMovies(prev => [...prev, { title, poster: selected.poster, desc: selected.description, tmdbId: selected.tmdbId, trailerUrl: selected.trailerUrl }]);
+    setSearchQuery('');
     setByeIdx(null);
   }
 
@@ -633,35 +603,7 @@ function BracketSetupForm({ onDone, onCancel }) {
         </div>
       )}
 
-      <input className="form-input" style={{marginBottom:4}} value={search}
-        onChange={e => { setSearch(e.target.value); doSearch(e.target.value, searchYear); }}
-        placeholder="Search for a movie to add…" />
-      <input className="form-input" style={{marginBottom:6,fontSize:'0.85rem',padding:'6px 10px'}} value={searchYear}
-        onChange={e => { setSearchYear(e.target.value); doSearch(search, e.target.value); }}
-        placeholder="Filter by year (optional)" />
-      {searching && <div style={{fontSize:'0.72rem',color:'#999',marginBottom:4}}>Searching…</div>}
-      {results.length > 0 && (
-        <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',overflow:'hidden',marginBottom:8}}>
-          {results.map(r => {
-            const yr = r.release_date ? r.release_date.split('-')[0] : '';
-            return (
-              <div key={r.id}
-                style={{padding:'6px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
-                onMouseEnter={e => e.currentTarget.style.background='var(--cream)'}
-                onMouseLeave={e => e.currentTarget.style.background='white'}
-                onClick={() => pickMovie(r)}>
-                {r.poster_path
-                  ? <img src={`https://image.tmdb.org/t/p/w92${r.poster_path}`} style={{width:22,height:33,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-                  : <div style={{width:22,height:33,background:'var(--cream)',borderRadius:3,flexShrink:0}} />}
-                <div>
-                  <div style={{fontWeight:600,fontSize:'0.88rem'}}>{r.title}</div>
-                  {yr && <div style={{fontSize:'0.7rem',color:'#888'}}>{yr}</div>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <MovieSearch value={searchQuery} onChange={setSearchQuery} onSelect={handleBracketSelect} placeholder="Search for a movie to add…" />
 
       <div style={{display:'flex',gap:8,marginTop:8}}>
         <button className="home-save-btn" style={{flex:1,padding:'8px'}} disabled={!canStart} onClick={submit}>
@@ -917,10 +859,6 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const [newAnswerImage, setNewAnswerImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [searchYear, setSearchYear] = useState('');
-  const searchTimer = useRef(null);
 
   const [editingQuestion, setEditingQuestion] = useState(false);
   const [editedQuestion, setEditedQuestion] = useState(localPoll.question);
@@ -1003,7 +941,7 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
     const existing = (localPoll.options || []).find(o => o.text.trim().toLowerCase() === inputNorm);
     if (existing) {
       await handleVoteForOption(existing.id);
-      setNewAnswerText(''); setNewAnswerImage(''); setSearchResults([]); setSearchYear(''); setShowAddAnswer(false);
+      setNewAnswerText(''); setNewAnswerImage(''); setShowAddAnswer(false);
       return;
     }
     setSubmitting(true);
@@ -1014,67 +952,15 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
       if (onUpdate) onUpdate(updatedPoll);
       setNewAnswerText('');
       setNewAnswerImage('');
-      setSearchYear('');
       setShowAddAnswer(false);
-      setSearchResults([]);
     } catch(e) { console.error(e); setSubmitError(e.message || 'Something went wrong'); }
     setSubmitting(false);
   }
 
-  async function doSearch(text, yr) {
-    if (text.length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      let items;
-      if (yr && /^\d{4}$/.test(yr.trim())) {
-        const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1&year=${yr.trim()}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        items = (data.results || []).map(r => ({ ...r, media_type: 'movie' })).slice(0, 8);
-      } else {
-        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(text)}&language=en-US&page=1`);
-        const data = await res.json();
-        items = (data.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'person').slice(0, 6);
-      }
-      setSearchResults(items);
-    } catch(e) { console.error(e); }
-    setSearching(false);
+  function handlePollSearchSelect(selected) {
+    setNewAnswerText(selected.title + (selected.year ? ` (${selected.year})` : ''));
+    setNewAnswerImage(selected.poster || '');
   }
-
-  function handleAnswerInput(text) {
-    setNewAnswerText(text);
-    clearTimeout(searchTimer.current);
-    if (text.length < 2) { setSearchResults([]); return; }
-    searchTimer.current = setTimeout(() => doSearch(text, searchYear), 400);
-  }
-
-  function handleYearInput(yr) {
-    setSearchYear(yr);
-    clearTimeout(searchTimer.current);
-    if (newAnswerText.length >= 2) {
-      searchTimer.current = setTimeout(() => doSearch(newAnswerText, yr), 400);
-    }
-  }
-
-  const searchDropdown = searchResults.length > 0 && (
-    <div style={{border:'2px solid var(--ink)',borderRadius:8,background:'white',marginBottom:8,overflow:'hidden',position:'relative',zIndex:10}}>
-      {searchResults.map(r => {
-        const name = r.media_type==='movie' ? r.title : r.name;
-        const year = r.release_date ? r.release_date.split('-')[0] : '';
-        const img = r.poster_path || r.profile_path;
-        return (
-          <div key={r.id} style={{padding:'7px 10px',cursor:'pointer',display:'flex',gap:8,alignItems:'center',borderBottom:'1px solid var(--cream)'}}
-            onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
-            onMouseLeave={e=>e.currentTarget.style.background='white'}
-            onClick={()=>{ setNewAnswerText(name+(year?` (${year})`:''));setNewAnswerImage(img?`https://image.tmdb.org/t/p/w92${img}`:'');setSearchResults([]); }}>
-            {img ? <img src={`https://image.tmdb.org/t/p/w92${img}`} style={{width:24,height:36,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-              : <div style={{width:24,height:36,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem'}}>🎬</div>}
-            <div><div style={{fontWeight:600,fontSize:'0.9rem'}}>{name}</div>{year && <div style={{fontSize:'0.72rem',color:'#888'}}>{year}</div>}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
   return (
     <div className="poll-card">
@@ -1171,39 +1057,19 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
           )}
           {!myOptionId && showAddAnswer && (
             <div style={{marginTop:4}}>
-              <div style={{position:'relative'}}>
-                <input className="form-input" style={{marginBottom:4}} value={newAnswerText}
-                  onChange={e => handleAnswerInput(e.target.value)}
-                  placeholder="Type a movie, person, or anything…"
-                  onKeyDown={e => e.key === 'Enter' && handleAddAnswer()} />
-                <input className="form-input" style={{marginBottom:4,fontSize:'0.88rem',padding:'6px 10px'}}
-                  value={searchYear} onChange={e => handleYearInput(e.target.value)}
-                  placeholder="Year (optional)" />
-                {searching && <div style={{fontSize:'0.75rem',color:'#999',marginBottom:4}}>Searching…</div>}
-                {searchDropdown}
-              </div>
+              <MovieSearch multi value={newAnswerText} onChange={setNewAnswerText} onSelect={handlePollSearchSelect} placeholder="Type a movie, person, or anything…" />
               <ActingAs />
               {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
               <div style={{display:'flex',gap:8}}>
                 <button className="home-save-btn" style={{flex:1,padding:'7px'}} onClick={handleAddAnswer} disabled={!newAnswerText.trim()||!selectedMember||submitting}>{submitting?'…':'Submit Answer'}</button>
-                <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSearchYear('');setSearchResults([]);setSubmitError('');}}>Cancel</button>
+                <button className="home-cancel-btn" onClick={()=>{setShowAddAnswer(false);setNewAnswerText('');setNewAnswerImage('');setSubmitError('');}}>Cancel</button>
               </div>
             </div>
           )}
         </>
       ) : (
         <div>
-          <div style={{position:'relative'}}>
-            <input className="form-input" style={{marginBottom:4}} value={newAnswerText}
-              onChange={e => handleAnswerInput(e.target.value)}
-              placeholder="Type a movie, person, or anything…"
-              onKeyDown={e => e.key === 'Enter' && handleAddAnswer()} />
-            <input className="form-input" style={{marginBottom:4,fontSize:'0.88rem',padding:'6px 10px'}}
-              value={searchYear} onChange={e => handleYearInput(e.target.value)}
-              placeholder="Year (optional — helps narrow it down)" />
-            {searching && <div style={{fontSize:'0.75rem',color:'#999',marginBottom:4}}>Searching…</div>}
-            {searchDropdown}
-          </div>
+          <MovieSearch multi value={newAnswerText} onChange={setNewAnswerText} onSelect={handlePollSearchSelect} placeholder="Type a movie, person, or anything…" />
           <ActingAs />
           {submitError && <div style={{fontSize:'0.78rem',color:'var(--red)',marginBottom:5}}>{submitError}</div>}
           <div style={{display:'flex',gap:8,alignItems:'center'}}>

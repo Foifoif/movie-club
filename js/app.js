@@ -162,13 +162,13 @@ function App() {
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
         bracket={bracket} onBracketClick={()=>setPage('poll')} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
-      {page === 'poll' && <PollBoundary>
+      {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
           onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
           onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />
-      </PollBoundary>}
+      </ErrorBoundary>}
       {page === 'bracket' && <BracketReadOnlyPage
         bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}
         onBack={() => { setBracketViewId(null); setPage('poll'); }} />}
@@ -209,7 +209,9 @@ function App() {
   );
 }
 
-// ─── ERROR BOUNDARIES ─────────────────────────────────────────────────────────
+// ─── ERROR BOUNDARY ───────────────────────────────────────────────────────────
+// Accepts an optional `fallback` prop for a custom crashed UI.
+// Defaults to the full-screen branded error screen.
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { crashed: false, errorMsg: null }; }
   static getDerivedStateFromError(err) {
@@ -222,6 +224,7 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (!this.state.crashed) return this.props.children;
+    if (this.props.fallback) return this.props.fallback;
     const msg = this.state.errorMsg || 'Unknown error';
     return (
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',textAlign:'center',fontFamily:'sans-serif'}}>
@@ -234,31 +237,6 @@ class ErrorBoundary extends React.Component {
             <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-all',marginTop:8}}>{msg}</pre>
           </details>
         </div>
-      </div>
-    );
-  }
-}
-
-class PollBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { crashed: false, errorMsg: null }; }
-  static getDerivedStateFromError(err) {
-    const msg = (err && err.message) ? err.message : String(err);
-    return { crashed: true, errorMsg: msg };
-  }
-  componentDidCatch(err) {
-    const msg = (err && err.message) ? err.message : String(err);
-    if (!this.state.errorMsg) this.setState({ errorMsg: msg });
-  }
-  render() {
-    if (!this.state.crashed) return this.props.children;
-    const msg = this.state.errorMsg || 'Unknown error';
-    return (
-      <div style={{padding:'2rem',textAlign:'center',color:'#888'}}>
-        <div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div>
-        <details style={{fontSize:'0.75rem',maxWidth:400,margin:'0 auto',textAlign:'left',cursor:'pointer'}}>
-          <summary>Error details</summary>
-          <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-all',marginTop:8}}>{msg}</pre>
-        </details>
       </div>
     );
   }

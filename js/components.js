@@ -198,7 +198,7 @@ function TrailerModal({ url, title, onClose }) {
   );
 }
 
-function TrailerButton({ trailerUrl, title, color }) {
+function TrailerButton({ trailerUrl, title, color, label }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -207,7 +207,7 @@ function TrailerButton({ trailerUrl, title, color }) {
         className="watch-trailer-btn"
         style={{ color: color || 'var(--blue-mid)' }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}>
-        ▶ Trailer
+        {label || '▶ Trailer'}
       </button>
     </>
   );
@@ -215,10 +215,8 @@ function TrailerButton({ trailerUrl, title, color }) {
 
 function MovieCard({ movie, index, movieRatings, members, onRate }) {
   const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
-  const [showTrailer, setShowTrailer] = useState(false);
   return (
     <div className="movie-card">
-      {showTrailer && <TrailerModal url={movie.trailerUrl} title={movie.title} onClose={() => setShowTrailer(false)} />}
       <div className="movie-card-accent" style={{color: accent}}>
         <span className="now-showing-bar" style={{background: accent}} />
         <span className="now-showing-text">Now Showing</span>
@@ -254,9 +252,7 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
       </div>
       {movie.trailerUrl && (
         <div style={{padding:'0 16px 14px'}}>
-          <button className="watch-trailer-btn" style={{color: accent}} onClick={() => setShowTrailer(true)}>
-            ▶ Watch Trailer
-          </button>
+          <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} color={accent} label="▶ Watch Trailer" />
         </div>
       )}
       {onRate && (
@@ -283,7 +279,9 @@ function TriviaOfTheWeek() {
 }
 
 // ─── MOVIE SEARCH ────────────────────────────────────────────────────────────
-function MovieSearch({ value, onChange, onSelect, placeholder }) {
+// multi=true: uses /search/multi (movies + people) when no year filter is set.
+// In multi mode onSelect is lightweight — no provider/trailer fetch.
+function MovieSearch({ value, onChange, onSelect, placeholder, multi }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [year, setYear] = useState('');
@@ -298,12 +296,21 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
     if (query.length < 2) { setResults([]); return; }
     setLoading(true);
     try {
-      let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${pg}`;
-      if (yr && /^\d{4}$/.test(yr.trim())) url += `&year=${yr.trim()}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const items = (data.results || []);
-      setHasMore((data.total_pages || 0) > pg);
+      let items, totalPages;
+      if (multi && !(yr && /^\d{4}$/.test(yr.trim()))) {
+        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${pg}`);
+        const data = await res.json();
+        items = (data.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'person');
+        totalPages = data.total_pages || 0;
+      } else {
+        let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${pg}`;
+        if (yr && /^\d{4}$/.test(yr.trim())) url += `&year=${yr.trim()}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        items = (data.results || []).map(r => ({ ...r, media_type: 'movie' }));
+        totalPages = data.total_pages || 0;
+      }
+      setHasMore(totalPages > pg);
       setResults(prev => append ? [...prev, ...items] : items.slice(0, 10));
     } catch(e) { console.error(e); }
     setLoading(false);
@@ -335,21 +342,29 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
     fetchResults(queryRef.current, year, next, true);
   }
 
-  async function selectMovie(movie) {
+  async function selectMovie(item) {
     setResults([]); setHasMore(false);
-    onChange(movie.title);
+    const isPerson = item.media_type === 'person';
+    const displayTitle = isPerson ? item.name : item.title;
+    const yr = item.release_date ? item.release_date.split('-')[0] : '';
+    onChange(displayTitle);
+    if (multi) {
+      const imgPath = isPerson ? item.profile_path : item.poster_path;
+      const poster = imgPath ? `https://image.tmdb.org/t/p/w92${imgPath}` : null;
+      onSelect({ title: displayTitle, year: yr, description: item.overview || '', poster, tmdbId: item.id });
+      return;
+    }
     setLoading(true);
     try {
       const [provRes, trailerUrl] = await Promise.all([
-        fetch(`https://api.themoviedb.org/3/movie/${movie.id}/watch/providers?api_key=${TMDB_KEY}`),
-        fetchTrailerUrl(movie.id),
+        fetch(`https://api.themoviedb.org/3/movie/${item.id}/watch/providers?api_key=${TMDB_KEY}`),
+        fetchTrailerUrl(item.id),
       ]);
       const provData = await provRes.json();
       const flatrate = provData.results?.US?.flatrate || [];
       const streaming = flatrate.map(p => p.provider_name);
-      const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null;
-      const yr = movie.release_date ? movie.release_date.split('-')[0] : '';
-      onSelect({ title: movie.title, year: yr, description: movie.overview || '', poster, streaming, tmdbId: movie.id, trailerUrl });
+      const poster = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null;
+      onSelect({ title: item.title, year: yr, description: item.overview || '', poster, streaming, tmdbId: item.id, trailerUrl });
     } catch(e) { console.error(e); }
     setLoading(false);
   }
@@ -365,26 +380,32 @@ function MovieSearch({ value, onChange, onSelect, placeholder }) {
       )}
       {results.length > 0 && (
         <div style={{position:'absolute',top:'100%',left:0,right:0,background:'white',border:'2px solid var(--ink)',borderTop:'none',borderRadius:'0 0 8px 8px',zIndex:300,boxShadow:'3px 3px 0 var(--ink)',maxHeight:420,overflowY:'auto'}}>
-          {results.map(movie => (
-            <div key={movie.id} onClick={() => selectMovie(movie)}
-              style={{padding:'9px 12px',cursor:'pointer',borderBottom:'1px solid var(--cream)',display:'flex',alignItems:'center',gap:10}}
-              onMouseEnter={e => e.currentTarget.style.background='var(--cream)'}
-              onMouseLeave={e => e.currentTarget.style.background='white'}>
-              {movie.poster_path
-                ? <img src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} style={{width:30,height:45,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-                : <div style={{width:30,height:45,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem'}}>🎬</div>
-              }
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:'0.95rem',lineHeight:1.2}}>{movie.title}</div>
-                {movie.release_date && <div style={{fontSize:'0.75rem',color:'#888'}}>{movie.release_date.split('-')[0]}</div>}
-                {movie.overview && (
-                  <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2,lineHeight:1.3,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>
-                    {movie.overview}
-                  </div>
-                )}
+          {results.map(item => {
+            const isPerson = item.media_type === 'person';
+            const displayTitle = isPerson ? item.name : item.title;
+            const imgPath = isPerson ? item.profile_path : item.poster_path;
+            const yr = item.release_date ? item.release_date.split('-')[0] : '';
+            return (
+              <div key={item.id} onClick={() => selectMovie(item)}
+                style={{padding:'9px 12px',cursor:'pointer',borderBottom:'1px solid var(--cream)',display:'flex',alignItems:'center',gap:10}}
+                onMouseEnter={e => e.currentTarget.style.background='var(--cream)'}
+                onMouseLeave={e => e.currentTarget.style.background='white'}>
+                {imgPath
+                  ? <img src={`https://image.tmdb.org/t/p/w92${imgPath}`} style={{width:30,height:45,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
+                  : <div style={{width:30,height:45,background:'var(--cream)',borderRadius:3,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem'}}>🎬</div>
+                }
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:'0.95rem',lineHeight:1.2}}>{displayTitle}</div>
+                  {yr && <div style={{fontSize:'0.75rem',color:'#888'}}>{yr}</div>}
+                  {item.overview && (
+                    <div style={{fontSize:'0.72rem',color:'#aaa',marginTop:2,lineHeight:1.3,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>
+                      {item.overview}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div style={{padding:'8px 12px',textAlign:'center',borderTop:'1px solid var(--cream)'}}>
             {hasMore ? (
               <button onClick={loadMore} disabled={loading}

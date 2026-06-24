@@ -166,21 +166,6 @@ function avg(arr) {
   return (nums.reduce((a,b) => a+b, 0) / nums.length).toFixed(1);
 }
 
-function ScaleIcon({ theme }) {
-  const icons = {
-    berets: '🎩', stars: '⭐', skulls: '💀', tacos: '🌮', flames: '🔥', cups: '☕', bombs: '💣'
-  };
-  return icons[theme] || '⭐';
-}
-
-function renderScaleEmoji(theme, count) {
-  const icons = {
-    berets: '🎩', stars: '⭐', skulls: '💀', tacos: '🌮', flames: '🔥', cups: '☕', bombs: '💣'
-  };
-  const icon = icons[theme] || '⭐';
-  return Array.from({length: count}, () => icon).join('');
-}
-
 // ─── MONTH SORT HELPER ───────────────────────────────────────────────────────
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function parseMonthYear(str) {
