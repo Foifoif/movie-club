@@ -1,0 +1,25 @@
+:root {
+  --ink: #12101e;
+  --paper: #f7f5f2;
+  --cream: #eeeadc;
+  --red: #c0392b;
+  --yellow: #f5c518;
+  --yellow-glow: rgba(245,197,24,0.18);
+  --blue: #8ec5e6;       /* baby blue */
+  --blue-mid: #5dacd4;   /* medium baby blue for borders/hover */
+  --blue-dark: #2a6a8a;  /* deeper blue for contrast */
+  --green: #27a860;
+  --bg: #0e0c16;
+  --bg2: #15132a;
+  --text-on-dark: #d8d3ee;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: #F0EAD6;
+  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
