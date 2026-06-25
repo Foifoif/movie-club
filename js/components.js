@@ -266,6 +266,148 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
   );
 }
 
+// ─── MOVIE ROW CARD ──────────────────────────────────────────────────────────
+// Horizontal movie lockup: poster left, info right. Reusable across features.
+function MovieRowCard({ movie, index }) {
+  const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
+  const [descOpen, setDescOpen] = React.useState(false);
+  return (
+    <div className="movie-row-card">
+      {movie.poster
+        ? <img className="movie-row-card-poster-img" src={movie.poster} alt={movie.title} />
+        : <div className="movie-row-card-poster-placeholder">🎬</div>
+      }
+      <div className="movie-row-card-info">
+        <div className="movie-row-card-title">{movie.title}</div>
+        {movie.year && <div className="movie-row-card-year">{movie.year}</div>}
+        {movie.streaming && movie.streaming.length > 0 && (
+          <div className="streaming-chips" style={{ marginTop: 8 }}>
+            {movie.streaming.map((s, i) => (
+              <span key={i} className="chip" style={{ background: accent + '22', borderColor: accent }}>{s}</span>
+            ))}
+          </div>
+        )}
+        {movie.trailerUrl && (
+          <div style={{ marginTop: 10 }}>
+            <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} color={accent} label="▶ Trailer" />
+          </div>
+        )}
+        {movie.description && (
+          <>
+            <button className="movie-row-card-desc-toggle" onClick={() => setDescOpen(o => !o)}>
+              {descOpen ? 'Hide description ▲' : 'Description ▼'}
+            </button>
+            {descOpen && <div className="movie-row-card-desc">{movie.description}</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── THIS MONTH CARD ─────────────────────────────────────────────────────────
+// Home page HERO: double-feature posters + live countdown to the next movie
+// night + go-time Join button. Subsumes <MovieNightCountdown /> on the home page.
+function ThisMonthCard({ currentEvent, movies, onNavigate }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!currentEvent) return null;
+
+  const movie1 = movies.find(m => m.id === currentEvent.movie_id_1) || null;
+  const movie2 = movies.find(m => m.id === currentEvent.movie_id_2) || null;
+  const lineup = [movie1, movie2].filter(Boolean);
+
+  const joinUrl  = currentEvent.meeting_link || '';
+  const eventDate = currentEvent.meeting_datetime ? new Date(currentEvent.meeting_datetime) : null;
+
+  const diff   = eventDate ? eventDate.getTime() - now : null;
+  const done   = diff !== null && diff <= 0;
+  const days   = diff !== null ? Math.max(0, Math.floor(diff / 86400000)) : 0;
+  const hrs    = diff !== null ? Math.max(0, Math.floor((diff % 86400000) / 3600000)) : 0;
+  const min    = diff !== null ? Math.max(0, Math.floor((diff % 3600000)  / 60000)) : 0;
+  const pad    = n => String(n).padStart(2, '0');
+  const goTime = done || days === 0;
+
+  const dateLine = eventDate
+    ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' +
+      eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null;
+
+  const lineupStr = lineup.map(m => m.title).join(' · ');
+
+  return (
+    <a className="this-month-card" href="/this-month"
+      onClick={e => { e.preventDefault(); onNavigate('this-month'); }}>
+
+      <div className="tmc-bulbs" />
+
+      <div className="tmc-eyebrow-bar">
+        <span className="tmc-eyebrow">🎬 Next at Movie Club</span>
+        {lineup.length === 2 && <span className="tmc-feature-tag">Double Feature</span>}
+      </div>
+
+      <div className="tmc-posters" data-count={lineup.length}>
+        {lineup.map((m, i) => {
+          const accent = m.accent || ACCENT_COLORS[i % ACCENT_COLORS.length];
+          return (
+            <div className="tmc-poster" key={m.id}>
+              <div className="tmc-poster-art"
+                style={{ background: `radial-gradient(115% 75% at ${i ? 40 : 62}% 20%, ${accent} 0%, rgba(0,0,0,.55) 58%, #0a0814 100%)` }}>
+                <div className="tmc-poster-title">{m.title}</div>
+                {m.year && <div className="tmc-poster-year">{m.year}</div>}
+              </div>
+              {m.poster && (
+                <img className="tmc-poster-img" src={m.poster} alt=""
+                  onError={e => { e.target.style.display = 'none'; }} />
+              )}
+              <span className="tmc-poster-num">{i + 1}</span>
+            </div>
+          );
+        })}
+
+        <div className="tmc-scrim" />
+        <div className="tmc-overlay">
+          {currentEvent.theme && <div className="tmc-theme">{currentEvent.theme}</div>}
+          {dateLine && <div className="tmc-date">📅 {dateLine}</div>}
+        </div>
+      </div>
+
+      {eventDate && (goTime ? (
+        <div className="tmc-gotime">
+          <div className="tmc-happening">It's happening — grab the popcorn 🍿</div>
+          {joinUrl && (
+            <span className="tmc-join"
+              onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(joinUrl, '_blank', 'noopener'); }}>
+              🎬 Join Movie Night
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="tmc-countdown">
+          <div className="tmc-unit"><span className="tmc-val">{days}</span><span className="tmc-lbl">days</span></div>
+          <span className="tmc-colon">:</span>
+          <div className="tmc-unit"><span className="tmc-val">{pad(hrs)}</span><span className="tmc-lbl">hrs</span></div>
+          <span className="tmc-colon">:</span>
+          <div className="tmc-unit"><span className="tmc-val">{pad(min)}</span><span className="tmc-lbl">min</span></div>
+        </div>
+      ))}
+
+      {lineupStr && (
+        <div className="tmc-footer">
+          <span className="tmc-lineup">{lineupStr}</span>
+          <span className="tmc-cta">View details <span className="tmc-arrow">→</span></span>
+        </div>
+      )}
+    </a>
+  );
+}
+
 // ─── TRIVIA BANNER ───────────────────────────────────────────────────────────
 function TriviaOfTheWeek() {
   const { movie, fact } = getTriviaOfTheWeek();

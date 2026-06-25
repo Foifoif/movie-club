@@ -1011,3 +1011,33 @@
 .wl-btn-watched:hover { background: var(--blue-mid); color: white; }
 .wl-btn-remove  { border-color: #ddd; color: #aaa; }
 .wl-btn-remove:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+/* THIS MONTH'S MOVIES PAGE */
+.tmm-movies {
+  margin-bottom: 8px;
+}
+
+.tmm-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+.tmm-trivia-section {
+  background: white;
+  border: 2px solid var(--yellow);
+  border-radius: 6px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: 3px 3px 0 var(--yellow);
+}
+
+.tmm-trivia-text {
+  font-family: 'Special Elite', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink);
+}

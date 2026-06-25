@@ -4,6 +4,7 @@ function pageFromPath() {
   if (p === 'ratings' || p.startsWith('ratings/') || p === 'watchlist' || p.startsWith('watchlist/')) return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket' || p.startsWith('bracket/')) return 'bracket';
+  if (p === 'this-month') return 'this-month';
   return 'home';
 }
 
@@ -30,6 +31,7 @@ function App() {
   const [memberObjects, setMemberObjects] = useState([]);
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
+  const [currentEvent, setCurrentEvent] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => readUserCookie());
@@ -83,7 +85,7 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
@@ -92,6 +94,7 @@ function App() {
         if (memberObjectsData.length) setMemberObjects(memberObjectsData);
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
+        if (currentMonthlyEvent) setCurrentEvent(currentMonthlyEvent);
       } catch(e) {
         console.error('Failed to load from Supabase:', e);
       }
@@ -160,7 +163,9 @@ function App() {
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
-        bracket={bracket} onBracketClick={()=>setPage('poll')} />}
+        bracket={bracket} onBracketClick={()=>setPage('poll')}
+        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
+      {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
@@ -195,6 +200,7 @@ function App() {
           ratings={ratings} setRatings={setRatings}
           polls={polls} setPolls={setPolls}
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
+          currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
         />
       )}
 

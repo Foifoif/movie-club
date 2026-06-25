@@ -21,7 +21,7 @@ function makeHandleRate(localRatings, setLocalRatings, setRatings, { onAfterSave
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, currentEvent, onThisMonthClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -33,7 +33,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   if (!movies || movies.length === 0) {
     return (
       <div className="main">
-        <MovieNightCountdown />
+        <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
         {activePoll && (
           <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
@@ -63,7 +63,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
 
   return (
     <div className="main">
-      <MovieNightCountdown />
+      <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
       {activePoll && (
         <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
@@ -93,6 +93,58 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── THIS MONTH'S MOVIES PAGE ────────────────────────────────────────────────
+function ThisMonthPage({ currentEvent, movies }) {
+  if (!currentEvent) {
+    return (
+      <div className="main">
+        <div className="page-title">This Month's Movies</div>
+        <div className="page-subtitle">Nothing set yet — check back soon.</div>
+        <div className="empty-state">
+          <div className="empty-icon">📅</div>
+          <div>The admin hasn't configured this month's event yet.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const monthLabel = currentEvent.month
+    ? new Date(currentEvent.month + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : '';
+
+  const movie1 = movies.find(m => m.id === currentEvent.movie_id_1) || null;
+  const movie2 = movies.find(m => m.id === currentEvent.movie_id_2) || null;
+  const eventMovies = [movie1, movie2].filter(Boolean);
+
+  return (
+    <div className="main">
+      <div className="page-title">This Month's Movies</div>
+      {(currentEvent.theme || monthLabel) && (
+        <div className="page-subtitle">
+          {currentEvent.theme || ''}{currentEvent.theme && monthLabel ? ' — ' : ''}{monthLabel}
+        </div>
+      )}
+
+      <MovieNightCountdown />
+
+      {eventMovies.length > 0 && (
+        <div className="tmm-movies">
+          {eventMovies.map((m, i) => (
+            <MovieRowCard key={m.id} movie={m} index={i} />
+          ))}
+        </div>
+      )}
+
+      {currentEvent.trivia && (
+        <div className="tmm-trivia-section">
+          <div className="tmm-section-label">🎬 Did You Know?</div>
+          <div className="tmm-trivia-text">{currentEvent.trivia}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1693,7 +1745,7 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent }) {
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
@@ -1959,6 +2011,112 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
   }
 
+  // ── This Month's Movies admin state ──
+  const [tmmEvents, setTmmEvents] = useState([]);
+  const [tmmLoaded, setTmmLoaded] = useState(false);
+  const [tmmSelectedId, setTmmSelectedId] = useState('new');
+  const [tmmMonth, setTmmMonth] = useState('');
+  const [tmmTheme, setTmmTheme] = useState('');
+  const [tmmMovie1Search, setTmmMovie1Search] = useState('');
+  const [tmmMovie1Id, setTmmMovie1Id] = useState(null);
+  const [tmmMovie2Search, setTmmMovie2Search] = useState('');
+  const [tmmMovie2Id, setTmmMovie2Id] = useState(null);
+  const [tmmMeetingDatetime, setTmmMeetingDatetime] = useState('');
+  const [tmmMeetingLink, setTmmMeetingLink] = useState('');
+  const [tmmTrivia, setTmmTrivia] = useState('');
+
+  useEffect(() => {
+    if (section === 'thismonth' && !tmmLoaded) {
+      dbLoadMonthlyEvents().then(events => {
+        setTmmEvents(events);
+        setTmmLoaded(true);
+        if (currentEvent) {
+          setTmmSelectedId(String(currentEvent.id));
+          loadTmmEvent(currentEvent);
+        }
+      }).catch(() => setTmmLoaded(true));
+    }
+  }, [section]);
+
+  function loadTmmEvent(ev) {
+    setTmmMonth(ev.month || '');
+    setTmmTheme(ev.theme || '');
+    setTmmMovie1Id(ev.movie_id_1 || null);
+    setTmmMovie2Id(ev.movie_id_2 || null);
+    const allMovies = [...(movies || []), ...(alltime || [])];
+    const m1 = allMovies.find(m => m.id === ev.movie_id_1);
+    const m2 = allMovies.find(m => m.id === ev.movie_id_2);
+    setTmmMovie1Search(m1 ? m1.title : '');
+    setTmmMovie2Search(m2 ? m2.title : '');
+    setTmmMeetingDatetime(ev.meeting_datetime ? ev.meeting_datetime.slice(0, 16) : '');
+    setTmmMeetingLink(ev.meeting_link || '');
+    setTmmTrivia(ev.trivia || '');
+  }
+
+  function handleTmmSelect(idStr) {
+    setTmmSelectedId(idStr);
+    if (idStr === 'new') {
+      setTmmMonth(''); setTmmTheme('');
+      setTmmMovie1Id(null); setTmmMovie1Search('');
+      setTmmMovie2Id(null); setTmmMovie2Search('');
+      setTmmMeetingDatetime(''); setTmmMeetingLink(''); setTmmTrivia('');
+    } else {
+      const ev = tmmEvents.find(e => String(e.id) === idStr);
+      if (ev) loadTmmEvent(ev);
+    }
+  }
+
+  async function saveTmmEvent() {
+    if (!tmmMonth) { showMsg('Month is required', 'error'); return; }
+    try {
+      const payload = {
+        id: tmmSelectedId !== 'new' ? parseInt(tmmSelectedId) : undefined,
+        month: tmmMonth,
+        theme: tmmTheme || null,
+        movieId1: tmmMovie1Id || null,
+        movieId2: tmmMovie2Id || null,
+        isCurrent: false,
+        meetingDatetime: tmmMeetingDatetime ? new Date(tmmMeetingDatetime).toISOString() : null,
+        meetingLink: tmmMeetingLink || null,
+        trivia: tmmTrivia || null,
+      };
+      const saved = await dbSaveMonthlyEvent(payload);
+      setTmmEvents(prev => {
+        const exists = prev.find(e => e.id === saved.id);
+        return exists ? prev.map(e => e.id === saved.id ? saved : e) : [saved, ...prev];
+      });
+      setTmmSelectedId(String(saved.id));
+      if (saved.is_current && setCurrentEvent) setCurrentEvent(saved);
+      showMsg('Event saved!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
+  async function setTmmCurrent() {
+    if (tmmSelectedId === 'new') { showMsg('Save the event first', 'error'); return; }
+    try {
+      const updated = await dbSetCurrentMonthlyEvent(parseInt(tmmSelectedId));
+      setTmmEvents(prev => prev.map(e => ({ ...e, is_current: e.id === updated.id })));
+      if (setCurrentEvent) setCurrentEvent(updated);
+      showMsg('Set as current month!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
+  async function deleteTmmEvent() {
+    if (tmmSelectedId === 'new') return;
+    try {
+      await dbDeleteMonthlyEvent(parseInt(tmmSelectedId));
+      const deleted = tmmEvents.find(e => String(e.id) === tmmSelectedId);
+      setTmmEvents(prev => prev.filter(e => String(e.id) !== tmmSelectedId));
+      if (deleted && deleted.is_current && setCurrentEvent) setCurrentEvent(null);
+      setTmmSelectedId('new');
+      setTmmMonth(''); setTmmTheme('');
+      setTmmMovie1Id(null); setTmmMovie1Search('');
+      setTmmMovie2Id(null); setTmmMovie2Search('');
+      setTmmMeetingDatetime(''); setTmmMeetingLink(''); setTmmTrivia('');
+      showMsg('Event deleted.');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
   const [fetchingTrailers, setFetchingTrailers] = React.useState(false);
   async function fetchMissingTrailers() {
     const allMovies = [...(movies || []), ...(alltime || [])];
@@ -2015,9 +2173,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','poll','bracket','ratings','movienight'].map(s => (
+          {['movies','members','poll','bracket','ratings','movienight','thismonth'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : '🎬 Movie "Night"'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
             </button>
           ))}
         </div>
@@ -2336,6 +2494,106 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             }}>
               {mnLoading ? 'Saving…' : 'Save Join Link'}
             </button>
+          </>
+        )}
+
+        {section === 'thismonth' && (
+          <>
+            <div className="admin-section-title">This Month's Movies</div>
+
+            {!tmmLoaded ? (
+              <div style={{textAlign:'center',padding:'20px 0',color:'#aaa'}}>Loading…</div>
+            ) : (
+              <>
+                <label className="form-label">Event</label>
+                <select className="form-input" value={tmmSelectedId} onChange={e => handleTmmSelect(e.target.value)} style={{marginBottom:14}}>
+                  <option value="new">＋ New event</option>
+                  {tmmEvents.map(ev => {
+                    const label = ev.month
+                      ? new Date(ev.month + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                      : `Event #${ev.id}`;
+                    return (
+                      <option key={ev.id} value={String(ev.id)}>
+                        {label}{ev.theme ? ` — ${ev.theme}` : ''}{ev.is_current ? ' ✓' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <label className="form-label">Month (first day of the club month)</label>
+                <input className="form-input" type="date" value={tmmMonth}
+                  onChange={e => setTmmMonth(e.target.value)} style={{marginBottom:14}} />
+
+                <label className="form-label">Theme</label>
+                <input className="form-input" value={tmmTheme}
+                  onChange={e => setTmmTheme(e.target.value)}
+                  placeholder="e.g. Difficult Moms, Heist Films…" style={{marginBottom:14}} />
+
+                <hr className="section-divider" />
+
+                {(() => {
+                  const seen = new Set();
+                  const allMoviesForPicker = [...(movies || []), ...(alltime || [])]
+                    .filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; })
+                    .sort((a, b) => a.title.localeCompare(b.title));
+                  function pickMovie(idStr, setId, setSearch) {
+                    const id = idStr ? parseInt(idStr) : null;
+                    setId(id);
+                    const m = allMoviesForPicker.find(x => x.id === id);
+                    setSearch(m ? m.title : '');
+                  }
+                  return (
+                    <>
+                      <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1rem', marginBottom:10, color:'var(--blue)'}}>Movie 1</div>
+                      <label className="form-label">Select movie</label>
+                      <select className="form-input" value={tmmMovie1Id || ''} onChange={e => pickMovie(e.target.value, setTmmMovie1Id, setTmmMovie1Search)} style={{marginBottom:14}}>
+                        <option value="">— None —</option>
+                        {allMoviesForPicker.map(m => <option key={m.id} value={m.id}>{m.title}{m.year ? ` (${m.year})` : ''}</option>)}
+                      </select>
+
+                      <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1rem', marginBottom:10, color:'var(--orange)'}}>Movie 2</div>
+                      <label className="form-label">Select movie</label>
+                      <select className="form-input" value={tmmMovie2Id || ''} onChange={e => pickMovie(e.target.value, setTmmMovie2Id, setTmmMovie2Search)} style={{marginBottom:14}}>
+                        <option value="">— None —</option>
+                        {allMoviesForPicker.map(m => <option key={m.id} value={m.id}>{m.title}{m.year ? ` (${m.year})` : ''}</option>)}
+                      </select>
+                    </>
+                  );
+                })()}
+
+                <hr className="section-divider" />
+
+                <label className="form-label">Meeting Date &amp; Time</label>
+                <input className="form-input" type="datetime-local" value={tmmMeetingDatetime}
+                  onChange={e => setTmmMeetingDatetime(e.target.value)} style={{marginBottom:14}} />
+
+                <label className="form-label">Meeting Link (Google Meet, etc.)</label>
+                <input className="form-input" value={tmmMeetingLink}
+                  onChange={e => setTmmMeetingLink(e.target.value)}
+                  placeholder="https://meet.google.com/…" style={{marginBottom:14}} />
+
+                <label className="form-label">Trivia (freeform)</label>
+                <textarea className="form-input" value={tmmTrivia}
+                  onChange={e => setTmmTrivia(e.target.value)}
+                  rows={4} placeholder="Fun facts, discussion prompts…"
+                  style={{resize:'vertical', marginBottom:14}} />
+
+                <button className="btn-primary" onClick={saveTmmEvent}>💾 Save Event</button>
+                {tmmSelectedId !== 'new' && (
+                  <>
+                    <button className="btn-primary" style={{background:'var(--green)',marginTop:6}} onClick={setTmmCurrent}>
+                      ✓ Set as Current Month
+                    </button>
+                    <button className="btn-secondary" style={{marginTop:6}} onClick={() => {
+                      if (!window.confirm('Delete this event?')) return;
+                      deleteTmmEvent();
+                    }}>
+                      🗑️ Delete Event
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </div>
