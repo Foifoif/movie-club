@@ -1,3 +1,12 @@
+// ─── TIMEZONE HELPERS ────────────────────────────────────────────────────────
+// Converts a UTC ISO string from Supabase to "YYYY-MM-DDTHH:mm" in the
+// browser's local timezone, suitable for populating a datetime-local input.
+function isoToLocalDatetimeLocal(isoStr) {
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ─── SHARED RATE HANDLER ─────────────────────────────────────────────────────
 // Returns an async handleRate(movieId, member, score) function.
 // Pass onAfterSave(movieId) for any post-save side effects (e.g. recalc avg, reveal).
@@ -81,18 +90,6 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           </div>
         </a>
       )}
-      <div className="page-title">This Month's Films</div>
-      <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
-      <div className="home-movies-grid">
-        {movies.map((m, i) => (
-          <MovieCard
-            key={m.id} movie={m} index={i}
-            movieRatings={localRatings[m.id] || {}}
-            members={members}
-            onRate={(member, score) => handleRate(m.id, member, score)}
-          />
-        ))}
-      </div>
     </div>
   );
 }
@@ -122,7 +119,7 @@ function ThisMonthPage({ currentEvent, movies }) {
   }
 
   const monthLabel = currentEvent.month
-    ? new Date(currentEvent.month + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    ? new Date(currentEvent.month + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : '';
 
   const movie1 = movies.find(m => m.id === currentEvent.movie_id_1) || null;
@@ -2097,23 +2094,32 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [tmmMovie2Search, setTmmMovie2Search] = useState('');
   const [tmmMovie2Id, setTmmMovie2Id] = useState(null);
   const [tmmMeetingDatetime, setTmmMeetingDatetime] = useState('');
+  const [tmmDefaultMeetingLink, setTmmDefaultMeetingLink] = useState('');
   const [tmmMeetingLink, setTmmMeetingLink] = useState('');
   const [tmmTrivia, setTmmTrivia] = useState('');
 
   useEffect(() => {
     if (section === 'thismonth' && !tmmLoaded) {
-      dbLoadMonthlyEvents().then(events => {
+      Promise.all([
+        dbLoadMonthlyEvents(),
+        dbLoadJoinUrl(),
+      ]).then(([events, joinUrl]) => {
+        const defaultLink = joinUrl || '';
+        setTmmDefaultMeetingLink(defaultLink);
         setTmmEvents(events);
         setTmmLoaded(true);
         if (currentEvent) {
           setTmmSelectedId(String(currentEvent.id));
-          loadTmmEvent(currentEvent);
+          loadTmmEvent(currentEvent, defaultLink);
+        } else {
+          setTmmMeetingLink(defaultLink);
         }
       }).catch(() => setTmmLoaded(true));
     }
   }, [section]);
 
-  function loadTmmEvent(ev) {
+  function loadTmmEvent(ev, defaultLink) {
+    const fallback = defaultLink !== undefined ? defaultLink : tmmDefaultMeetingLink;
     setTmmMonth(ev.month || '');
     setTmmTheme(ev.theme || '');
     setTmmMovie1Id(ev.movie_id_1 || null);
@@ -2123,8 +2129,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const m2 = allMovies.find(m => m.id === ev.movie_id_2);
     setTmmMovie1Search(m1 ? m1.title : '');
     setTmmMovie2Search(m2 ? m2.title : '');
-    setTmmMeetingDatetime(ev.meeting_datetime ? ev.meeting_datetime.slice(0, 16) : '');
-    setTmmMeetingLink(ev.meeting_link || '');
+    setTmmMeetingDatetime(ev.meeting_datetime ? isoToLocalDatetimeLocal(ev.meeting_datetime) : '');
+    setTmmMeetingLink(ev.meeting_link || fallback);
     setTmmTrivia(ev.trivia || '');
   }
 
@@ -2134,7 +2140,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       setTmmMonth(''); setTmmTheme('');
       setTmmMovie1Id(null); setTmmMovie1Search('');
       setTmmMovie2Id(null); setTmmMovie2Search('');
-      setTmmMeetingDatetime(''); setTmmMeetingLink(''); setTmmTrivia('');
+      setTmmMeetingDatetime(''); setTmmMeetingLink(tmmDefaultMeetingLink); setTmmTrivia('');
     } else {
       const ev = tmmEvents.find(e => String(e.id) === idStr);
       if (ev) loadTmmEvent(ev);
