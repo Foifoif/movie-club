@@ -205,7 +205,13 @@ function TrailerButton({ trailerUrl, title, color, label }) {
       {open && <TrailerModal url={trailerUrl} title={title} onClose={() => setOpen(false)} />}
       <button
         className="watch-trailer-btn"
-        style={{ color: color || 'var(--blue-mid)' }}
+        style={{
+          background: color || 'var(--red)',
+          color: '#fff',
+          border: '2px solid var(--ink)',
+          borderRadius: 999,
+          boxShadow: '2px 2px 0 var(--ink)',
+        }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}>
         {label || '▶ Trailer'}
       </button>
@@ -299,6 +305,64 @@ function MovieRowCard({ movie, index }) {
             </button>
             {descOpen && <div className="movie-row-card-desc">{movie.description}</div>}
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MOVIE LINEUP CARD ───────────────────────────────────────────────────────
+// Horizontal movie card for the This Month page lineup. Reusable across features.
+// Props: movie, index (0-based, for the numbered badge), accent (CSS color string)
+function MovieLineupCard({ movie, index, accent }) {
+  const ink = 'var(--ink)';
+  const ACCENT = accent || 'var(--yellow)';
+  const [descExpanded, setDescExpanded] = useState(false);
+  return (
+    <div style={{ display: 'flex', background: '#fff', border: `3px solid ${ink}`, borderRadius: 8, boxShadow: `5px 5px 0 ${ink}`, overflow: 'hidden', marginBottom: 18 }}>
+      {/* poster */}
+      <div style={{ position: 'relative', flex: '0 0 132px', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `3px solid ${ink}` }}>
+        <span style={{ position: 'absolute', fontSize: '2.2rem', opacity: .3 }}>🎞️</span>
+        {movie.poster && (
+          <img
+            src={movie.poster}
+            alt=""
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={e => { e.target.style.display = 'none'; }}
+          />
+        )}
+        {index != null && (
+          <span style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.85rem', fontWeight: 700, color: ink, background: ACCENT, border: `1.5px solid ${ink}`, borderRadius: '50%' }}>{index + 1}</span>
+        )}
+      </div>
+      {/* info */}
+      <div style={{ flex: 1, minWidth: 0, padding: '15px 16px 16px' }}>
+        <div style={{ fontSize: '1.3rem', fontWeight: 700, lineHeight: 1.1, color: ink }}>{movie.title}</div>
+        {movie.year && <div style={{ fontSize: '.78rem', fontWeight: 700, letterSpacing: .5, color: 'var(--blue-mid)', marginTop: 3 }}>{movie.year}</div>}
+        {movie.streaming && movie.streaming.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
+            {movie.streaming.map((s, j) => (
+              <span key={j} style={{ fontSize: '.74rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: `1.5px solid ${ink}`, color: ink, background: '#fff' }}>{s}</span>
+            ))}
+          </div>
+        )}
+        {movie.description && (
+          <div style={{ marginTop: 11 }}>
+            <div style={{
+              fontSize: '.86rem', lineHeight: 1.5, color: '#3a3548',
+              ...(descExpanded ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
+            }}>{movie.description}</div>
+            <button
+              onClick={() => setDescExpanded(o => !o)}
+              style={{ marginTop: 4, fontSize: '.78rem', fontWeight: 700, color: 'var(--blue-mid)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+              {descExpanded ? '(less)' : '(more...)'}
+            </button>
+          </div>
+        )}
+        {movie.trailerUrl && (
+          <div style={{ marginTop: 13 }}>
+            <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} color="var(--red)" label="▶ Watch Trailer" />
+          </div>
         )}
       </div>
     </div>

@@ -224,21 +224,15 @@
 .watch-trailer-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: none;
-  border: 1.5px solid currentColor;
-  border-radius: 5px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.82rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.82;
   transition: opacity 0.15s;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
-.watch-trailer-btn:hover { opacity: 1; }
+.watch-trailer-btn:hover { opacity: 0.88; }
 
 /* CONFIRM DELETE MODAL */
 .confirm-overlay {
