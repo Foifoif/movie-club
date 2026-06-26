@@ -129,7 +129,24 @@ function ThisMonthPage({ currentEvent, movies }) {
         </div>
       )}
 
-      <MovieNightCountdown />
+      {currentEvent.meeting_datetime && (() => {
+        const meetingDate = new Date(currentEvent.meeting_datetime);
+        const dateLine =
+          meetingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) +
+          ' · ' +
+          meetingDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return (
+          <div className="tmm-meeting-section">
+            <div className="tmm-section-label">📅 Meeting</div>
+            <div className="tmm-meeting-date">{dateLine}</div>
+            {currentEvent.meeting_link && (
+              <a className="tmm-join-btn" href={currentEvent.meeting_link} target="_blank" rel="noopener noreferrer">
+                🎬 Join Movie Night
+              </a>
+            )}
+          </div>
+        );
+      })()}
 
       {eventMovies.length > 0 && (
         <div className="tmm-movies">

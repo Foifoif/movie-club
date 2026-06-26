@@ -345,38 +345,36 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
     <a className="this-month-card" href="/this-month"
       onClick={e => { e.preventDefault(); onNavigate('this-month'); }}>
 
-      <div className="tmc-bulbs" />
-
       <div className="tmc-eyebrow-bar">
         <span className="tmc-eyebrow">🎬 Next at Movie Club</span>
         {lineup.length === 2 && <span className="tmc-feature-tag">Double Feature</span>}
       </div>
 
       <div className="tmc-posters" data-count={lineup.length}>
-        {lineup.map((m, i) => {
-          const accent = m.accent || ACCENT_COLORS[i % ACCENT_COLORS.length];
-          return (
-            <div className="tmc-poster" key={m.id}>
-              <div className="tmc-poster-art"
-                style={{ background: `radial-gradient(115% 75% at ${i ? 40 : 62}% 20%, ${accent} 0%, rgba(0,0,0,.55) 58%, #0a0814 100%)` }}>
-                <div className="tmc-poster-title">{m.title}</div>
-                {m.year && <div className="tmc-poster-year">{m.year}</div>}
-              </div>
+        {lineup.map((m, i) => (
+          <div className="tmc-poster" key={m.id}>
+            <div className="tmc-poster-frame">
+              <span className="tmc-poster-ph">🎞️</span>
               {m.poster && (
                 <img className="tmc-poster-img" src={m.poster} alt=""
                   onError={e => { e.target.style.display = 'none'; }} />
               )}
               <span className="tmc-poster-num">{i + 1}</span>
             </div>
-          );
-        })}
+            <div className="tmc-poster-cap">
+              <div className="tmc-poster-title">{m.title}</div>
+              {m.year && <div className="tmc-poster-year">{m.year}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="tmc-scrim" />
-        <div className="tmc-overlay">
+      {(currentEvent.theme || dateLine) && (
+        <div className="tmc-headline">
           {currentEvent.theme && <div className="tmc-theme">{currentEvent.theme}</div>}
           {dateLine && <div className="tmc-date">📅 {dateLine}</div>}
         </div>
-      </div>
+      )}
 
       {eventDate && (goTime ? (
         <div className="tmc-gotime">
