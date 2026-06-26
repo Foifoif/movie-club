@@ -1,3 +1,12 @@
+// ─── TIMEZONE HELPERS ────────────────────────────────────────────────────────
+// Converts a UTC ISO string from Supabase to "YYYY-MM-DDTHH:mm" in the
+// browser's local timezone, suitable for populating a datetime-local input.
+function isoToLocalDatetimeLocal(isoStr) {
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ─── SHARED RATE HANDLER ─────────────────────────────────────────────────────
 // Returns an async handleRate(movieId, member, score) function.
 // Pass onAfterSave(movieId) for any post-save side effects (e.g. recalc avg, reveal).
@@ -21,7 +30,7 @@ function makeHandleRate(localRatings, setLocalRatings, setRatings, { onAfterSave
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, currentEvent, onThisMonthClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -33,7 +42,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   if (!movies || movies.length === 0) {
     return (
       <div className="main">
-        <MovieNightCountdown />
+        <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
         {activePoll && (
           <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
@@ -63,7 +72,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
 
   return (
     <div className="main">
-      <MovieNightCountdown />
+      <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
       {activePoll && (
         <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
@@ -81,18 +90,133 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           </div>
         </a>
       )}
-      <div className="page-title">This Month's Films</div>
-      <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
-      <div className="home-movies-grid">
-        {movies.map((m, i) => (
-          <MovieCard
-            key={m.id} movie={m} index={i}
-            movieRatings={localRatings[m.id] || {}}
-            members={members}
-            onRate={(member, score) => handleRate(m.id, member, score)}
-          />
+    </div>
+  );
+}
+
+// ─── THIS MONTH'S MOVIES PAGE ────────────────────────────────────────────────
+function ThisMonthPage({ currentEvent, movies }) {
+  const ACCENT = 'var(--yellow)';
+  const ink = 'var(--ink)';
+
+  const [now, setNow] = React.useState(Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!currentEvent) {
+    return (
+      <div className="main">
+        <div className="page-title">This Month's Movies</div>
+        <div className="page-subtitle">Nothing set yet — check back soon.</div>
+        <div className="empty-state">
+          <div className="empty-icon">📅</div>
+          <div>The admin hasn't configured this month's event yet.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const monthLabel = currentEvent.month
+    ? new Date(currentEvent.month + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : '';
+
+  const movie1 = movies.find(m => m.id === currentEvent.movie_id_1) || null;
+  const movie2 = movies.find(m => m.id === currentEvent.movie_id_2) || null;
+  const lineup = [movie1, movie2].filter(Boolean);
+
+  const joinUrl   = currentEvent.meeting_link || '';
+  const eventDate = currentEvent.meeting_datetime ? new Date(currentEvent.meeting_datetime) : null;
+
+  const diff = eventDate ? eventDate.getTime() - now : null;
+  const done = diff !== null && diff <= 0;
+  const days = diff !== null ? Math.max(0, Math.floor(diff / 86400000)) : 0;
+  const hrs  = diff !== null ? Math.max(0, Math.floor((diff % 86400000) / 3600000)) : 0;
+  const min  = diff !== null ? Math.max(0, Math.floor((diff % 3600000)  / 60000)) : 0;
+  const pad  = n => String(n).padStart(2, '0');
+  const goTime = eventDate && (done || days === 0);
+
+  const dateLine = eventDate
+    ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null;
+  const lineupStr = lineup.map(m => m.title).join(' · ');
+
+  return (
+    <div className="main" style={{ maxWidth: 600, margin: '0 auto' }}>
+
+      {/* HEADER CARD */}
+      <div style={{ background: '#fff', border: `3px solid ${ink}`, borderRadius: 10, boxShadow: `8px 8px 0 ${ACCENT}`, overflow: 'hidden', marginBottom: 24 }}>
+
+        {/* eyebrow bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 16px', background: ACCENT }}>
+          <span style={{ fontSize: '.7rem', fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: ink }}>🎬 This Month at Movie Club</span>
+          {lineup.length === 2 && (
+            <span style={{ fontSize: '.6rem', fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: ACCENT, background: ink, padding: '4px 9px', borderRadius: 3, whiteSpace: 'nowrap' }}>Double Feature</span>
+          )}
+        </div>
+
+        {/* theme headline + meta */}
+        <div style={{ padding: '20px 20px 18px' }}>
+          {monthLabel && <div style={{ fontSize: '.66rem', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--blue-dark)' }}>{monthLabel}</div>}
+          {currentEvent.theme && <div style={{ fontSize: '2.5rem', fontWeight: 700, lineHeight: 1.02, letterSpacing: '-.6px', color: ink, marginTop: 6 }}>{currentEvent.theme}</div>}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+            {dateLine && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: '.82rem', fontWeight: 700, color: ink, background: ACCENT, border: `1.5px solid ${ink}`, padding: '5px 12px', borderRadius: 5, whiteSpace: 'nowrap' }}>📅 {dateLine}</span>}
+            {lineupStr && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: '.82rem', fontWeight: 700, color: ink, background: '#fff', border: `1.5px solid ${ink}`, padding: '5px 12px', borderRadius: 5, whiteSpace: 'nowrap' }}>🎞️ {lineupStr}</span>}
+          </div>
+        </div>
+
+        {/* countdown OR go-time */}
+        {eventDate && (goTime ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 20, background: 'var(--cream)', borderTop: `3px solid ${ink}` }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--green)' }}>It's happening — grab the popcorn 🍿</div>
+            {joinUrl && (
+              <a href={joinUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: '1rem', fontWeight: 700, padding: '12px 32px', background: 'var(--green)', color: '#fff', border: `2px solid ${ink}`, borderRadius: 999, boxShadow: `3px 3px 0 ${ink}`, textDecoration: 'none' }}>🎬 Join Movie Night</a>
+            )}
+          </div>
+        ) : (
+          <div style={{ padding: '18px 16px 20px', background: 'var(--cream)', borderTop: `3px solid ${ink}` }}>
+            <div style={{ textAlign: 'center', fontSize: '.55rem', fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: 'var(--blue-dark)', marginBottom: 12 }}>Countdown to showtime</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              {[{ v: String(days), l: 'days' }, { v: pad(hrs), l: 'hrs' }, { v: pad(min), l: 'min' }].map((u, i) => (
+                <React.Fragment key={u.l}>
+                  {i > 0 && <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--blue-mid)' }}>:</span>}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 62, fontSize: '2rem', fontWeight: 700, color: ink, background: '#fff', border: `2px solid ${ink}`, borderRadius: 6, boxShadow: `2px 2px 0 ${ACCENT}`, padding: '7px 10px', fontVariantNumeric: 'tabular-nums' }}>{u.v}</span>
+                    <span style={{ fontSize: '.55rem', fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase', color: 'var(--blue-dark)' }}>{u.l}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+            {joinUrl && (
+              <a href={joinUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '16px auto 0', maxWidth: 280, fontSize: '.92rem', fontWeight: 700, padding: '11px 24px', background: '#fff', color: ink, border: `2px solid ${ink}`, borderRadius: 999, boxShadow: `3px 3px 0 ${ink}`, textDecoration: 'none' }}>🔗 Meeting link</a>
+            )}
+          </div>
         ))}
       </div>
+
+      {/* LINEUP HEADING */}
+      {lineup.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 4px 16px' }}>
+          <span style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: .4, color: ink }}>The Lineup</span>
+          <span style={{ flex: 1, height: 3, background: ink, borderRadius: 2 }}></span>
+          <span style={{ fontSize: '.7rem', fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--blue-dark)' }}>{lineup.length} {lineup.length === 1 ? 'film' : 'films'}</span>
+        </div>
+      )}
+
+      {/* MOVIE BLOCKS */}
+      {lineup.map((m, i) => (
+        <MovieLineupCard key={m.id} movie={m} index={i} accent={ACCENT} />
+      ))}
+
+      {/* DID YOU KNOW */}
+      {currentEvent.trivia && (
+        <div style={{ background: '#fff', border: `2px solid ${ACCENT}`, borderRadius: 6, padding: '16px 18px', boxShadow: `3px 3px 0 ${ACCENT}`, marginTop: 8 }}>
+          <div style={{ fontSize: '.66rem', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--blue-dark)', marginBottom: 9 }}>🎬 Did You Know?</div>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: '.92rem', lineHeight: 1.65, color: ink }}>{currentEvent.trivia}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1693,7 +1817,7 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent }) {
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
@@ -1959,6 +2083,121 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
   }
 
+  // ── This Month's Movies admin state ──
+  const [tmmEvents, setTmmEvents] = useState([]);
+  const [tmmLoaded, setTmmLoaded] = useState(false);
+  const [tmmSelectedId, setTmmSelectedId] = useState('new');
+  const [tmmMonth, setTmmMonth] = useState('');
+  const [tmmTheme, setTmmTheme] = useState('');
+  const [tmmMovie1Search, setTmmMovie1Search] = useState('');
+  const [tmmMovie1Id, setTmmMovie1Id] = useState(null);
+  const [tmmMovie2Search, setTmmMovie2Search] = useState('');
+  const [tmmMovie2Id, setTmmMovie2Id] = useState(null);
+  const [tmmMeetingDatetime, setTmmMeetingDatetime] = useState('');
+  const [tmmDefaultMeetingLink, setTmmDefaultMeetingLink] = useState('');
+  const [tmmMeetingLink, setTmmMeetingLink] = useState('');
+  const [tmmTrivia, setTmmTrivia] = useState('');
+
+  useEffect(() => {
+    if (section === 'thismonth' && !tmmLoaded) {
+      Promise.all([
+        dbLoadMonthlyEvents(),
+        dbLoadJoinUrl(),
+      ]).then(([events, joinUrl]) => {
+        const defaultLink = joinUrl || '';
+        setTmmDefaultMeetingLink(defaultLink);
+        setTmmEvents(events);
+        setTmmLoaded(true);
+        if (currentEvent) {
+          setTmmSelectedId(String(currentEvent.id));
+          loadTmmEvent(currentEvent, defaultLink);
+        } else {
+          setTmmMeetingLink(defaultLink);
+        }
+      }).catch(() => setTmmLoaded(true));
+    }
+  }, [section]);
+
+  function loadTmmEvent(ev, defaultLink) {
+    const fallback = defaultLink !== undefined ? defaultLink : tmmDefaultMeetingLink;
+    setTmmMonth(ev.month || '');
+    setTmmTheme(ev.theme || '');
+    setTmmMovie1Id(ev.movie_id_1 || null);
+    setTmmMovie2Id(ev.movie_id_2 || null);
+    const allMovies = [...(movies || []), ...(alltime || [])];
+    const m1 = allMovies.find(m => m.id === ev.movie_id_1);
+    const m2 = allMovies.find(m => m.id === ev.movie_id_2);
+    setTmmMovie1Search(m1 ? m1.title : '');
+    setTmmMovie2Search(m2 ? m2.title : '');
+    setTmmMeetingDatetime(ev.meeting_datetime ? isoToLocalDatetimeLocal(ev.meeting_datetime) : '');
+    setTmmMeetingLink(ev.meeting_link || fallback);
+    setTmmTrivia(ev.trivia || '');
+  }
+
+  function handleTmmSelect(idStr) {
+    setTmmSelectedId(idStr);
+    if (idStr === 'new') {
+      setTmmMonth(''); setTmmTheme('');
+      setTmmMovie1Id(null); setTmmMovie1Search('');
+      setTmmMovie2Id(null); setTmmMovie2Search('');
+      setTmmMeetingDatetime(''); setTmmMeetingLink(tmmDefaultMeetingLink); setTmmTrivia('');
+    } else {
+      const ev = tmmEvents.find(e => String(e.id) === idStr);
+      if (ev) loadTmmEvent(ev);
+    }
+  }
+
+  async function saveTmmEvent() {
+    if (!tmmMonth) { showMsg('Month is required', 'error'); return; }
+    try {
+      const payload = {
+        id: tmmSelectedId !== 'new' ? parseInt(tmmSelectedId) : undefined,
+        month: tmmMonth,
+        theme: tmmTheme || null,
+        movieId1: tmmMovie1Id || null,
+        movieId2: tmmMovie2Id || null,
+        isCurrent: false,
+        meetingDatetime: tmmMeetingDatetime ? new Date(tmmMeetingDatetime).toISOString() : null,
+        meetingLink: tmmMeetingLink || null,
+        trivia: tmmTrivia || null,
+      };
+      const saved = await dbSaveMonthlyEvent(payload);
+      setTmmEvents(prev => {
+        const exists = prev.find(e => e.id === saved.id);
+        return exists ? prev.map(e => e.id === saved.id ? saved : e) : [saved, ...prev];
+      });
+      setTmmSelectedId(String(saved.id));
+      if (saved.is_current && setCurrentEvent) setCurrentEvent(saved);
+      showMsg('Event saved!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
+  async function setTmmCurrent() {
+    if (tmmSelectedId === 'new') { showMsg('Save the event first', 'error'); return; }
+    try {
+      const updated = await dbSetCurrentMonthlyEvent(parseInt(tmmSelectedId));
+      setTmmEvents(prev => prev.map(e => ({ ...e, is_current: e.id === updated.id })));
+      if (setCurrentEvent) setCurrentEvent(updated);
+      showMsg('Set as current month!');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
+  async function deleteTmmEvent() {
+    if (tmmSelectedId === 'new') return;
+    try {
+      await dbDeleteMonthlyEvent(parseInt(tmmSelectedId));
+      const deleted = tmmEvents.find(e => String(e.id) === tmmSelectedId);
+      setTmmEvents(prev => prev.filter(e => String(e.id) !== tmmSelectedId));
+      if (deleted && deleted.is_current && setCurrentEvent) setCurrentEvent(null);
+      setTmmSelectedId('new');
+      setTmmMonth(''); setTmmTheme('');
+      setTmmMovie1Id(null); setTmmMovie1Search('');
+      setTmmMovie2Id(null); setTmmMovie2Search('');
+      setTmmMeetingDatetime(''); setTmmMeetingLink(''); setTmmTrivia('');
+      showMsg('Event deleted.');
+    } catch(e) { showMsg('Error: ' + e.message, 'error'); }
+  }
+
   const [fetchingTrailers, setFetchingTrailers] = React.useState(false);
   async function fetchMissingTrailers() {
     const allMovies = [...(movies || []), ...(alltime || [])];
@@ -2015,9 +2254,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','poll','bracket','ratings','movienight'].map(s => (
+          {['movies','members','poll','bracket','ratings','movienight','thismonth'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : '🎬 Movie "Night"'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
             </button>
           ))}
         </div>
@@ -2336,6 +2575,106 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             }}>
               {mnLoading ? 'Saving…' : 'Save Join Link'}
             </button>
+          </>
+        )}
+
+        {section === 'thismonth' && (
+          <>
+            <div className="admin-section-title">This Month's Movies</div>
+
+            {!tmmLoaded ? (
+              <div style={{textAlign:'center',padding:'20px 0',color:'#aaa'}}>Loading…</div>
+            ) : (
+              <>
+                <label className="form-label">Event</label>
+                <select className="form-input" value={tmmSelectedId} onChange={e => handleTmmSelect(e.target.value)} style={{marginBottom:14}}>
+                  <option value="new">＋ New event</option>
+                  {tmmEvents.map(ev => {
+                    const label = ev.month
+                      ? new Date(ev.month + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                      : `Event #${ev.id}`;
+                    return (
+                      <option key={ev.id} value={String(ev.id)}>
+                        {label}{ev.theme ? ` — ${ev.theme}` : ''}{ev.is_current ? ' ✓' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <label className="form-label">Month (first day of the club month)</label>
+                <input className="form-input" type="date" value={tmmMonth}
+                  onChange={e => setTmmMonth(e.target.value)} style={{marginBottom:14}} />
+
+                <label className="form-label">Theme</label>
+                <input className="form-input" value={tmmTheme}
+                  onChange={e => setTmmTheme(e.target.value)}
+                  placeholder="e.g. Difficult Moms, Heist Films…" style={{marginBottom:14}} />
+
+                <hr className="section-divider" />
+
+                {(() => {
+                  const seen = new Set();
+                  const allMoviesForPicker = [...(movies || []), ...(alltime || [])]
+                    .filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; })
+                    .sort((a, b) => a.title.localeCompare(b.title));
+                  function pickMovie(idStr, setId, setSearch) {
+                    const id = idStr ? parseInt(idStr) : null;
+                    setId(id);
+                    const m = allMoviesForPicker.find(x => x.id === id);
+                    setSearch(m ? m.title : '');
+                  }
+                  return (
+                    <>
+                      <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1rem', marginBottom:10, color:'var(--blue)'}}>Movie 1</div>
+                      <label className="form-label">Select movie</label>
+                      <select className="form-input" value={tmmMovie1Id || ''} onChange={e => pickMovie(e.target.value, setTmmMovie1Id, setTmmMovie1Search)} style={{marginBottom:14}}>
+                        <option value="">— None —</option>
+                        {allMoviesForPicker.map(m => <option key={m.id} value={m.id}>{m.title}{m.year ? ` (${m.year})` : ''}</option>)}
+                      </select>
+
+                      <div style={{fontFamily:"Calibri, Candara, 'Segoe UI', Optima, sans-serif", fontSize:'1rem', marginBottom:10, color:'var(--orange)'}}>Movie 2</div>
+                      <label className="form-label">Select movie</label>
+                      <select className="form-input" value={tmmMovie2Id || ''} onChange={e => pickMovie(e.target.value, setTmmMovie2Id, setTmmMovie2Search)} style={{marginBottom:14}}>
+                        <option value="">— None —</option>
+                        {allMoviesForPicker.map(m => <option key={m.id} value={m.id}>{m.title}{m.year ? ` (${m.year})` : ''}</option>)}
+                      </select>
+                    </>
+                  );
+                })()}
+
+                <hr className="section-divider" />
+
+                <label className="form-label">Meeting Date &amp; Time</label>
+                <input className="form-input" type="datetime-local" value={tmmMeetingDatetime}
+                  onChange={e => setTmmMeetingDatetime(e.target.value)} style={{marginBottom:14}} />
+
+                <label className="form-label">Meeting Link (Google Meet, etc.)</label>
+                <input className="form-input" value={tmmMeetingLink}
+                  onChange={e => setTmmMeetingLink(e.target.value)}
+                  placeholder="https://meet.google.com/…" style={{marginBottom:14}} />
+
+                <label className="form-label">Trivia (freeform)</label>
+                <textarea className="form-input" value={tmmTrivia}
+                  onChange={e => setTmmTrivia(e.target.value)}
+                  rows={4} placeholder="Fun facts, discussion prompts…"
+                  style={{resize:'vertical', marginBottom:14}} />
+
+                <button className="btn-primary" onClick={saveTmmEvent}>💾 Save Event</button>
+                {tmmSelectedId !== 'new' && (
+                  <>
+                    <button className="btn-primary" style={{background:'var(--green)',marginTop:6}} onClick={setTmmCurrent}>
+                      ✓ Set as Current Month
+                    </button>
+                    <button className="btn-secondary" style={{marginTop:6}} onClick={() => {
+                      if (!window.confirm('Delete this event?')) return;
+                      deleteTmmEvent();
+                    }}>
+                      🗑️ Delete Event
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </div>
