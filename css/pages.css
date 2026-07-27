@@ -703,14 +703,6 @@
 .history-delete-btn:hover { border-color: var(--red); color: var(--red); background: #fff0f0; }
 .history-edit-btn:hover   { border-color: var(--blue); color: var(--blue-mid); background: rgba(142,197,230,0.1); }
 
-.history-session-theme {
-  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--blue);
-  letter-spacing: 0;
-}
-
 .history-movie {
   background: white;
   border: 2px solid #ddd;

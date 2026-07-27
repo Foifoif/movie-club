@@ -126,13 +126,15 @@ function MovieNightCountdown() {
 }
 
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
-function HomeRatingArea({ movieId, movieRatings, onSave }) {
+function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, members = [] }) {
   const { currentUser } = React.useContext(UserContext);
-  const member = currentUser?.id ? currentUser.name : '';
+  const personalMember = currentUser?.id ? currentUser.name : '';
   const [open, setOpen] = useState(false);
+  const [adminMember, setAdminMember] = useState('');
   const [score, setScore] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const member = adminAuthed ? adminMember : personalMember;
 
   const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 10;
 
@@ -142,7 +144,12 @@ function HomeRatingArea({ movieId, movieRatings, onSave }) {
     await onSave(member, parseFloat(score));
     setSaving(false);
     setSaved(true);
-    setTimeout(() => { setSaved(false); setOpen(false); setScore(''); }, 1500);
+    setTimeout(() => {
+      setSaved(false);
+      setOpen(false);
+      setScore('');
+      if (adminAuthed) setAdminMember('');
+    }, 1500);
   }
 
   return (
@@ -151,11 +158,30 @@ function HomeRatingArea({ movieId, movieRatings, onSave }) {
         <div style={{fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
       )}
       {!open && !saved && (
-        <button className="home-add-btn" onClick={() => setOpen(true)}>+ Add Rating</button>
+        <button className="home-add-btn" onClick={() => setOpen(true)}>
+          {adminAuthed ? '+ Add Member Rating' : '+ Add Rating'}
+        </button>
       )}
       {open && !saved && (
         <>
-          <ActingAs />
+          {adminAuthed ? (
+            <select
+              className="form-select admin-rating-member"
+              value={adminMember}
+              onChange={e => {
+                const nextMember = e.target.value;
+                setAdminMember(nextMember);
+                const existingScore = movieRatings?.[nextMember];
+                setScore(existingScore === undefined ? '' : String(existingScore));
+              }}
+              aria-label="Member"
+            >
+              <option value="">Select member…</option>
+              {members.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          ) : (
+            <ActingAs />
+          )}
           <div className="home-rating-form">
             <input
               type="number" className="form-select"
@@ -167,7 +193,11 @@ function HomeRatingArea({ movieId, movieRatings, onSave }) {
             <button className="home-save-btn" onClick={handleSave} disabled={saving || !member || !scoreValid}>
               {saving ? '...' : 'Save'}
             </button>
-            <button className="home-cancel-btn" onClick={() => { setOpen(false); setScore(''); }}>✕</button>
+            <button className="home-cancel-btn" onClick={() => {
+              setOpen(false);
+              setScore('');
+              setAdminMember('');
+            }}>✕</button>
           </div>
         </>
       )}

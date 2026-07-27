@@ -185,16 +185,12 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
           ? byMonth[month].filter(m => (m.movieType || 'official') === filter)
           : byMonth[month];
         if (!monthMovies.length) return null;
-        const sessionTheme = byMonth[month].find(m => m.sessionTheme)?.sessionTheme;
         const isCurrentMonth = month === NOW_MONTH;
         const monthRevealed = revealedMonths.has(month);
         return (
           <div key={month} className="history-month">
             <div className="history-month-header">
-              <div>
-                {month}
-                {sessionTheme && <span className="history-session-theme"> · {sessionTheme}</span>}
-              </div>
+              <div>{month}</div>
               {isCurrentMonth && (
                 <button className="reveal-btn" onClick={() => toggleRevealMonth(month)}>
                   {monthRevealed ? 'Hide' : 'Reveal'}
@@ -237,8 +233,8 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                     <div style={{flex:1, minWidth:0}}>
                       <div className="history-movie-title">{movie.title}</div>
                       <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                        {(movie.theme || movie.ratingScale) && (
-                          <div className="history-theme">{movie.theme || movie.ratingScale}</div>
+                        {(movie.sessionTheme || movie.theme || movie.ratingScale) && (
+                          <div className="history-theme">{movie.sessionTheme || movie.theme || movie.ratingScale}</div>
                         )}
                         <span className={`type-badge ${isImpromptu ? 'type-badge-impromptu' : 'type-badge-official'}`}>
                           {isImpromptu ? 'Impromptu' : 'Official'}
@@ -267,6 +263,8 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                     movieId={movie.id}
                     movieRatings={movieRatings}
                     onSave={(member, score) => handleRate(movie.id, member, score)}
+                    adminAuthed={adminAuthed}
+                    members={members}
                   />
                 </div>
               );

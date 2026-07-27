@@ -612,6 +612,11 @@
   align-items: center;
 }
 
+.admin-rating-member {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
 .form-select {
   font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
   font-size: 1rem;
