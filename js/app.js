@@ -45,6 +45,13 @@ function App() {
     setPolls(prev => (prev || []).map(p => p.id === updatedPoll.id ? updatedPoll : p));
   }
 
+  async function hideBracketFromCurrent() {
+    if (!bracket) return;
+    const updated = { ...bracket, hiddenFromCurrent: true };
+    await dbSaveBracket(updated);
+    setBracket(updated);
+  }
+
   function setPage(newPage) {
     const path = newPage === 'home' ? '/' : `/${newPage}`;
     window.history.pushState(null, '', path);
@@ -160,7 +167,8 @@ function App() {
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
-        bracket={bracket} onBracketClick={()=>setPage('poll')} />}
+        bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
+        onHideBracket={hideBracketFromCurrent} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}

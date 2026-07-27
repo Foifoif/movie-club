@@ -21,7 +21,57 @@ function makeHandleRate(localRatings, setLocalRatings, setRatings, { onAfterSave
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick }) {
+function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) {
+  const [override, setOverride] = useState(null);
+  const [overrideLoaded, setOverrideLoaded] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [hiding, setHiding] = useState(false);
+
+  useEffect(() => {
+    dbLoadOverride()
+      .then(value => setOverride(value))
+      .finally(() => setOverrideLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!bracket || (bracket.finished && !overrideLoaded)) return null;
+  if (!shouldShowBracketOnCurrent(bracket, override, now)) return null;
+
+  async function handleHide() {
+    if (!onHide || hiding) return;
+    setHiding(true);
+    try {
+      await onHide();
+    } catch(e) {
+      console.error('Failed to hide bracket from Current:', e);
+      setHiding(false);
+    }
+  }
+
+  return (
+    <div className="current-bracket-row">
+      <a className="poll-card current-bracket-card" href="/poll"
+        onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
+        <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+        <div className="poll-card-question">
+          {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
+        </div>
+      </a>
+      {adminAuthed && (
+        <button className="current-bracket-hide" onClick={handleHide} disabled={hiding}
+          title="Remove bracket from Current" aria-label="Remove bracket from Current">
+          {hiding ? '…' : '✕'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -42,15 +92,8 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
             {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
           </a>
         )}
-        {bracket && (
-          <a className="poll-card" style={{cursor:'pointer'}}
-            onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-            <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
-            <div className="poll-card-question">
-              {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
-            </div>
-          </a>
-        )}
+        <CurrentBracketBanner bracket={bracket} onBracketClick={onBracketClick}
+          adminAuthed={adminAuthed} onHide={onHideBracket} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -72,15 +115,8 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
         </a>
       )}
-      {bracket && (
-        <a className="poll-card" style={{cursor:'pointer'}}
-          onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-          <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
-          <div className="poll-card-question">
-            {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
-          </div>
-        </a>
-      )}
+      <CurrentBracketBanner bracket={bracket} onBracketClick={onBracketClick}
+        adminAuthed={adminAuthed} onHide={onHideBracket} />
       <div className="page-title">This Month's Films</div>
       <div className="page-subtitle">{monthName} — Lights, Camera, Opinions</div>
       <div className="home-movies-grid">
@@ -1865,7 +1901,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     });
 
     if (winnerObjs.length === 1) {
-      const final = { ...bracket, finished: true, winner: winnerObjs[0].title };
+      const final = {
+        ...bracket,
+        finished: true,
+        winner: winnerObjs[0].title,
+        finishedAt: new Date().toISOString(),
+        hiddenFromCurrent: false,
+      };
       try {
         await dbSaveBracket(final);
         const record = await dbSaveBracketHistory(final);
