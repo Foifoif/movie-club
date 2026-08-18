@@ -177,7 +177,8 @@ function App() {
         bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
         onHideBracket={hideBracketFromCurrent}
         currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
-      {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies} />}
+      {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies}
+        ratings={ratings} setRatings={setRatings} members={members} adminAuthed={adminAuthed} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}

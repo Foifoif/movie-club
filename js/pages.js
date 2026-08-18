@@ -131,7 +131,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
 }
 
 // ─── THIS MONTH'S MOVIES PAGE ────────────────────────────────────────────────
-function ThisMonthPage({ currentEvent, movies }) {
+function ThisMonthPage({ currentEvent, movies, ratings, setRatings, members, adminAuthed }) {
   const ACCENT = 'var(--yellow)';
   const ink = 'var(--ink)';
 
@@ -140,6 +140,10 @@ function ThisMonthPage({ currentEvent, movies }) {
     const t = setInterval(() => setNow(devNow()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const [localRatings, setLocalRatings] = useState(ratings || {});
+  useEffect(() => { setLocalRatings(ratings || {}); }, [ratings]);
+  const handleRate = makeHandleRate(localRatings, setLocalRatings, setRatings);
 
   if (!currentEvent) {
     return (
@@ -217,7 +221,10 @@ function ThisMonthPage({ currentEvent, movies }) {
 
       {/* MOVIE BLOCKS */}
       {lineup.map((m, i) => (
-        <MovieLineupCard key={m.id} movie={m} index={i} accent={ACCENT} />
+        <MovieLineupCard key={m.id} movie={m} index={i} accent={ACCENT}
+          movieRatings={localRatings[m.id] || {}}
+          onRate={(member, score) => handleRate(m.id, member, score)}
+          members={members} adminAuthed={adminAuthed} />
       ))}
 
       {/* DID YOU KNOW */}

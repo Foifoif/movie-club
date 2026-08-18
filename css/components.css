@@ -474,6 +474,27 @@
   background: #faf9f7;
 }
 
+/* Sizing wrapper for HomeRatingArea on the next-club lineup card. Scoped
+   overrides only — the shared component's own classes are left untouched
+   so the home cards and movies page are unaffected. */
+.lineup-card-rating-wrap {
+  border-top: 3px solid var(--ink);
+}
+
+.lineup-card-rating-wrap .home-rating-box {
+  border-top: none;
+  padding: 14px 16px 16px;
+  background: #fff;
+}
+
+.lineup-card-rating-wrap .home-rating-form {
+  gap: 10px;
+}
+
+.lineup-card-rating-wrap .form-select {
+  font-size: 1.05rem;
+}
+
 .home-ratings-chips {
   display: flex;
   flex-wrap: wrap;
