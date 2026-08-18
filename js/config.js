@@ -1,5 +1,19 @@
 const { useState, useEffect, useCallback, useRef } = React;
 
+// ─── DEV CLOCK (temporary — remove once the phase work has been verified) ────
+// `?devClock=<ISO datetime>` shifts what `devNow()` reports, so every club
+// night phase and the countdown/joinable boundary can be demoed on demand
+// without editing the database or waiting for real time to pass.
+const DEV_CLOCK_OFFSET_MS = (() => {
+  const seed = new URLSearchParams(window.location.search).get('devClock');
+  if (!seed) return 0;
+  const seeded = Date.parse(seed);
+  return Number.isNaN(seeded) ? 0 : seeded - Date.now();
+})();
+function devNow() {
+  return Date.now() + DEV_CLOCK_OFFSET_MS;
+}
+
 // ─── SUPABASE ────────────────────────────────────────────────────────────────
 // Required SQL — run once in the Supabase SQL editor:
 //

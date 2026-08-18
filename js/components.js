@@ -361,10 +361,10 @@ function MovieLineupCard({ movie, index, accent }) {
 // Home page HERO: double-feature posters + live countdown to the next movie
 // night + go-time Join button.
 function ThisMonthCard({ currentEvent, movies, onNavigate }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(devNow());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(devNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -377,13 +377,9 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
   const joinUrl  = currentEvent.meeting_link || '';
   const eventDate = currentEvent.meeting_datetime ? new Date(currentEvent.meeting_datetime) : null;
 
-  const diff   = eventDate ? eventDate.getTime() - now : null;
-  const done   = diff !== null && diff <= 0;
-  const days   = diff !== null ? Math.max(0, Math.floor(diff / 86400000)) : 0;
-  const hrs    = diff !== null ? Math.max(0, Math.floor((diff % 86400000) / 3600000)) : 0;
-  const min    = diff !== null ? Math.max(0, Math.floor((diff % 3600000)  / 60000)) : 0;
-  const pad    = n => String(n).padStart(2, '0');
-  const goTime = done || days === 0;
+  const decision = ClubNightPhase.getPhase(currentEvent.meeting_datetime, now);
+  const isJoinable = decision && decision.phase === ClubNightPhase.PHASE.JOINABLE;
+  const pad = n => String(n).padStart(2, '0');
 
   const dateLine = eventDate
     ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
@@ -401,6 +397,27 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
         <span className="tmc-eyebrow">🎬 Next at Movie Club</span>
         {lineup.length === 2 && <span className="tmc-feature-tag">Double Feature</span>}
       </div>
+
+      {decision && (
+        <div className="tmc-status">
+          <div className="tmc-status-label">
+            {isJoinable ? "It's happening — grab the popcorn 🍿" : 'Countdown to showtime'}
+          </div>
+          <div className="tmc-status-digits">
+            <div className="tmc-unit"><span className="tmc-val">{decision.days}</span><span className="tmc-lbl">days</span></div>
+            <span className="tmc-colon">:</span>
+            <div className="tmc-unit"><span className="tmc-val">{pad(decision.hours)}</span><span className="tmc-lbl">hrs</span></div>
+            <span className="tmc-colon">:</span>
+            <div className="tmc-unit"><span className="tmc-val">{pad(decision.minutes)}</span><span className="tmc-lbl">min</span></div>
+          </div>
+          {isJoinable && joinUrl && (
+            <span className="tmc-join"
+              onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(joinUrl, '_blank', 'noopener'); }}>
+              🎬 Join Movie Night
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="tmc-posters" data-count={lineup.length}>
         {lineup.map((m, i) => (
@@ -427,26 +444,6 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
           {dateLine && <div className="tmc-date">📅 {dateLine}</div>}
         </div>
       )}
-
-      {eventDate && (goTime ? (
-        <div className="tmc-gotime">
-          <div className="tmc-happening">It's happening — grab the popcorn 🍿</div>
-          {joinUrl && (
-            <span className="tmc-join"
-              onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(joinUrl, '_blank', 'noopener'); }}>
-              🎬 Join Movie Night
-            </span>
-          )}
-        </div>
-      ) : (
-        <div className="tmc-countdown">
-          <div className="tmc-unit"><span className="tmc-val">{days}</span><span className="tmc-lbl">days</span></div>
-          <span className="tmc-colon">:</span>
-          <div className="tmc-unit"><span className="tmc-val">{pad(hrs)}</span><span className="tmc-lbl">hrs</span></div>
-          <span className="tmc-colon">:</span>
-          <div className="tmc-unit"><span className="tmc-val">{pad(min)}</span><span className="tmc-lbl">min</span></div>
-        </div>
-      ))}
 
       {lineupStr && (
         <div className="tmc-footer">

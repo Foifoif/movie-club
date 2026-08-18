@@ -953,7 +953,6 @@
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .this-month-card:hover {
-  transform: translate(-3px, -3px);
   box-shadow: 11px 11px 0 var(--yellow);
 }
 .this-month-card:hover .tmc-arrow { transform: translateX(4px); }
@@ -1086,15 +1085,33 @@
   white-space: nowrap;
 }
 
-/* countdown band */
-.tmc-countdown {
+/* status band — the headline: countdown or joinable, directly under the
+   eyebrow bar and above the posters. Same three-part structure (label,
+   digits, optional button) for both phases; only copy and button presence
+   change. Digits use a fluid clamp rather than a breakpoint — at 375px the
+   fixed full-size treatment overflows once the day count reaches two digits. */
+.tmc-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  background: var(--cream);
+  border-bottom: 3px solid var(--ink);
+}
+.tmc-status-label {
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--blue-dark);
+}
+.tmc-status-digits {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px;
-  background: var(--cream);
-  border-top: 3px solid var(--ink);
 }
 .tmc-unit {
   display: flex;
@@ -1106,15 +1123,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 58px;
-  font-size: 1.9rem;
+  min-width: clamp(44px, 14vw, 58px);
+  font-size: clamp(1.2rem, 4.6vw + 0.65rem, 1.9rem);
   font-weight: 700;
   color: var(--ink);
   background: #fff;
   border: 2px solid var(--ink);
   border-radius: 6px;
   box-shadow: 2px 2px 0 var(--yellow);
-  padding: 6px 10px;
+  padding: clamp(4px, 1.6vw, 6px) clamp(6px, 3vw, 10px);
   font-variant-numeric: tabular-nums;
 }
 .tmc-lbl {
@@ -1125,25 +1142,9 @@
   color: var(--blue-dark);
 }
 .tmc-colon {
-  font-size: 1.5rem;
+  font-size: clamp(1.1rem, 2.2vw + 0.6rem, 1.5rem);
   font-weight: 700;
   color: var(--blue-mid);
-}
-
-/* go-time */
-.tmc-gotime {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 18px;
-  background: var(--cream);
-  border-top: 3px solid var(--ink);
-}
-.tmc-happening {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--green);
 }
 .tmc-join {
   display: inline-block;
