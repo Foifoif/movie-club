@@ -703,14 +703,6 @@
 .history-delete-btn:hover { border-color: var(--red); color: var(--red); background: #fff0f0; }
 .history-edit-btn:hover   { border-color: var(--blue); color: var(--blue-mid); background: rgba(142,197,230,0.1); }
 
-.history-session-theme {
-  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--blue);
-  letter-spacing: 0;
-}
-
 .history-movie {
   background: white;
   border: 2px solid #ddd;
@@ -802,6 +794,42 @@
   box-sizing: border-box;
 }
 .poll-card:hover { filter: brightness(0.97); transform: translateY(-1px); }
+
+.current-bracket-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.current-bracket-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.current-bracket-hide {
+  width: 42px;
+  margin-bottom: 22px;
+  flex-shrink: 0;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  background: white;
+  color: #999;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #ddd;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.current-bracket-hide:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: #fff5f5;
+}
+
+.current-bracket-hide:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 
 .poll-card-label {
   font-size: 0.65rem;

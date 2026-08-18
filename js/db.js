@@ -61,12 +61,23 @@ async function loadAll() {
     ratingsData[row.movie_id][row.member_name] = row.score;
   }
 
-  const bracketData = bracketRes.data ? bracketRes.data.data : null;
+  let bracketData = bracketRes.data ? bracketRes.data.data : null;
   const membersData = (membersRes.data || []).map(r => r.name);
   const memberObjectsData = (membersRes.data || []).map(r => ({ id: r.id, name: r.name }));
   const pollsData = await dbLoadPolls().catch(() => []);
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
   const currentMonthlyEvent = await dbLoadMonthlyEvents({ isCurrent: true }).catch(() => null);
+
+  // Older finished brackets predate finishedAt in the live bracket JSON.
+  // Recover it from the matching history record so Current-page expiry still works.
+  if (bracketData?.finished && !bracketData.finishedAt) {
+    const matchingHistory = bracketHistoryData.find(record =>
+      record.data?.winner === bracketData.winner
+    );
+    if (matchingHistory?.finished_at) {
+      bracketData = { ...bracketData, finishedAt: matchingHistory.finished_at };
+    }
+  }
 
   return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent };
 }
@@ -490,25 +501,36 @@ function getFourthSunday(year, month) {
   return null;
 }
 
-function getNextMovieNight(override) {
-  const now = Date.now();
+function getMovieNightAfter(reference, override) {
+  const referenceTime = new Date(reference).getTime();
   if (override) {
     const ov = new Date(override).getTime();
-    if (ov > now) return new Date(override); // still in the future
+    if (ov > referenceTime) return new Date(override);
   }
-  const d = new Date(now);
+  const d = new Date(referenceTime);
   let year = d.getFullYear(), month = d.getMonth();
   for (let i = 0; i < 3; i++) {
     const sun = getFourthSunday(year, month);
     if (sun) {
       // 9 AM PST = 17:00 UTC
       const ev = new Date(Date.UTC(sun.getFullYear(), sun.getMonth(), sun.getDate(), 17, 0, 0));
-      if (ev.getTime() > now) return ev;
+      if (ev.getTime() > referenceTime) return ev;
     }
     month++;
     if (month > 11) { month = 0; year++; }
   }
-  return new Date(now);
+  return new Date(referenceTime);
+}
+
+function getNextMovieNight(override) {
+  return getMovieNightAfter(Date.now(), override);
+}
+
+function shouldShowBracketOnCurrent(bracket, override, now = Date.now()) {
+  if (!bracket || bracket.hiddenFromCurrent) return false;
+  if (!bracket.finished) return true;
+  if (!bracket.finishedAt) return false;
+  return now < getMovieNightAfter(bracket.finishedAt, override).getTime();
 }
 
 function fmtEventDate(d) {

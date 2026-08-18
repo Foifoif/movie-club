@@ -47,6 +47,13 @@ function App() {
     setPolls(prev => (prev || []).map(p => p.id === updatedPoll.id ? updatedPoll : p));
   }
 
+  async function hideBracketFromCurrent() {
+    if (!bracket) return;
+    const updated = { ...bracket, hiddenFromCurrent: true };
+    await dbSaveBracket(updated);
+    setBracket(updated);
+  }
+
   function setPage(newPage) {
     const path = newPage === 'home' ? '/' : `/${newPage}`;
     window.history.pushState(null, '', path);
@@ -163,7 +170,8 @@ function App() {
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
-        bracket={bracket} onBracketClick={()=>setPage('poll')}
+        bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
+        onHideBracket={hideBracketFromCurrent}
         currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
       {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}

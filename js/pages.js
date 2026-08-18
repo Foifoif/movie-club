@@ -30,7 +30,57 @@ function makeHandleRate(localRatings, setLocalRatings, setRatings, { onAfterSave
 }
 
 // ─── HOME PAGE ───────────────────────────────────────────────────────────────
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, currentEvent, onThisMonthClick }) {
+function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) {
+  const [override, setOverride] = useState(null);
+  const [overrideLoaded, setOverrideLoaded] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [hiding, setHiding] = useState(false);
+
+  useEffect(() => {
+    dbLoadOverride()
+      .then(value => setOverride(value))
+      .finally(() => setOverrideLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!bracket || (bracket.finished && !overrideLoaded)) return null;
+  if (!shouldShowBracketOnCurrent(bracket, override, now)) return null;
+
+  async function handleHide() {
+    if (!onHide || hiding) return;
+    setHiding(true);
+    try {
+      await onHide();
+    } catch(e) {
+      console.error('Failed to hide bracket from Current:', e);
+      setHiding(false);
+    }
+  }
+
+  return (
+    <div className="current-bracket-row">
+      <a className="poll-card current-bracket-card" href="/poll"
+        onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
+        <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
+        <div className="poll-card-question">
+          {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
+        </div>
+      </a>
+      {adminAuthed && (
+        <button className="current-bracket-hide" onClick={handleHide} disabled={hiding}
+          title="Remove bracket from Current" aria-label="Remove bracket from Current">
+          {hiding ? '…' : '✕'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket, currentEvent, onThisMonthClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -51,15 +101,8 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
             {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
           </a>
         )}
-        {bracket && (
-          <a className="poll-card" style={{cursor:'pointer'}}
-            onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-            <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
-            <div className="poll-card-question">
-              {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
-            </div>
-          </a>
-        )}
+        <CurrentBracketBanner bracket={bracket} onBracketClick={onBracketClick}
+          adminAuthed={adminAuthed} onHide={onHideBracket} />
         <div className="page-title">🎬 Movie Club</div>
         <div className="page-subtitle">No movies set yet this month.</div>
         <div className="empty-state">
@@ -81,15 +124,8 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
           {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
         </a>
       )}
-      {bracket && (
-        <a className="poll-card" style={{cursor:'pointer'}}
-          onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
-          <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
-          <div className="poll-card-question">
-            {bracket.finished ? `Winner: ${bracket.winner}` : 'Vote for this month\'s pick →'}
-          </div>
-        </a>
-      )}
+      <CurrentBracketBanner bracket={bracket} onBracketClick={onBracketClick}
+        adminAuthed={adminAuthed} onHide={onHideBracket} />
     </div>
   );
 }
@@ -309,16 +345,12 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
           ? byMonth[month].filter(m => (m.movieType || 'official') === filter)
           : byMonth[month];
         if (!monthMovies.length) return null;
-        const sessionTheme = byMonth[month].find(m => m.sessionTheme)?.sessionTheme;
         const isCurrentMonth = month === NOW_MONTH;
         const monthRevealed = revealedMonths.has(month);
         return (
           <div key={month} className="history-month">
             <div className="history-month-header">
-              <div>
-                {month}
-                {sessionTheme && <span className="history-session-theme"> · {sessionTheme}</span>}
-              </div>
+              <div>{month}</div>
               {isCurrentMonth && (
                 <button className="reveal-btn" onClick={() => toggleRevealMonth(month)}>
                   {monthRevealed ? 'Hide' : 'Reveal'}
@@ -361,8 +393,8 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                     <div style={{flex:1, minWidth:0}}>
                       <div className="history-movie-title">{movie.title}</div>
                       <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                        {(movie.theme || movie.ratingScale) && (
-                          <div className="history-theme">{movie.theme || movie.ratingScale}</div>
+                        {(movie.sessionTheme || movie.theme || movie.ratingScale) && (
+                          <div className="history-theme">{movie.sessionTheme || movie.theme || movie.ratingScale}</div>
                         )}
                         <span className={`type-badge ${isImpromptu ? 'type-badge-impromptu' : 'type-badge-official'}`}>
                           {isImpromptu ? 'Impromptu' : 'Official'}
@@ -391,6 +423,8 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
                     movieId={movie.id}
                     movieRatings={movieRatings}
                     onSave={(member, score) => handleRate(movie.id, member, score)}
+                    adminAuthed={adminAuthed}
+                    members={members}
                   />
                 </div>
               );
@@ -1991,7 +2025,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     });
 
     if (winnerObjs.length === 1) {
-      const final = { ...bracket, finished: true, winner: winnerObjs[0].title };
+      const final = {
+        ...bracket,
+        finished: true,
+        winner: winnerObjs[0].title,
+        finishedAt: new Date().toISOString(),
+        hiddenFromCurrent: false,
+      };
       try {
         await dbSaveBracket(final);
         const record = await dbSaveBracketHistory(final);
