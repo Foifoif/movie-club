@@ -135,9 +135,9 @@ function ThisMonthPage({ currentEvent, movies }) {
   const ACCENT = 'var(--yellow)';
   const ink = 'var(--ink)';
 
-  const [now, setNow] = React.useState(Date.now());
-  React.useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+  const [now, setNow] = useState(devNow());
+  useEffect(() => {
+    const t = setInterval(() => setNow(devNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -165,13 +165,8 @@ function ThisMonthPage({ currentEvent, movies }) {
   const joinUrl   = currentEvent.meeting_link || '';
   const eventDate = currentEvent.meeting_datetime ? new Date(currentEvent.meeting_datetime) : null;
 
-  const diff = eventDate ? eventDate.getTime() - now : null;
-  const done = diff !== null && diff <= 0;
-  const days = diff !== null ? Math.max(0, Math.floor(diff / 86400000)) : 0;
-  const hrs  = diff !== null ? Math.max(0, Math.floor((diff % 86400000) / 3600000)) : 0;
-  const min  = diff !== null ? Math.max(0, Math.floor((diff % 3600000)  / 60000)) : 0;
-  const pad  = n => String(n).padStart(2, '0');
-  const goTime = eventDate && (done || days === 0);
+  const decision = ClubNightPhase.getPhase(currentEvent.meeting_datetime, now);
+  const isJoinable = decision && decision.phase === ClubNightPhase.PHASE.JOINABLE;
 
   const dateLine = eventDate
     ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
@@ -193,6 +188,13 @@ function ThisMonthPage({ currentEvent, movies }) {
           )}
         </div>
 
+        {/* countdown/joinable status — shared block with the home lockup,
+            directly beneath the eyebrow bar */}
+        <ClubNightStatusBlock decision={decision} isJoinable={isJoinable} joinUrl={joinUrl}
+          renderJoin={url => (
+            <a className="tmc-join" href={url} target="_blank" rel="noopener noreferrer">🎬 Join Movie Night</a>
+          )} />
+
         {/* theme headline + meta */}
         <div style={{ padding: '20px 20px 18px' }}>
           {monthLabel && <div style={{ fontSize: '.66rem', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--blue-dark)' }}>{monthLabel}</div>}
@@ -202,34 +204,6 @@ function ThisMonthPage({ currentEvent, movies }) {
             {lineupStr && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: '.82rem', fontWeight: 700, color: ink, background: '#fff', border: `1.5px solid ${ink}`, padding: '5px 12px', borderRadius: 5, whiteSpace: 'nowrap' }}>🎞️ {lineupStr}</span>}
           </div>
         </div>
-
-        {/* countdown OR go-time */}
-        {eventDate && (goTime ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 20, background: 'var(--cream)', borderTop: `3px solid ${ink}` }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--green)' }}>It's happening — grab the popcorn 🍿</div>
-            {joinUrl && (
-              <a href={joinUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: '1rem', fontWeight: 700, padding: '12px 32px', background: 'var(--green)', color: '#fff', border: `2px solid ${ink}`, borderRadius: 999, boxShadow: `3px 3px 0 ${ink}`, textDecoration: 'none' }}>🎬 Join Movie Night</a>
-            )}
-          </div>
-        ) : (
-          <div style={{ padding: '18px 16px 20px', background: 'var(--cream)', borderTop: `3px solid ${ink}` }}>
-            <div style={{ textAlign: 'center', fontSize: '.55rem', fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: 'var(--blue-dark)', marginBottom: 12 }}>Countdown to showtime</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              {[{ v: String(days), l: 'days' }, { v: pad(hrs), l: 'hrs' }, { v: pad(min), l: 'min' }].map((u, i) => (
-                <React.Fragment key={u.l}>
-                  {i > 0 && <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--blue-mid)' }}>:</span>}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 62, fontSize: '2rem', fontWeight: 700, color: ink, background: '#fff', border: `2px solid ${ink}`, borderRadius: 6, boxShadow: `2px 2px 0 ${ACCENT}`, padding: '7px 10px', fontVariantNumeric: 'tabular-nums' }}>{u.v}</span>
-                    <span style={{ fontSize: '.55rem', fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase', color: 'var(--blue-dark)' }}>{u.l}</span>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-            {joinUrl && (
-              <a href={joinUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '16px auto 0', maxWidth: 280, fontSize: '.92rem', fontWeight: 700, padding: '11px 24px', background: '#fff', color: ink, border: `2px solid ${ink}`, borderRadius: 999, boxShadow: `3px 3px 0 ${ink}`, textDecoration: 'none' }}>🔗 Meeting link</a>
-            )}
-          </div>
-        ))}
       </div>
 
       {/* LINEUP HEADING */}

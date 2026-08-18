@@ -1153,6 +1153,7 @@
   padding: 11px 30px;
   background: var(--green);
   color: #fff;
+  text-decoration: none;
   border: 2px solid var(--ink);
   border-radius: 999px;
   box-shadow: 3px 3px 0 var(--ink);

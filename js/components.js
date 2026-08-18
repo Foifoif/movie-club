@@ -357,6 +357,32 @@ function MovieLineupCard({ movie, index, accent }) {
   );
 }
 
+// ─── CLUB NIGHT STATUS BLOCK ─────────────────────────────────────────────────
+// The three-part countdown/joinable headline (label, digits, optional join
+// control) shared by the home lockup and the next-club page, so the two
+// cannot drift in wording or sizing again. `renderJoin` differs per call site
+// because the home card nests this inside its own outer <a> (needs a
+// non-link control with stopPropagation) while the next-club page doesn't.
+function ClubNightStatusBlock({ decision, isJoinable, joinUrl, renderJoin }) {
+  if (!decision) return null;
+  const pad = n => String(n).padStart(2, '0');
+  return (
+    <div className="tmc-status">
+      <div className="tmc-status-label">
+        {isJoinable ? "It's happening — grab the popcorn 🍿" : 'Countdown to showtime'}
+      </div>
+      <div className="tmc-status-digits">
+        <div className="tmc-unit"><span className="tmc-val">{decision.days}</span><span className="tmc-lbl">days</span></div>
+        <span className="tmc-colon">:</span>
+        <div className="tmc-unit"><span className="tmc-val">{pad(decision.hours)}</span><span className="tmc-lbl">hrs</span></div>
+        <span className="tmc-colon">:</span>
+        <div className="tmc-unit"><span className="tmc-val">{pad(decision.minutes)}</span><span className="tmc-lbl">min</span></div>
+      </div>
+      {isJoinable && joinUrl && renderJoin(joinUrl)}
+    </div>
+  );
+}
+
 // ─── THIS MONTH CARD ─────────────────────────────────────────────────────────
 // Home page HERO: double-feature posters + live countdown to the next movie
 // night + go-time Join button.
@@ -379,7 +405,6 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
 
   const decision = ClubNightPhase.getPhase(currentEvent.meeting_datetime, now);
   const isJoinable = decision && decision.phase === ClubNightPhase.PHASE.JOINABLE;
-  const pad = n => String(n).padStart(2, '0');
 
   const dateLine = eventDate
     ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
@@ -398,26 +423,13 @@ function ThisMonthCard({ currentEvent, movies, onNavigate }) {
         {lineup.length === 2 && <span className="tmc-feature-tag">Double Feature</span>}
       </div>
 
-      {decision && (
-        <div className="tmc-status">
-          <div className="tmc-status-label">
-            {isJoinable ? "It's happening — grab the popcorn 🍿" : 'Countdown to showtime'}
-          </div>
-          <div className="tmc-status-digits">
-            <div className="tmc-unit"><span className="tmc-val">{decision.days}</span><span className="tmc-lbl">days</span></div>
-            <span className="tmc-colon">:</span>
-            <div className="tmc-unit"><span className="tmc-val">{pad(decision.hours)}</span><span className="tmc-lbl">hrs</span></div>
-            <span className="tmc-colon">:</span>
-            <div className="tmc-unit"><span className="tmc-val">{pad(decision.minutes)}</span><span className="tmc-lbl">min</span></div>
-          </div>
-          {isJoinable && joinUrl && (
-            <span className="tmc-join"
-              onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(joinUrl, '_blank', 'noopener'); }}>
-              🎬 Join Movie Night
-            </span>
-          )}
-        </div>
-      )}
+      <ClubNightStatusBlock decision={decision} isJoinable={isJoinable} joinUrl={joinUrl}
+        renderJoin={url => (
+          <span className="tmc-join"
+            onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(url, '_blank', 'noopener'); }}>
+            🎬 Join Movie Night
+          </span>
+        )} />
 
       <div className="tmc-posters" data-count={lineup.length}>
         {lineup.map((m, i) => (
