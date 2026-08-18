@@ -4,6 +4,7 @@ function pageFromPath() {
   if (p === 'ratings' || p.startsWith('ratings/') || p === 'watchlist' || p.startsWith('watchlist/')) return 'ratings';
   if (p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket' || p.startsWith('bracket/')) return 'bracket';
+  if (p === 'this-month') return 'this-month';
   return 'home';
 }
 
@@ -30,6 +31,7 @@ function App() {
   const [memberObjects, setMemberObjects] = useState([]);
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
+  const [currentEvent, setCurrentEvent] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => readUserCookie());
@@ -90,7 +92,7 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
@@ -99,6 +101,7 @@ function App() {
         if (memberObjectsData.length) setMemberObjects(memberObjectsData);
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
+        if (currentMonthlyEvent) setCurrentEvent(currentMonthlyEvent);
       } catch(e) {
         console.error('Failed to load from Supabase:', e);
       }
@@ -148,8 +151,12 @@ function App() {
         </div>
         <nav className="nav">
           <button className={`nav-btn ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>
-            <span className="nav-label">Current</span>
+            <span className="nav-label">Home</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
+          </button>
+          <button className={`nav-btn ${page==='this-month'?'active':''}`} onClick={()=>setPage('this-month')}>
+            <span className="nav-label">Next Club</span>
+            <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V9h16v12zM4 7V5h16v2H4z"/></svg></span>
           </button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>
             <span className="nav-label">Movies</span>
@@ -168,7 +175,10 @@ function App() {
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
         bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
-        onHideBracket={hideBracketFromCurrent} />}
+        onHideBracket={hideBracketFromCurrent}
+        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
+      {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies}
+        ratings={ratings} setRatings={setRatings} members={members} adminAuthed={adminAuthed} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
@@ -203,6 +213,7 @@ function App() {
           ratings={ratings} setRatings={setRatings}
           polls={polls} setPolls={setPolls}
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
+          currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
         />
       )}
 

@@ -41,7 +41,7 @@ function UserPickerModal({ memberObjects, canDismiss, onClose }) {
   );
 }
 
-// ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
+// ─── HOLIDAY PROXIMITY ───────────────────────────────────────────────────────
 function getNearbyHoliday(date) {
   var y = date.getFullYear();
   var DAYS = 7;
@@ -76,55 +76,6 @@ function getNearbyHoliday(date) {
   return null;
 }
 
-function MovieNightCountdown() {
-  const [override, setOverride] = useState(null);
-  const [tick,     setTick]     = useState(0);
-  const [joinUrl,  setJoinUrl]  = useState('');
-
-  const eventDate   = getNextMovieNight(override);
-  const cd          = calcCountdown(eventDate);
-
-  useEffect(() => {
-    (async () => {
-      const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
-      setOverride(ov);
-      setJoinUrl(url || '');
-    })();
-  }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 60000);
-    return () => clearInterval(t);
-  }, []);
-
-  const pad = n => String(n).padStart(2, '0');
-
-  return (
-    <div className="mn-card">
-      <div className="mn-eyebrow">🎬 Next Movie "Night"</div>
-      <div className="mn-date">{fmtEventDate(eventDate)}</div>
-
-      {cd.done ? (
-        <div className="mn-happening">It's happening — enjoy! 🍿</div>
-      ) : (
-        <div className="mn-countdown">
-          <div className="mn-unit"><span className="mn-val">{cd.days}</span><span className="mn-lbl">days</span></div>
-          <span className="mn-sep">:</span>
-          <div className="mn-unit"><span className="mn-val">{pad(cd.hours)}</span><span className="mn-lbl">hrs</span></div>
-          <span className="mn-sep">:</span>
-          <div className="mn-unit"><span className="mn-val">{pad(cd.minutes)}</span><span className="mn-lbl">min</span></div>
-        </div>
-      )}
-
-      {(cd.days === 0 || cd.done) && joinUrl && (
-        <a className="mn-join-btn" href={joinUrl} target="_blank" rel="noopener noreferrer">
-          🎬 Join Movie "Night"
-        </a>
-      )}
-    </div>
-  );
-}
-
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
 function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, members = [] }) {
   const { currentUser } = React.useContext(UserContext);
@@ -135,8 +86,10 @@ function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, me
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const member = adminAuthed ? adminMember : personalMember;
+  const personalExistingScore = movieRatings?.[personalMember];
+  const hasPersonalRating = !adminAuthed && !!personalMember && personalExistingScore !== undefined;
 
-  const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 10;
+  const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 5;
 
   async function handleSave() {
     if (!member || !scoreValid) return;
@@ -152,14 +105,19 @@ function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, me
     }, 1500);
   }
 
+  function handleOpen() {
+    if (hasPersonalRating) setScore(String(personalExistingScore));
+    setOpen(true);
+  }
+
   return (
     <div className="home-rating-box">
       {saved && (
         <div style={{fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
       )}
       {!open && !saved && (
-        <button className="home-add-btn" onClick={() => setOpen(true)}>
-          {adminAuthed ? '+ Add Member Rating' : '+ Add Rating'}
+        <button className="home-add-btn" onClick={handleOpen}>
+          {adminAuthed ? '+ Add Member Rating' : hasPersonalRating ? '✎ Edit Rating' : '+ Add Rating'}
         </button>
       )}
       {open && !saved && (
@@ -235,7 +193,13 @@ function TrailerButton({ trailerUrl, title, color, label }) {
       {open && <TrailerModal url={trailerUrl} title={title} onClose={() => setOpen(false)} />}
       <button
         className="watch-trailer-btn"
-        style={{ color: color || 'var(--blue-mid)' }}
+        style={{
+          background: color || 'var(--red)',
+          color: '#fff',
+          border: '2px solid var(--ink)',
+          borderRadius: 999,
+          boxShadow: '2px 2px 0 var(--ink)',
+        }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}>
         {label || '▶ Trailer'}
       </button>
@@ -293,6 +257,230 @@ function MovieCard({ movie, index, movieRatings, members, onRate }) {
         />
       )}
     </div>
+  );
+}
+
+// ─── MOVIE ROW CARD ──────────────────────────────────────────────────────────
+// Horizontal movie lockup: poster left, info right. Reusable across features.
+function MovieRowCard({ movie, index }) {
+  const accent = movie.accent || ACCENT_COLORS[index % ACCENT_COLORS.length];
+  const [descOpen, setDescOpen] = React.useState(false);
+  return (
+    <div className="movie-row-card">
+      {movie.poster
+        ? <img className="movie-row-card-poster-img" src={movie.poster} alt={movie.title} />
+        : <div className="movie-row-card-poster-placeholder">🎬</div>
+      }
+      <div className="movie-row-card-info">
+        <div className="movie-row-card-title">{movie.title}</div>
+        {movie.year && <div className="movie-row-card-year">{movie.year}</div>}
+        {movie.streaming && movie.streaming.length > 0 && (
+          <div className="streaming-chips" style={{ marginTop: 8 }}>
+            {movie.streaming.map((s, i) => (
+              <span key={i} className="chip" style={{ background: accent + '22', borderColor: accent }}>{s}</span>
+            ))}
+          </div>
+        )}
+        {movie.trailerUrl && (
+          <div style={{ marginTop: 10 }}>
+            <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} color={accent} label="▶ Trailer" />
+          </div>
+        )}
+        {movie.description && (
+          <>
+            <button className="movie-row-card-desc-toggle" onClick={() => setDescOpen(o => !o)}>
+              {descOpen ? 'Hide description ▲' : 'Description ▼'}
+            </button>
+            {descOpen && <div className="movie-row-card-desc">{movie.description}</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MOVIE LINEUP CARD ───────────────────────────────────────────────────────
+// Horizontal movie card for the This Month page lineup. Reusable across features.
+// Props: movie, index (0-based, for the numbered badge), accent (CSS color string).
+// movieRatings/onRate/members/adminAuthed are optional — when onRate is passed,
+// the card grows a full-width rating strip beneath the poster+info row, reusing
+// the shared HomeRatingArea control (same one used on the home cards and the
+// movies page).
+function MovieLineupCard({ movie, index, accent, movieRatings, onRate, members, adminAuthed }) {
+  const ink = 'var(--ink)';
+  const ACCENT = accent || 'var(--yellow)';
+  const [descExpanded, setDescExpanded] = useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: `3px solid ${ink}`, borderRadius: 8, boxShadow: `5px 5px 0 ${ink}`, overflow: 'hidden', marginBottom: 18 }}>
+      <div style={{ display: 'flex' }}>
+        {/* poster */}
+        <div style={{ position: 'relative', flex: '0 0 132px', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `3px solid ${ink}` }}>
+          <span style={{ position: 'absolute', fontSize: '2.2rem', opacity: .3 }}>🎞️</span>
+          {movie.poster && (
+            <img
+              src={movie.poster}
+              alt=""
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { e.target.style.display = 'none'; }}
+            />
+          )}
+          {index != null && (
+            <span style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.85rem', fontWeight: 700, color: ink, background: ACCENT, border: `1.5px solid ${ink}`, borderRadius: '50%' }}>{index + 1}</span>
+          )}
+        </div>
+        {/* info */}
+        <div style={{ flex: 1, minWidth: 0, padding: '15px 16px 16px' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 700, lineHeight: 1.1, color: ink }}>{movie.title}</div>
+          {movie.year && <div style={{ fontSize: '.78rem', fontWeight: 700, letterSpacing: .5, color: 'var(--blue-mid)', marginTop: 3 }}>{movie.year}</div>}
+          {movie.streaming && movie.streaming.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
+              {movie.streaming.map((s, j) => (
+                <span key={j} style={{ fontSize: '.74rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: `1.5px solid ${ink}`, color: ink, background: '#fff' }}>{s}</span>
+              ))}
+            </div>
+          )}
+          {movie.description && (
+            <div style={{ marginTop: 11 }}>
+              <div style={{
+                fontSize: '.86rem', lineHeight: 1.5, color: '#3a3548',
+                ...(descExpanded ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
+              }}>{movie.description}</div>
+              <button
+                onClick={() => setDescExpanded(o => !o)}
+                style={{ marginTop: 4, fontSize: '.78rem', fontWeight: 700, color: 'var(--blue-mid)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                {descExpanded ? '(less)' : '(more...)'}
+              </button>
+            </div>
+          )}
+          {movie.trailerUrl && (
+            <div style={{ marginTop: 13 }}>
+              <TrailerButton trailerUrl={movie.trailerUrl} title={movie.title} color="var(--red)" label="▶ Watch Trailer" />
+            </div>
+          )}
+        </div>
+      </div>
+      {onRate && (
+        <div className="lineup-card-rating-wrap">
+          <HomeRatingArea
+            movieId={movie.id}
+            movieRatings={movieRatings || {}}
+            onSave={onRate}
+            adminAuthed={adminAuthed}
+            members={members}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CLUB NIGHT STATUS BLOCK ─────────────────────────────────────────────────
+// The three-part countdown/joinable headline (label, digits, optional join
+// control) shared by the home lockup and the next-club page, so the two
+// cannot drift in wording or sizing again. `renderJoin` differs per call site
+// because the home card nests this inside its own outer <a> (needs a
+// non-link control with stopPropagation) while the next-club page doesn't.
+function ClubNightStatusBlock({ decision, isJoinable, joinUrl, renderJoin }) {
+  if (!decision) return null;
+  const pad = n => String(n).padStart(2, '0');
+  return (
+    <div className="tmc-status">
+      <div className="tmc-status-label">
+        {isJoinable ? "It's happening — grab the popcorn 🍿" : 'Countdown to showtime'}
+      </div>
+      <div className="tmc-status-digits">
+        <div className="tmc-unit"><span className="tmc-val">{decision.days}</span><span className="tmc-lbl">days</span></div>
+        <span className="tmc-colon">:</span>
+        <div className="tmc-unit"><span className="tmc-val">{pad(decision.hours)}</span><span className="tmc-lbl">hrs</span></div>
+        <span className="tmc-colon">:</span>
+        <div className="tmc-unit"><span className="tmc-val">{pad(decision.minutes)}</span><span className="tmc-lbl">min</span></div>
+      </div>
+      {isJoinable && joinUrl && renderJoin(joinUrl)}
+    </div>
+  );
+}
+
+// ─── THIS MONTH CARD ─────────────────────────────────────────────────────────
+// Home page HERO: double-feature posters + live countdown to the next movie
+// night + go-time Join button.
+function ThisMonthCard({ currentEvent, movies, onNavigate }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!currentEvent) return null;
+
+  const movie1 = movies.find(m => m.id === currentEvent.movie_id_1) || null;
+  const movie2 = movies.find(m => m.id === currentEvent.movie_id_2) || null;
+  const lineup = [movie1, movie2].filter(Boolean);
+
+  const joinUrl  = currentEvent.meeting_link || '';
+  const eventDate = currentEvent.meeting_datetime ? new Date(currentEvent.meeting_datetime) : null;
+
+  const decision = ClubNightPhase.getPhase(currentEvent.meeting_datetime, now);
+  const isJoinable = decision && decision.phase === ClubNightPhase.PHASE.JOINABLE;
+
+  const dateLine = eventDate
+    ? eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' +
+      eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null;
+
+  const lineupStr = lineup.map(m => m.title).join(' · ');
+
+  return (
+    <a className="this-month-card" href="/this-month"
+      onClick={e => { e.preventDefault(); onNavigate('this-month'); }}>
+
+      <div className="tmc-eyebrow-bar">
+        <span className="tmc-eyebrow">🎬 Next at Movie Club</span>
+        {lineup.length === 2 && <span className="tmc-feature-tag">Double Feature</span>}
+      </div>
+
+      <ClubNightStatusBlock decision={decision} isJoinable={isJoinable} joinUrl={joinUrl}
+        renderJoin={url => (
+          <span className="tmc-join"
+            onClick={e => { e.preventDefault(); e.stopPropagation(); window.open(url, '_blank', 'noopener'); }}>
+            🎬 Join Movie Night
+          </span>
+        )} />
+
+      <div className="tmc-posters" data-count={lineup.length}>
+        {lineup.map((m, i) => (
+          <div className="tmc-poster" key={m.id}>
+            <div className="tmc-poster-frame">
+              <span className="tmc-poster-ph">🎞️</span>
+              {m.poster && (
+                <img className="tmc-poster-img" src={m.poster} alt=""
+                  onError={e => { e.target.style.display = 'none'; }} />
+              )}
+              <span className="tmc-poster-num">{i + 1}</span>
+            </div>
+            <div className="tmc-poster-cap">
+              <div className="tmc-poster-title">{m.title}</div>
+              {m.year && <div className="tmc-poster-year">{m.year}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(currentEvent.theme || dateLine) && (
+        <div className="tmc-headline">
+          {currentEvent.theme && <div className="tmc-theme">{currentEvent.theme}</div>}
+          {dateLine && <div className="tmc-date">📅 {dateLine}</div>}
+        </div>
+      )}
+
+      {lineupStr && (
+        <div className="tmc-footer">
+          <span className="tmc-lineup">{lineupStr}</span>
+          <span className="tmc-cta">View details <span className="tmc-arrow">→</span></span>
+        </div>
+      )}
+    </a>
   );
 }
 

@@ -66,6 +66,8 @@ async function loadAll() {
   const memberObjectsData = (membersRes.data || []).map(r => ({ id: r.id, name: r.name }));
   const pollsData = await dbLoadPolls().catch(() => []);
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
+  const currentMonthlyEvent = await dbLoadMonthlyEvents({ isCurrent: true }).catch(() => null);
+
   // Older finished brackets predate finishedAt in the live bracket JSON.
   // Recover it from the matching history record so Current-page expiry still works.
   if (bracketData?.finished && !bracketData.finishedAt) {
@@ -77,7 +79,7 @@ async function loadAll() {
     }
   }
 
-  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData };
+  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent };
 }
 
 async function dbSaveMovies(existingMovies, newMovieData) {
@@ -412,6 +414,82 @@ async function dbRemoveFromWatchlist(id) {
   if (error) throw error;
 }
 
+// ─── MONTHLY EVENTS DB ───────────────────────────────────────────────────────
+// Run once in Supabase SQL editor to enable monthly events:
+//
+// create table monthly_events (
+//   id               bigint primary key generated always as identity,
+//   month            date not null,          -- first day of club month, e.g. 2026-07-01
+//   theme            text,
+//   movie_id_1       bigint references movies(id),
+//   movie_id_2       bigint references movies(id),
+//   is_current       boolean not null default false,
+//   meeting_datetime timestamptz,            -- actual meeting time; may fall outside club month
+//   meeting_link     text,
+//   trivia           text
+// );
+// alter table monthly_events enable row level security;
+// create policy "anon_all" on monthly_events for all to anon using (true) with check (true);
+
+// Pass { isCurrent: true } to fetch only the active event (used by loadAll).
+// No args returns all events ordered by month desc (used by admin tab).
+async function dbLoadMonthlyEvents({ isCurrent } = {}) {
+  if (isCurrent) {
+    const { data, error } = await sb.from('monthly_events')
+      .select('*')
+      .eq('is_current', true)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  const { data, error } = await sb.from('monthly_events')
+    .select('*')
+    .order('month', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function dbSaveMonthlyEvent(eventData) {
+  const row = {
+    month: eventData.month,
+    theme: eventData.theme || null,
+    movie_id_1: eventData.movieId1 || null,
+    movie_id_2: eventData.movieId2 || null,
+    is_current: eventData.isCurrent || false,
+    meeting_datetime: eventData.meetingDatetime || null,
+    meeting_link: eventData.meetingLink || null,
+    trivia: eventData.trivia || null,
+  };
+  if (eventData.id) {
+    const { data, error } = await sb.from('monthly_events').update(row).eq('id', eventData.id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await sb.from('monthly_events').insert(row).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function dbDeleteMonthlyEvent(id) {
+  const { error } = await sb.from('monthly_events').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Sets the given event as current and clears is_current on all others.
+async function dbSetCurrentMonthlyEvent(id) {
+  const { error: clearErr } = await sb.from('monthly_events')
+    .update({ is_current: false })
+    .neq('id', id);
+  if (clearErr) throw clearErr;
+  const { data, error } = await sb.from('monthly_events')
+    .update({ is_current: true })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ─── MOVIE NIGHT HELPERS ─────────────────────────────────────────────────────
 function getFourthSunday(year, month) {
   let count = 0;
@@ -459,15 +537,4 @@ function fmtEventDate(d) {
   const datePart = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
   const timePart = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZoneName:'short' });
   return `${datePart} · ${timePart}`;
-}
-
-function calcCountdown(target) {
-  const diff = target - Date.now();
-  if (diff <= 0) return { days:0, hours:0, minutes:0, done:true };
-  return {
-    days:    Math.floor(diff / 86400000),
-    hours:   Math.floor((diff % 86400000) / 3600000),
-    minutes: Math.floor((diff % 3600000)  / 60000),
-    done: false
-  };
 }

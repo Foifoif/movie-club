@@ -224,21 +224,15 @@
 .watch-trailer-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: none;
-  border: 1.5px solid currentColor;
-  border-radius: 5px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.82rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.82;
   transition: opacity 0.15s;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
-.watch-trailer-btn:hover { opacity: 1; }
+.watch-trailer-btn:hover { opacity: 0.88; }
 
 /* CONFIRM DELETE MODAL */
 .confirm-overlay {
@@ -404,90 +398,6 @@
   padding: 0;
 }
 
-/* MOVIE NIGHT COUNTDOWN */
-.mn-card {
-  background: white;
-  border: 2px solid var(--blue);
-  border-radius: 10px;
-  padding: 16px 16px 14px;
-  margin-bottom: 22px;
-  box-shadow: 4px 4px 0 var(--yellow);
-  text-align: center;
-}
-.mn-eyebrow {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 2.5px;
-  color: var(--blue-mid);
-  margin-bottom: 3px;
-}
-.mn-date {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 12px;
-}
-.mn-countdown {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 2px;
-  margin-bottom: 14px;
-}
-.mn-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 54px;
-}
-.mn-val {
-  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-  font-size: 2.6rem;
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.mn-lbl {
-  font-size: 0.58rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: #bbb;
-  margin-top: 2px;
-}
-.mn-sep {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--yellow);
-  line-height: 1.25;
-  padding: 0 1px;
-  margin-bottom: 10px;
-}
-.mn-happening {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--green);
-  margin-bottom: 14px;
-}
-.mn-join-btn {
-  display: inline-block;
-  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  padding: 10px 24px;
-  background: var(--green);
-  color: white;
-  border: none;
-  border-radius: 999px;
-  text-decoration: none;
-  margin-bottom: 14px;
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
-  transition: filter 0.15s, transform 0.15s;
-  cursor: pointer;
-}
-.mn-join-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .mn-holiday-note {
   font-size: 0.78rem;
   color: var(--blue-mid);
@@ -562,6 +472,27 @@
   border-top: 1px dashed #ddd;
   padding: 10px 14px 12px;
   background: #faf9f7;
+}
+
+/* Sizing wrapper for HomeRatingArea on the next-club lineup card. Scoped
+   overrides only — the shared component's own classes are left untouched
+   so the home cards and movies page are unaffected. */
+.lineup-card-rating-wrap {
+  border-top: 3px solid var(--ink);
+}
+
+.lineup-card-rating-wrap .home-rating-box {
+  border-top: none;
+  padding: 14px 16px 16px;
+  background: #fff;
+}
+
+.lineup-card-rating-wrap .home-rating-form {
+  gap: 10px;
+}
+
+.lineup-card-rating-wrap .form-select {
+  font-size: 1.05rem;
 }
 
 .home-ratings-chips {
@@ -947,3 +878,341 @@
 }
 .type-official-active { border-color: var(--blue); background: rgba(142,197,230,0.12); color: var(--blue-dark); }
 .type-impromptu-active { border-color: var(--yellow); background: rgba(245,197,24,0.12); color: #7a5c00; }
+
+/* MOVIE ROW CARD */
+.movie-row-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: white;
+  border: 2px solid var(--blue);
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: 3px 3px 0 var(--yellow);
+  margin-bottom: 16px;
+}
+
+.movie-row-card-poster-img {
+  width: 80px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  flex-shrink: 0;
+  background: var(--cream);
+  display: block;
+}
+
+.movie-row-card-poster-placeholder {
+  width: 80px;
+  height: 120px;
+  border-radius: 4px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+.movie-row-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.movie-row-card-title {
+  font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.movie-row-card-year {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--blue-mid);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.movie-row-card-desc-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--blue-mid);
+  cursor: pointer;
+  font-weight: 600;
+  display: block;
+}
+
+.movie-row-card-desc {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #555;
+  margin-top: 6px;
+}
+
+/* THIS MONTH CARD (home page HERO — double feature + live countdown) */
+.this-month-card {
+  display: block;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 8px 8px 0 var(--yellow);
+  margin-bottom: 22px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.this-month-card:hover {
+  box-shadow: 11px 11px 0 var(--yellow);
+}
+.this-month-card:hover .tmc-arrow { transform: translateX(4px); }
+
+/* eyebrow bar */
+.tmc-eyebrow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px;
+  background: var(--yellow);
+}
+.tmc-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.tmc-feature-tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--yellow);
+  background: var(--ink);
+  padding: 4px 9px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* posters — image on top, title on a plate beneath */
+.tmc-posters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 16px 16px 6px;
+  background: #fff;
+}
+.tmc-posters[data-count="1"] { grid-template-columns: 1fr; }
+.tmc-poster {
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  box-shadow: 3px 3px 0 var(--ink);
+  overflow: hidden;
+  background: #fff;
+}
+.tmc-poster-frame {
+  position: relative;
+  height: 258px;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tmc-posters[data-count="1"] .tmc-poster-frame { height: 320px; }
+.tmc-poster-ph {
+  position: absolute;
+  font-size: 2.6rem;
+  opacity: 0.3;
+}
+.tmc-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tmc-poster-num {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--yellow);
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+}
+.tmc-poster-cap {
+  padding: 8px 10px;
+  border-top: 2px solid var(--ink);
+  background: #fff;
+}
+.tmc-poster-title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.tmc-poster-year {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--blue-mid);
+}
+
+/* theme + date */
+.tmc-headline {
+  padding: 10px 18px 16px;
+  background: #fff;
+}
+.tmc-theme {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.04;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+.tmc-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--yellow);
+  border: 1.5px solid var(--ink);
+  padding: 4px 11px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+/* status band — the headline: countdown or joinable, directly under the
+   eyebrow bar and above the posters. Same three-part structure (label,
+   digits, optional button) for both phases; only copy and button presence
+   change. Digits use a fluid clamp rather than a breakpoint — at 375px the
+   fixed full-size treatment overflows once the day count reaches two digits. */
+.tmc-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  background: var(--cream);
+  border-bottom: 3px solid var(--ink);
+}
+.tmc-status-label {
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--blue-dark);
+}
+.tmc-status-digits {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.tmc-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tmc-val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(44px, 14vw, 58px);
+  font-size: clamp(1.2rem, 4.6vw + 0.65rem, 1.9rem);
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 var(--yellow);
+  padding: clamp(4px, 1.6vw, 6px) clamp(6px, 3vw, 10px);
+  font-variant-numeric: tabular-nums;
+}
+.tmc-lbl {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--blue-dark);
+}
+.tmc-colon {
+  font-size: clamp(1.1rem, 2.2vw + 0.6rem, 1.5rem);
+  font-weight: 700;
+  color: var(--blue-mid);
+}
+.tmc-join {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 11px 30px;
+  background: var(--green);
+  color: #fff;
+  text-decoration: none;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.tmc-join:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+/* footer */
+.tmc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px;
+  background: var(--paper);
+  border-top: 3px solid var(--ink);
+}
+.tmc-lineup {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--blue-dark);
+  line-height: 1.3;
+}
+.tmc-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--blue-mid);
+  white-space: nowrap;
+}
+.tmc-arrow {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}

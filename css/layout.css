@@ -103,11 +103,11 @@
     height: 52px;
   }
   .nav {
-    gap: 5px;
+    gap: 4px;
   }
   .nav-btn {
-    font-size: 0.78rem;
-    padding: 6px 10px;
+    font-size: 0.7rem;
+    padding: 6px 8px;
   }
 
   /* Identity bar replaces user-chip on mobile */
@@ -135,7 +135,7 @@
 /* ── Mobile scrolled: collapse to icon-only, hide identity bar ── */
 @media (max-width: 600px) {
   .header-scrolled .nav-btn {
-    padding: 8px 10px;
+    padding: 8px 8px;
   }
   .header-scrolled .nav-label { display: none; }
   .header-scrolled .nav-icon { display: flex; align-items: center; justify-content: center; }
