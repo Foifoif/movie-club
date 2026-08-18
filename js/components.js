@@ -41,7 +41,7 @@ function UserPickerModal({ memberObjects, canDismiss, onClose }) {
   );
 }
 
-// ─── MOVIE NIGHT COUNTDOWN ───────────────────────────────────────────────────
+// ─── HOLIDAY PROXIMITY ───────────────────────────────────────────────────────
 function getNearbyHoliday(date) {
   var y = date.getFullYear();
   var DAYS = 7;
@@ -74,55 +74,6 @@ function getNearbyHoliday(date) {
   if (near(lastMonday(y, 4)))         return "🎖️ Near Memorial Day";    // last Mon of May
   if (near(nthWeekday(y, 8, 1, 1)))  return "🌿 Near Labor Day";       // 1st Mon of Sep
   return null;
-}
-
-function MovieNightCountdown() {
-  const [override, setOverride] = useState(null);
-  const [tick,     setTick]     = useState(0);
-  const [joinUrl,  setJoinUrl]  = useState('');
-
-  const eventDate   = getNextMovieNight(override);
-  const cd          = calcCountdown(eventDate);
-
-  useEffect(() => {
-    (async () => {
-      const [ov, url] = await Promise.all([dbLoadOverride(), dbLoadJoinUrl()]);
-      setOverride(ov);
-      setJoinUrl(url || '');
-    })();
-  }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 60000);
-    return () => clearInterval(t);
-  }, []);
-
-  const pad = n => String(n).padStart(2, '0');
-
-  return (
-    <div className="mn-card">
-      <div className="mn-eyebrow">🎬 Next Movie "Night"</div>
-      <div className="mn-date">{fmtEventDate(eventDate)}</div>
-
-      {cd.done ? (
-        <div className="mn-happening">It's happening — enjoy! 🍿</div>
-      ) : (
-        <div className="mn-countdown">
-          <div className="mn-unit"><span className="mn-val">{cd.days}</span><span className="mn-lbl">days</span></div>
-          <span className="mn-sep">:</span>
-          <div className="mn-unit"><span className="mn-val">{pad(cd.hours)}</span><span className="mn-lbl">hrs</span></div>
-          <span className="mn-sep">:</span>
-          <div className="mn-unit"><span className="mn-val">{pad(cd.minutes)}</span><span className="mn-lbl">min</span></div>
-        </div>
-      )}
-
-      {(cd.days === 0 || cd.done) && joinUrl && (
-        <a className="mn-join-btn" href={joinUrl} target="_blank" rel="noopener noreferrer">
-          🎬 Join Movie "Night"
-        </a>
-      )}
-    </div>
-  );
 }
 
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
@@ -408,7 +359,7 @@ function MovieLineupCard({ movie, index, accent }) {
 
 // ─── THIS MONTH CARD ─────────────────────────────────────────────────────────
 // Home page HERO: double-feature posters + live countdown to the next movie
-// night + go-time Join button. Subsumes <MovieNightCountdown /> on the home page.
+// night + go-time Join button.
 function ThisMonthCard({ currentEvent, movies, onNavigate }) {
   const [now, setNow] = useState(Date.now());
 
