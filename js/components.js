@@ -135,8 +135,10 @@ function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, me
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const member = adminAuthed ? adminMember : personalMember;
+  const personalExistingScore = movieRatings?.[personalMember];
+  const hasPersonalRating = !adminAuthed && !!personalMember && personalExistingScore !== undefined;
 
-  const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 10;
+  const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 5;
 
   async function handleSave() {
     if (!member || !scoreValid) return;
@@ -152,14 +154,19 @@ function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, me
     }, 1500);
   }
 
+  function handleOpen() {
+    if (hasPersonalRating) setScore(String(personalExistingScore));
+    setOpen(true);
+  }
+
   return (
     <div className="home-rating-box">
       {saved && (
         <div style={{fontSize:'0.85rem',color:'var(--green)',marginBottom:8}}>✓ Rating saved!</div>
       )}
       {!open && !saved && (
-        <button className="home-add-btn" onClick={() => setOpen(true)}>
-          {adminAuthed ? '+ Add Member Rating' : '+ Add Rating'}
+        <button className="home-add-btn" onClick={handleOpen}>
+          {adminAuthed ? '+ Add Member Rating' : hasPersonalRating ? '✎ Edit Rating' : '+ Add Rating'}
         </button>
       )}
       {open && !saved && (
