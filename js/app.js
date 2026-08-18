@@ -151,8 +151,12 @@ function App() {
         </div>
         <nav className="nav">
           <button className={`nav-btn ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>
-            <span className="nav-label">Current</span>
+            <span className="nav-label">Home</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
+          </button>
+          <button className={`nav-btn ${page==='this-month'?'active':''}`} onClick={()=>setPage('this-month')}>
+            <span className="nav-label">Next Club</span>
+            <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V9h16v12zM4 7V5h16v2H4z"/></svg></span>
           </button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>
             <span className="nav-label">Movies</span>

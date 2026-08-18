@@ -144,7 +144,7 @@ function ThisMonthPage({ currentEvent, movies }) {
   if (!currentEvent) {
     return (
       <div className="main">
-        <div className="page-title">This Month's Movies</div>
+        <div className="page-title">Next at Movie Club</div>
         <div className="page-subtitle">Nothing set yet — check back soon.</div>
         <div className="empty-state">
           <div className="empty-icon">📅</div>
@@ -187,7 +187,7 @@ function ThisMonthPage({ currentEvent, movies }) {
 
         {/* eyebrow bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 16px', background: ACCENT }}>
-          <span style={{ fontSize: '.7rem', fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: ink }}>🎬 This Month at Movie Club</span>
+          <span style={{ fontSize: '.7rem', fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: ink }}>🎬 Next at Movie Club</span>
           {lineup.length === 2 && (
             <span style={{ fontSize: '.6rem', fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: ACCENT, background: ink, padding: '4px 9px', borderRadius: 3, whiteSpace: 'nowrap' }}>Double Feature</span>
           )}
