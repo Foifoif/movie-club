@@ -12,7 +12,7 @@ for js/config.js, db.js, components.js, pages.js, app.js) silently skips a
 script tag whose XHR fails, instead of stopping — so a dropped request for
 e.g. js/config.js doesn't error loudly, it just lets db.js/components.js
 run without the globals config.js was supposed to define (dbSaveRating,
-devNow, etc.), surfacing later as a confusing "X is not defined" error deep
+sb, etc.), surfacing later as a confusing "X is not defined" error deep
 inside a component. The app's top-level ErrorBoundary catches the resulting
 render crash and shows a friendly fallback screen, but it's still confusing
 to hit locally.

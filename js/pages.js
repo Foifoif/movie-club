@@ -135,9 +135,9 @@ function ThisMonthPage({ currentEvent, movies, ratings, setRatings, members, adm
   const ACCENT = 'var(--yellow)';
   const ink = 'var(--ink)';
 
-  const [now, setNow] = useState(devNow());
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(devNow()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 

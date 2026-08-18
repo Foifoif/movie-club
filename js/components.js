@@ -404,10 +404,10 @@ function ClubNightStatusBlock({ decision, isJoinable, joinUrl, renderJoin }) {
 // Home page HERO: double-feature posters + live countdown to the next movie
 // night + go-time Join button.
 function ThisMonthCard({ currentEvent, movies, onNavigate }) {
-  const [now, setNow] = useState(devNow());
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(devNow()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
