@@ -96,7 +96,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
         {activePoll && (
           <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
-            <div className="poll-card-label">Today's Poll</div>
+            <div className="poll-card-label">Rate now</div>
             <div className="poll-card-question">{activePoll.question}</div>
             {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
           </a>
@@ -119,7 +119,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
       {activePoll && (
         <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
-          <div className="poll-card-label">Today's Poll</div>
+          <div className="poll-card-label">Rate now</div>
           <div className="poll-card-question">{activePoll.question}</div>
           {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
         </a>
@@ -987,6 +987,91 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   );
 }
 
+// ─── RATE CARD STACK ──────────────────────────────────────────────────────────
+function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
+  const [index, setIndex] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setIndex(0);
+    setChosen(null);
+  }, [poll.id]);
+
+  const current = options[index];
+  const total = options.length;
+  const progress = total ? Math.min(100, Math.round(((index + (chosen ? 1 : 0)) / total) * 100)) : 0;
+
+  async function voteForCurrent() {
+    if (!current || !selectedMember || busy) return;
+    setBusy(true);
+    try {
+      await onVote(current.id);
+      setChosen(current);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function skipCurrent() {
+    if (!current || busy) return;
+    setIndex(i => i + 1);
+  }
+
+  return (
+    <div className="rate-stack">
+      <div className="rate-stack-intro">
+        <div>
+          <div className="rate-kicker">Quick pick</div>
+          <div className="rate-prompt">{poll.question}</div>
+        </div>
+        {total > 0 && <div className="rate-progress-label">{Math.min(index + 1, total)} of {total}</div>}
+      </div>
+      {total > 0 && <div className="rate-progress"><div style={{width:`${progress}%`}} /></div>}
+
+      {chosen ? (
+        <div className="rate-complete">
+          <div className="rate-complete-icon">✓</div>
+          <div className="rate-complete-title">You picked {chosen.text}</div>
+          <div className="rate-complete-copy">Your vote is in. You can change it below if you want.</div>
+        </div>
+      ) : current ? (
+        <div className="rate-card-stage">
+          <div className="rate-card-shadow rate-card-shadow-back" />
+          <div className="rate-card-shadow rate-card-shadow-middle" />
+          <article className="rate-card">
+            {current.image_url
+              ? <img className="rate-card-image" src={current.image_url} alt="" />
+              : <div className="rate-card-image rate-card-placeholder">🎬</div>}
+            <div className="rate-card-body">
+              <div className="rate-card-rank">Option {index + 1}</div>
+              <div className="rate-card-title">{current.text}</div>
+              <div className="rate-card-hint">Would you choose this for the club?</div>
+            </div>
+          </article>
+        </div>
+      ) : (
+        <div className="rate-complete">
+          <div className="rate-complete-icon">🎬</div>
+          <div className="rate-complete-title">That’s the list</div>
+          <div className="rate-complete-copy">Add an answer or use the results below to see what’s leading.</div>
+          <button className="home-add-btn" onClick={onAddAnswer}>＋ Add an option</button>
+        </div>
+      )}
+
+      {!chosen && current && (
+        <div className="rate-actions">
+          <button className="rate-skip-btn" onClick={skipCurrent} disabled={busy}>Skip</button>
+          <button className="rate-vote-btn" onClick={voteForCurrent} disabled={!selectedMember || busy}>
+            {busy ? 'Saving…' : 'Vote for this'}
+          </button>
+        </div>
+      )}
+      {!selectedMember && <div className="rate-login-hint">Pick your name above to cast a vote.</div>}
+    </div>
+  );
+}
+
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
 function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const { currentUser } = React.useContext(UserContext);
@@ -1103,6 +1188,15 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
   return (
     <div className="poll-card">
+      <RateCardStack
+        poll={localPoll}
+        options={optionsWithCounts}
+        selectedMember={selectedMember}
+        onVote={handleVoteForOption}
+        onAddAnswer={() => setShowAddAnswer(true)}
+      />
+      <details className="rate-details">
+        <summary>See all options and results</summary>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:14}}>
         {editingQuestion ? (
           <div style={{flex:1}}>
@@ -1217,6 +1311,8 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
           </div>
         </div>
       )}
+
+      </details>
 
       {adminAuthed && (
         <div style={{borderTop:'1px dashed var(--cream)',marginTop:14,paddingTop:10,textAlign:'right'}}>
@@ -1526,8 +1622,8 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
 
   return (
     <div className="main">
-      <div className="page-title">Poll</div>
-      <div className="page-subtitle">Vote on what's next</div>
+      <div className="page-title">Rate</div>
+      <div className="page-subtitle">Make the next pick in a few taps</div>
 
       <div className="ratings-tabs" style={{marginBottom:20}}>
         <button className={`ratings-tab ${tab==='live'?'active':''}`} onClick={()=>setTab('live')}>Live</button>
@@ -1545,7 +1641,7 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
 
           {!activeBracket && showCreatePoll && (
             <div style={{marginBottom:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
-              <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Poll</div>
+              <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Rate question</div>
               <ActingAs />
               <label className="form-label">Your question</label>
               <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
@@ -1555,7 +1651,7 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
               <div style={{display:'flex',gap:8}}>
                 <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll}
                   disabled={!newQuestion.trim()||!newPollAsker||creating}>
-                  {creating ? '…' : 'Post Poll'}
+                  {creating ? '…' : 'Post question'}
                 </button>
                 <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setCreateErr('');}}>Cancel</button>
               </div>
