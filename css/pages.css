@@ -915,6 +915,36 @@
 .rate-details summary::before { content:'＋ '; color:var(--blue-mid); }
 .rate-details[open] summary::before { content:'− '; }
 
+.rate-month-section { margin-bottom:24px; }
+.rate-month-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:9px; }
+.rate-month-title { color:var(--ink); font-size:1.25rem; font-weight:700; line-height:1.2; }
+.rate-month-empty { background:var(--cream); border:2px dashed #d8cdb9; border-radius:12px; margin-bottom:20px; padding:20px; text-align:center; }
+.rate-movie-empty-title { color:var(--ink); font-size:1rem; font-weight:700; }
+.rate-movie-empty-copy { color:#888; font-size:.8rem; margin-top:5px; }
+.rate-movie-card { background:white; border:2px solid var(--ink); border-radius:14px; box-shadow:5px 5px 0 var(--yellow); display:flex; margin:0 6px 18px; min-height:220px; overflow:hidden; }
+.rate-movie-poster-wrap { background:var(--cream); flex:0 0 42%; min-height:220px; }
+.rate-movie-poster { display:block; height:100%; min-height:220px; object-fit:cover; width:100%; }
+.rate-movie-poster-placeholder { align-items:center; color:#aaa; display:flex; font-size:3rem; justify-content:center; }
+.rate-movie-body { padding:18px 16px; }
+.rate-movie-title { color:var(--ink); font-size:1.45rem; font-weight:700; line-height:1.12; margin-top:5px; }
+.rate-movie-year { color:var(--blue-mid); font-size:.8rem; font-weight:700; margin-top:4px; }
+.rate-movie-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:15px; }
+.rate-movie-tag { background:var(--cream); border:1.5px solid #d9cdb8; border-radius:999px; color:#665e51; font-size:.7rem; font-weight:700; padding:4px 9px; }
+.rate-slider-card { background:var(--cream); border-radius:12px; padding:16px; }
+.rate-slider-header { align-items:center; color:#756b5d; display:flex; font-size:.78rem; font-weight:700; justify-content:space-between; }
+.rate-slider-header strong { color:var(--ink); font-size:1.25rem; }
+.rate-slider { accent-color:var(--red); cursor:pointer; display:block; margin:17px 0 6px; width:100%; }
+.rate-slider:disabled { cursor:default; opacity:.5; }
+.rate-slider-labels { color:#999; display:flex; font-size:.68rem; justify-content:space-between; }
+.rate-saved { color:var(--green); font-size:.8rem; font-weight:700; margin:10px 0; text-align:center; }
+.rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
+
+@media (max-width: 420px) {
+  .rate-movie-card { min-height:200px; }
+  .rate-movie-poster-wrap, .rate-movie-poster { min-height:200px; }
+  .rate-movie-title { font-size:1.2rem; }
+}
+
 .setup-bracket-btn {
   width: 100%;
   font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;

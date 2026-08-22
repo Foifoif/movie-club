@@ -1072,6 +1072,117 @@ function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
   );
 }
 
+// ─── MONTHLY MOVIE RATE CARDS ────────────────────────────────────────────────
+function MonthlyRateCards({ movies, ratings, setRatings, currentEvent }) {
+  const { currentUser } = React.useContext(UserContext);
+  const selectedMember = currentUser?.id ? currentUser.name : '';
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const eventMovieIds = currentEvent
+    ? [currentEvent.movie_id_1, currentEvent.movie_id_2].filter(Boolean)
+    : [];
+  const monthMovies = eventMovieIds.length
+    ? eventMovieIds.map(id => (movies || []).find(movie => movie.id === id)).filter(Boolean)
+    : (movies || []).filter(movie => (movie.shownMonth || '').toLowerCase() === currentMonth.toLowerCase());
+  const movie = monthMovies[index] || null;
+  const existingScore = movie && selectedMember ? ratings?.[movie.id]?.[selectedMember] : undefined;
+
+  useEffect(() => {
+    setIndex(0);
+    setSaved(false);
+  }, [currentEvent?.movie_id_1, currentEvent?.movie_id_2, currentMonth]);
+
+  useEffect(() => {
+    setScore(existingScore === undefined ? '2.5' : String(existingScore));
+    setSaved(false);
+  }, [movie?.id, selectedMember, existingScore]);
+
+  if (!movie) {
+    return (
+      <div className="rate-month-empty">
+        <div className="rate-kicker">This month</div>
+        <div className="rate-movie-empty-title">No current movies to rate yet.</div>
+        <div className="rate-movie-empty-copy">The monthly lineup will appear here when it’s set.</div>
+      </div>
+    );
+  }
+
+  const tags = [
+    movie.sessionTheme,
+    movie.ratingScale,
+    ...(movie.streaming || []),
+  ].filter(Boolean).filter((tag, i, all) => all.indexOf(tag) === i);
+
+  async function saveMovieRating() {
+    if (!selectedMember || !movie || saving || score === '') return;
+    setSaving(true);
+    try {
+      await dbSaveRating(movie.id, selectedMember, Number(score));
+      if (setRatings) {
+        setRatings(prev => ({ ...prev, [movie.id]: { ...(prev[movie.id] || {}), [selectedMember]: Number(score) } }));
+      }
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        if (index < monthMovies.length - 1) setIndex(i => i + 1);
+      }, 650);
+    } catch (e) {
+      console.error('Failed to save movie rating:', e);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <section className="rate-month-section">
+      <div className="rate-month-heading">
+        <div>
+          <div className="rate-kicker">{currentMonth}</div>
+          <div className="rate-month-title">Rate this month’s movies</div>
+        </div>
+        <div className="rate-progress-label">{index + 1} of {monthMovies.length}</div>
+      </div>
+      <div className="rate-progress"><div style={{width:`${Math.round(((index + (saved ? 1 : 0)) / monthMovies.length) * 100)}%`}} /></div>
+
+      <article className="rate-movie-card">
+        <div className="rate-movie-poster-wrap">
+          {movie.poster
+            ? <img className="rate-movie-poster" src={movie.poster} alt={movie.title} />
+            : <div className="rate-movie-poster rate-movie-poster-placeholder">🎬</div>}
+        </div>
+        <div className="rate-movie-body">
+          <div className="rate-card-rank">Movie {index + 1}</div>
+          <div className="rate-movie-title">{movie.title}</div>
+          {movie.year && <div className="rate-movie-year">{movie.year}</div>}
+          {tags.length > 0 && (
+            <div className="rate-movie-tags">
+              {tags.map(tag => <span key={tag} className="rate-movie-tag">{tag}</span>)}
+            </div>
+          )}
+        </div>
+      </article>
+
+      <div className="rate-slider-card">
+        <div className="rate-slider-header">
+          <span>{movie.ratingScale || 'Your rating'}</span>
+          <strong>{Number(score || 0).toFixed(2).replace(/\.00$/, '')} / 5</strong>
+        </div>
+        <input className="rate-slider" type="range" min="0" max="5" step="0.25"
+          value={score} onChange={e => setScore(e.target.value)} disabled={!selectedMember || saving} />
+        <div className="rate-slider-labels"><span>Not for me</span><span>All-time favorite</span></div>
+        {!selectedMember && <div className="rate-login-hint">Pick your name above to rate this movie.</div>}
+        {saved && <div className="rate-saved">✓ Rating saved</div>}
+        <button className="rate-vote-btn rate-save-movie-btn" onClick={saveMovieRating} disabled={!selectedMember || saving}>
+          {saving ? 'Saving…' : index < monthMovies.length - 1 ? 'Save & next movie' : 'Save rating'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
 function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const { currentUser } = React.useContext(UserContext);
@@ -1593,7 +1704,7 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+function PollPage({ polls, bracket, bracketHistory, members, movies, ratings, setRatings, currentEvent, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
   const { currentUser } = React.useContext(UserContext);
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
@@ -1632,6 +1743,8 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
 
       {tab === 'live' && (
         <>
+          <MonthlyRateCards movies={movies} ratings={ratings} setRatings={setRatings} currentEvent={currentEvent} />
+
           {!activeBracket && !activePoll && !showCreatePoll && (
             <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
               onClick={()=>setShowCreatePoll(true)}>
