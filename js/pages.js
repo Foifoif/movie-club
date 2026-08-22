@@ -1076,6 +1076,7 @@ function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
 function MonthlyRateCards({ alltime, ratings, setRatings }) {
   const [index, setIndex] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const monthMovies = (alltime || []).filter(movie =>
@@ -1086,6 +1087,7 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
   useEffect(() => {
     setIndex(0);
     setSaved(false);
+    setRatingOpen(false);
   }, [currentMonth, alltime?.length]);
 
   if (!movie) {
@@ -1114,6 +1116,12 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
     }, 1500);
   }
 
+  function skipMovie() {
+    setRatingOpen(false);
+    setSaved(false);
+    if (index < monthMovies.length - 1) setIndex(i => i + 1);
+  }
+
   return (
     <section className="rate-month-section">
       <div className="rate-month-heading">
@@ -1139,17 +1147,23 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
               {tags.map(tag => <span key={tag} className="rate-movie-tag">{tag}</span>)}
             </div>
           )}
+          {!saved && (
+            <div className="rate-movie-actions">
+              <button className="rate-movie-rate-btn" onClick={() => setRatingOpen(true)}>Rate</button>
+              <button className="rate-movie-skip-btn" onClick={skipMovie}>Skip</button>
+            </div>
+          )}
+          {ratingOpen && !saved && (
+            <HomeRatingArea
+              movieId={movie.id}
+              movieRatings={ratings?.[movie.id] || {}}
+              onSave={saveMovieRating}
+              openByDefault
+            />
+          )}
         </div>
       </article>
-
-      <div className="rate-open-rating">
-        {saved && <div className="rate-saved">✓ Rating saved</div>}
-        <HomeRatingArea
-          movieId={movie.id}
-          movieRatings={ratings?.[movie.id] || {}}
-          onSave={saveMovieRating}
-        />
-      </div>
+      {saved && <div className="rate-saved">✓ Rating saved</div>}
     </section>
   );
 }

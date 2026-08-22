@@ -77,10 +77,10 @@ function getNearbyHoliday(date) {
 }
 
 // ─── HOME RATING AREA ────────────────────────────────────────────────────────
-function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, members = [] }) {
+function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, members = [], openByDefault = false }) {
   const { currentUser } = React.useContext(UserContext);
   const personalMember = currentUser?.id ? currentUser.name : '';
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openByDefault);
   const [adminMember, setAdminMember] = useState('');
   const [score, setScore] = useState('');
   const [saving, setSaving] = useState(false);
@@ -88,6 +88,10 @@ function HomeRatingArea({ movieId, movieRatings, onSave, adminAuthed = false, me
   const member = adminAuthed ? adminMember : personalMember;
   const personalExistingScore = movieRatings?.[personalMember];
   const hasPersonalRating = !adminAuthed && !!personalMember && personalExistingScore !== undefined;
+
+  useEffect(() => {
+    if (openByDefault && hasPersonalRating) setScore(String(personalExistingScore));
+  }, [openByDefault, hasPersonalRating, personalExistingScore]);
 
   const scoreValid = score !== '' && !isNaN(parseFloat(score)) && parseFloat(score) >= 0 && parseFloat(score) <= 5;
 

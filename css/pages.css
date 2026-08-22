@@ -930,6 +930,12 @@
 .rate-movie-year { color:var(--blue-mid); font-size:.8rem; font-weight:700; margin-top:4px; }
 .rate-movie-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:15px; }
 .rate-movie-tag { background:var(--cream); border:1.5px solid #d9cdb8; border-radius:999px; color:#665e51; font-size:.7rem; font-weight:700; padding:4px 9px; }
+.rate-movie-actions { display:flex; gap:10px; margin-top:22px; }
+.rate-movie-actions button { border-radius:9px; cursor:pointer; flex:1; font-family:inherit; font-size:1rem; font-weight:700; min-height:54px; padding:12px 10px; transition:transform .15s, filter .15s; }
+.rate-movie-actions button:hover { filter:brightness(.98); transform:translateY(-1px); }
+.rate-movie-rate-btn { background:var(--yellow); border:2px solid var(--yellow); box-shadow:3px 3px 0 var(--yellow); color:var(--ink); }
+.rate-movie-skip-btn { background:white; border:2px solid var(--blue-mid); color:var(--blue-dark); }
+.rate-movie-body .home-rating-box { margin-top:16px; padding:12px 0 0; }
 .rate-saved { color:var(--green); font-size:.8rem; font-weight:700; margin:10px 0; text-align:center; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
