@@ -182,7 +182,7 @@ function App() {
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Ratings couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
-          movies={movies} ratings={ratings} setRatings={setRatings} currentEvent={currentEvent}
+          alltime={alltime} ratings={ratings} setRatings={setRatings}
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
           onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}

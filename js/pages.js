@@ -1073,33 +1073,20 @@ function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
 }
 
 // ─── MONTHLY MOVIE RATE CARDS ────────────────────────────────────────────────
-function MonthlyRateCards({ movies, ratings, setRatings, currentEvent }) {
-  const { currentUser } = React.useContext(UserContext);
-  const selectedMember = currentUser?.id ? currentUser.name : '';
+function MonthlyRateCards({ alltime, ratings, setRatings }) {
   const [index, setIndex] = useState(0);
-  const [score, setScore] = useState('');
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const eventMovieIds = currentEvent
-    ? [currentEvent.movie_id_1, currentEvent.movie_id_2].filter(Boolean)
-    : [];
-  const monthMovies = eventMovieIds.length
-    ? eventMovieIds.map(id => (movies || []).find(movie => movie.id === id)).filter(Boolean)
-    : (movies || []).filter(movie => (movie.shownMonth || '').toLowerCase() === currentMonth.toLowerCase());
+  const monthMovies = (alltime || []).filter(movie =>
+    (movie.month || movie.shownMonth || '').toLowerCase() === currentMonth.toLowerCase()
+  );
   const movie = monthMovies[index] || null;
-  const existingScore = movie && selectedMember ? ratings?.[movie.id]?.[selectedMember] : undefined;
 
   useEffect(() => {
     setIndex(0);
     setSaved(false);
-  }, [currentEvent?.movie_id_1, currentEvent?.movie_id_2, currentMonth]);
-
-  useEffect(() => {
-    setScore(existingScore === undefined ? '2.5' : String(existingScore));
-    setSaved(false);
-  }, [movie?.id, selectedMember, existingScore]);
+  }, [currentMonth, alltime?.length]);
 
   if (!movie) {
     return (
@@ -1114,26 +1101,17 @@ function MonthlyRateCards({ movies, ratings, setRatings, currentEvent }) {
   const tags = [
     movie.sessionTheme,
     movie.ratingScale,
-    ...(movie.streaming || []),
   ].filter(Boolean).filter((tag, i, all) => all.indexOf(tag) === i);
 
-  async function saveMovieRating() {
-    if (!selectedMember || !movie || saving || score === '') return;
-    setSaving(true);
-    try {
-      await dbSaveRating(movie.id, selectedMember, Number(score));
-      if (setRatings) {
-        setRatings(prev => ({ ...prev, [movie.id]: { ...(prev[movie.id] || {}), [selectedMember]: Number(score) } }));
-      }
-      setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-        if (index < monthMovies.length - 1) setIndex(i => i + 1);
-      }, 650);
-    } catch (e) {
-      console.error('Failed to save movie rating:', e);
-    }
-    setSaving(false);
+  async function saveMovieRating(member, score) {
+    await dbSaveRating(movie.id, member, score);
+    const nextRatings = { ...ratings, [movie.id]: { ...(ratings?.[movie.id] || {}), [member]: score } };
+    if (setRatings) setRatings(nextRatings);
+    setSaved(true);
+    setTimeout(() => {
+      setSaved(false);
+      if (index < monthMovies.length - 1) setIndex(i => i + 1);
+    }, 1500);
   }
 
   return (
@@ -1154,7 +1132,6 @@ function MonthlyRateCards({ movies, ratings, setRatings, currentEvent }) {
             : <div className="rate-movie-poster rate-movie-poster-placeholder">🎬</div>}
         </div>
         <div className="rate-movie-body">
-          <div className="rate-card-rank">Movie {index + 1}</div>
           <div className="rate-movie-title">{movie.title}</div>
           {movie.year && <div className="rate-movie-year">{movie.year}</div>}
           {tags.length > 0 && (
@@ -1165,19 +1142,13 @@ function MonthlyRateCards({ movies, ratings, setRatings, currentEvent }) {
         </div>
       </article>
 
-      <div className="rate-slider-card">
-        <div className="rate-slider-header">
-          <span>{movie.ratingScale || 'Your rating'}</span>
-          <strong>{Number(score || 0).toFixed(2).replace(/\.00$/, '')} / 5</strong>
-        </div>
-        <input className="rate-slider" type="range" min="0" max="5" step="0.25"
-          value={score} onChange={e => setScore(e.target.value)} disabled={!selectedMember || saving} />
-        <div className="rate-slider-labels"><span>Not for me</span><span>All-time favorite</span></div>
-        {!selectedMember && <div className="rate-login-hint">Pick your name above to rate this movie.</div>}
+      <div className="rate-open-rating">
         {saved && <div className="rate-saved">✓ Rating saved</div>}
-        <button className="rate-vote-btn rate-save-movie-btn" onClick={saveMovieRating} disabled={!selectedMember || saving}>
-          {saving ? 'Saving…' : index < monthMovies.length - 1 ? 'Save & next movie' : 'Save rating'}
-        </button>
+        <HomeRatingArea
+          movieId={movie.id}
+          movieRatings={ratings?.[movie.id] || {}}
+          onSave={saveMovieRating}
+        />
       </div>
     </section>
   );
@@ -1704,7 +1675,7 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, bracketHistory, members, movies, ratings, setRatings, currentEvent, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
   const { currentUser } = React.useContext(UserContext);
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
@@ -1743,7 +1714,7 @@ function PollPage({ polls, bracket, bracketHistory, members, movies, ratings, se
 
       {tab === 'live' && (
         <>
-          <MonthlyRateCards movies={movies} ratings={ratings} setRatings={setRatings} currentEvent={currentEvent} />
+          <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
 
           {!activeBracket && !activePoll && !showCreatePoll && (
             <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
