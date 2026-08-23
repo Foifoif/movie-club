@@ -1716,7 +1716,6 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
-  const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState('');
@@ -1733,7 +1732,7 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
       const newPoll = await dbCreatePoll(newQuestion.trim(), newPollAsker);
       if (onPollsAdd) onPollsAdd(newPoll);
       setNewQuestion('');
-      setShowCreatePoll(false);
+      setTab('live');
     } catch(e) { setCreateErr('Error: ' + e.message); }
     setCreating(false);
   }
@@ -1746,37 +1745,12 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
       <div className="ratings-tabs" style={{marginBottom:20}}>
         <button className={`ratings-tab ${tab==='live'?'active':''}`} onClick={()=>setTab('live')}>Live</button>
         <button className={`ratings-tab ${tab==='past'?'active':''}`} onClick={()=>setTab('past')}>Past</button>
+        <button className={`ratings-tab ${tab==='create'?'active':''}`} onClick={()=>setTab('create')}>Create</button>
       </div>
 
       {tab === 'live' && (
         <>
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
-
-          {!activeBracket && !activePoll && !showCreatePoll && (
-            <button className="create-poll-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
-              onClick={()=>setShowCreatePoll(true)}>
-              Create a new poll
-            </button>
-          )}
-
-          {!activeBracket && showCreatePoll && (
-            <div style={{marginBottom:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
-              <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Rate question</div>
-              <ActingAs />
-              <label className="form-label">Your question</label>
-              <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
-                placeholder="Ask the group anything…"
-                onKeyDown={e=>e.key==='Enter'&&handleCreatePoll()} />
-              {createErr && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{createErr}</div>}
-              <div style={{display:'flex',gap:8}}>
-                <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll}
-                  disabled={!newQuestion.trim()||!newPollAsker||creating}>
-                  {creating ? '…' : 'Post question'}
-                </button>
-                <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setCreateErr('');}}>Cancel</button>
-              </div>
-            </div>
-          )}
 
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
@@ -1787,11 +1761,32 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
                 try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
               }} />
           ) : (
-            !showCreatePoll && <div className="empty-state"><div>No active poll yet.</div></div>
+            <div className="empty-state"><div>No active poll yet.</div></div>
           )}
+        </>
+      )}
+
+      {tab === 'create' && (
+        <div className="rate-create-options">
+          <div className="rate-create-option-card">
+            <div className="rate-create-option-title">Create a new poll</div>
+            <ActingAs />
+            <label className="form-label">Your question</label>
+            <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
+              placeholder="Ask the group anything…"
+              onKeyDown={e=>e.key==='Enter'&&handleCreatePoll()} />
+            {createErr && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{createErr}</div>}
+            <div style={{display:'flex',gap:8}}>
+              <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll}
+                disabled={!newQuestion.trim()||!newPollAsker||creating}>
+                {creating ? '…' : 'Post question'}
+              </button>
+              <button className="home-cancel-btn" onClick={()=>{setNewQuestion('');setCreateErr('');}}>Clear</button>
+            </div>
+          </div>
 
           {adminAuthed && !activeBracket && !showBracketSetup && (
-            <button className="setup-bracket-btn" style={{marginTop:8}} onClick={()=>setShowBracketSetup(true)}>
+            <button className="setup-bracket-btn" style={{marginTop:0}} onClick={()=>setShowBracketSetup(true)}>
               + Set Up Bracket
             </button>
           )}
@@ -1804,12 +1799,13 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
                   await dbSaveBracket(newBracket);
                   onBracketUpdate(newBracket);
                   setShowBracketSetup(false);
+                  setTab('live');
                 } catch(e) { console.error('Error creating bracket:', e); }
               }}
               onCancel={() => setShowBracketSetup(false)}
             />
           )}
-        </>
+        </div>
       )}
 
       {tab === 'past' && (
