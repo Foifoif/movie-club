@@ -1074,28 +1074,48 @@ function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
 
 // ─── MONTHLY MOVIE RATE CARDS ────────────────────────────────────────────────
 function MonthlyRateCards({ alltime, ratings, setRatings }) {
+  const { currentUser } = React.useContext(UserContext);
   const [index, setIndex] = useState(0);
   const [saved, setSaved] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
+  const memberKey = currentUser?.id || currentUser?.name || 'guest';
+  const skippedStorageKey = `movie-club-rate-skips:${memberKey}`;
+  const [skippedMovieIds, setSkippedMovieIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(skippedStorageKey) || '[]'); }
+    catch (_) { return []; }
+  });
 
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const monthMovies = (alltime || []).filter(movie =>
+  const allMonthlyMovies = (alltime || []).filter(movie =>
     (movie.month || movie.shownMonth || '').toLowerCase() === currentMonth.toLowerCase()
   );
+  const skippedSet = new Set(skippedMovieIds.map(String));
+  const monthMovies = allMonthlyMovies.filter(movie => {
+    const ratedByMember = currentUser?.name && ratings?.[movie.id]?.[currentUser.name] !== undefined;
+    return !skippedSet.has(String(movie.id)) && !ratedByMember;
+  });
   const movie = monthMovies[index] || null;
 
   useEffect(() => {
+    try { setSkippedMovieIds(JSON.parse(localStorage.getItem(skippedStorageKey) || '[]')); }
+    catch (_) { setSkippedMovieIds([]); }
     setIndex(0);
     setSaved(false);
     setRatingOpen(false);
-  }, [currentMonth, alltime?.length]);
+  }, [currentMonth, alltime?.length, skippedStorageKey]);
 
   if (!movie) {
     return (
       <div className="rate-month-empty">
         <div className="rate-kicker">This month</div>
-        <div className="rate-movie-empty-title">No current movies to rate yet.</div>
-        <div className="rate-movie-empty-copy">The monthly lineup will appear here when it’s set.</div>
+        <div className="rate-movie-empty-title">
+          {allMonthlyMovies.length > 0 ? 'You’re all caught up.' : 'No current movies to rate yet.'}
+        </div>
+        <div className="rate-movie-empty-copy">
+          {allMonthlyMovies.length > 0
+            ? 'New movies will appear here when they’re added to this month’s list.'
+            : 'The monthly lineup will appear here when it’s set.'}
+        </div>
       </div>
     );
   }
@@ -1110,16 +1130,18 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
     const nextRatings = { ...ratings, [movie.id]: { ...(ratings?.[movie.id] || {}), [member]: score } };
     if (setRatings) setRatings(nextRatings);
     setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      if (index < monthMovies.length - 1) setIndex(i => i + 1);
-    }, 1500);
+    setRatingOpen(false);
+    setIndex(0);
   }
 
   function skipMovie() {
+    const nextSkippedMovieIds = [...new Set([...skippedMovieIds.map(String), String(movie.id)])];
+    try { localStorage.setItem(skippedStorageKey, JSON.stringify(nextSkippedMovieIds)); }
+    catch (_) {}
+    setSkippedMovieIds(nextSkippedMovieIds);
     setRatingOpen(false);
     setSaved(false);
-    if (index < monthMovies.length - 1) setIndex(i => i + 1);
+    setIndex(0);
   }
 
   return (
@@ -1731,9 +1753,9 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
 
           {!activeBracket && !activePoll && !showCreatePoll && (
-            <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
+            <button className="create-poll-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
               onClick={()=>setShowCreatePoll(true)}>
-              + Ask a question
+              Create a new poll
             </button>
           )}
 
