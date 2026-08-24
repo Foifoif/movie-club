@@ -114,12 +114,32 @@ async function dbLoadRoundHistory() {
   if (roundsError) throw roundsError;
   if (!rounds?.length) return [];
   const ids = rounds.map(round => round.id);
-  const { data: events, error: eventsError } = await sb.from('round_events')
-    .select('*').in('round_id', ids).order('created_at', { ascending: true });
+  const [{ data: phases, error: phasesError }, { data: events, error: eventsError }] = await Promise.all([
+    sb.from('round_phases').select('*').in('round_id', ids).order('id'),
+    sb.from('round_events').select('*').in('round_id', ids).order('created_at', { ascending: true }),
+  ]);
+  if (phasesError) throw phasesError;
   if (eventsError) throw eventsError;
+  const phaseIds = (phases || []).map(phase => phase.id);
+  const [{ data: categorySubmissions }, { data: categorySpins }, { data: movieSubmissions }, { data: entries }, { data: matchups }] = await Promise.all([
+    sb.from('category_submissions').select('*').in('phase_id', phaseIds),
+    sb.from('category_spins').select('*').in('phase_id', phaseIds),
+    sb.from('movie_submissions').select('*').in('phase_id', phaseIds),
+    sb.from('bracket_entries').select('*').in('round_id', ids).order('seed'),
+    sb.from('bracket_matchups').select('*').in('round_id', ids).order('bracket_round_number').order('id'),
+  ]);
   return rounds.map(round => ({
     ...round,
+    phases: (phases || []).filter(phase => phase.round_id === round.id),
     events: (events || []).filter(event => event.round_id === round.id),
+    categorySubmissions: (categorySubmissions || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    categorySpins: (categorySpins || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    movieSubmissions: (movieSubmissions || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    entries: (entries || []).filter(entry => entry.round_id === round.id),
+    matchups: (matchups || []).filter(matchup => matchup.round_id === round.id),
   }));
 }
 

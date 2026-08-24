@@ -1934,6 +1934,34 @@ function PastRoundCard({ round }) {
       {expanded && (
         <div className="past-poll-body">
           <div className="round-workflow-note">{round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
+          {round.categorySubmissions?.length > 0 && (
+            <>
+              <div className="round-history-heading">Category submissions</div>
+              {round.categorySubmissions.map(row => (
+                <div className="round-category-row" key={row.id}><span>{row.raw_text}</span></div>
+              ))}
+            </>
+          )}
+          {round.categorySpins?.length > 0 && (
+            <>
+              <div className="round-history-heading">Wheel results</div>
+              {round.categorySpins.map(row => (
+                <div className="round-category-row" key={row.id}><span>{row.result_category}</span><strong>{row.result_weight}× weight</strong></div>
+              ))}
+            </>
+          )}
+          {round.movieSubmissions?.length > 0 && (
+            <>
+              <div className="round-history-heading">Movie submissions</div>
+              {round.movieSubmissions.map(row => (
+                <div className="round-category-row" key={row.id}><span>Movie {row.slot}</span><strong>{row.title}</strong></div>
+              ))}
+            </>
+          )}
+          {round.entries?.length > 0 && (
+            <div className="round-workflow-note">Bracket entries: {round.entries.length} · Matchups: {round.matchups?.length || 0}</div>
+          )}
+          <div className="round-history-heading">Activity log</div>
           {events.map(event => (
             <div className="round-category-row" key={event.id}>
               <span>{event.event_type.replaceAll('_', ' ')}</span>

@@ -964,6 +964,7 @@
 .past-poll-label { display:block; color:var(--blue); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
 .past-poll-chevron { font-size:1.35rem; font-weight:700; }
 .past-poll-body { border-top:1px dashed var(--cream); padding:12px 16px 16px; }
+.round-history-heading { color:var(--ink); font-size:.7rem; font-weight:700; letter-spacing:.08em; margin:14px 0 5px; text-transform:uppercase; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
 @media (max-width: 420px) {
