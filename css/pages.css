@@ -951,7 +951,9 @@
 .round-wheel.dragging { cursor:grabbing; transition:none; }
 .round-wheel:focus-visible { outline:3px solid var(--blue); outline-offset:4px; }
 .round-wheel-pointer { position:absolute; z-index:2; top:0; left:calc(50% - 10px); border-left:10px solid transparent; border-right:10px solid transparent; border-top:19px solid var(--ink); }
-.round-wheel span { width:58px; height:58px; border-radius:50%; background:white; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:800; letter-spacing:.08em; }
+.round-wheel-labels { inset:0; pointer-events:none; position:absolute; }
+.round-wheel-label { color:var(--ink); font-size:.53rem; font-weight:800; left:50%; max-width:58px; overflow:hidden; position:absolute; text-align:center; text-overflow:ellipsis; top:50%; white-space:nowrap; }
+.round-wheel-center { width:58px; height:58px; border-radius:50%; background:white; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:800; letter-spacing:.08em; position:relative; z-index:1; }
 .round-wheel.spinning { will-change:transform; }
 .round-wheel-hint { text-align:center; }
 .round-category-list { border:1px solid #e3ded4; border-radius:8px; margin:10px 0; overflow:hidden; }

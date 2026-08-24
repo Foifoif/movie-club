@@ -1416,7 +1416,21 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
                   }).join(', ')})`
                 : 'conic-gradient(var(--cream) 0 360deg)'
             }}>
-              <span>{wheelDragging ? 'RELEASE' : 'SPIN'}</span>
+              <div className="round-wheel-labels" aria-hidden="true">
+                {categoryCounts.map(([name, count], index) => {
+                  const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+                  const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+                  const end = (start + count / total * 360);
+                  const midpoint = start + (end - start) / 2;
+                  const shortName = name.length > 15 ? `${name.slice(0, 14)}…` : name;
+                  return <span key={name} className="round-wheel-label"
+                    title={name}
+                    style={{ transform: `translate(-50%, -50%) rotate(${midpoint}deg) translateY(-65px) rotate(90deg)` }}>
+                    {shortName}
+                  </span>;
+                })}
+              </div>
+              <span className="round-wheel-center">{wheelDragging ? 'RELEASE' : 'SPIN'}</span>
             </div>
           </div>
           {!spinResult && !savedSpin && <div className="round-workflow-note round-wheel-hint">Grab and drag the wheel, or use the button below.</div>}
