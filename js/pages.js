@@ -2238,6 +2238,30 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
+  const pacificMonth = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
+  }).format(new Date());
+  const [roundMonth, setRoundMonth] = useState(() => localStorage.getItem('mc_round_draft_month') || pacificMonth);
+  const [roundMode, setRoundMode] = useState(() => localStorage.getItem('mc_round_draft_mode') || 'paired');
+  const [roundDuration, setRoundDuration] = useState(() => localStorage.getItem('mc_round_draft_duration') || '24');
+
+  function saveRoundDraft() {
+    localStorage.setItem('mc_round_draft_month', roundMonth.trim());
+    localStorage.setItem('mc_round_draft_mode', roundMode);
+    localStorage.setItem('mc_round_draft_duration', roundDuration);
+    showMsg('Round setup saved on this staging browser. No database round was created.');
+  }
+
+  function clearRoundDraft() {
+    localStorage.removeItem('mc_round_draft_month');
+    localStorage.removeItem('mc_round_draft_mode');
+    localStorage.removeItem('mc_round_draft_duration');
+    setRoundMonth(pacificMonth);
+    setRoundMode('paired');
+    setRoundDuration('24');
+    showMsg('Round setup draft cleared.');
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -2677,9 +2701,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','poll','bracket','ratings','movienight','thismonth'].map(s => (
+          {['movies','members','poll','round','bracket','ratings','movienight','thismonth'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'round' ? 'Round' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
             </button>
           ))}
         </div>
@@ -2846,6 +2870,33 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 ))}
               </>
             )}
+          </>
+        )}
+
+        {section === 'round' && (
+          <>
+            <div className="admin-section-title">New Round Setup</div>
+            <div className="round-workflow-note" style={{marginBottom:14}}>
+              Staging setup only. This saves a local draft in this browser and does not create or expose a round to the club yet.
+            </div>
+            <label className="form-label">Round label</label>
+            <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
+            <label className="form-label">Bracket mode</label>
+            <select className="form-input" value={roundMode} onChange={e => setRoundMode(e.target.value)}>
+              <option value="paired">Paired — permanent two-movie teams</option>
+              <option value="scrambled">Scrambled — individual movies</option>
+            </select>
+            <label className="form-label">Default phase duration</label>
+            <select className="form-input" value={roundDuration} onChange={e => setRoundDuration(e.target.value)}>
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+            </select>
+            <div className="round-workflow-note" style={{marginTop:12}}>
+              Opens at 9:00 AM Pacific · minimum 3 responses · phases: category → spin → movies → bracket
+            </div>
+            <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
+            <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
           </>
         )}
 
