@@ -67,6 +67,8 @@ async function loadAll() {
   const pollsData = await dbLoadPolls().catch(() => []);
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
   const currentMonthlyEvent = await dbLoadMonthlyEvents({ isCurrent: true }).catch(() => null);
+  const roundWorkflowData = await dbLoadRoundWorkflow().catch(() => null);
+  const roundHistoryData = await dbLoadRoundHistory().catch(() => []);
 
   // Older finished brackets predate finishedAt in the live bracket JSON.
   // Recover it from the matching history record so Current-page expiry still works.
@@ -79,7 +81,76 @@ async function loadAll() {
     }
   }
 
-  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent };
+  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData, roundHistoryData };
+}
+
+async function dbLoadRoundWorkflow() {
+  const { data: rounds, error: roundsError } = await sb.from('rounds')
+    .select('*').in('status', ['DRAFT', 'ACTIVE']).order('created_at', { ascending: false }).limit(1);
+  if (roundsError) throw roundsError;
+  const round = rounds?.[0];
+  if (!round) return null;
+
+  const [{ data: phases }, { data: categorySubmissions }, { data: categorySpins },
+    { data: movieSubmissions }, { data: entries }, { data: matchups }, { data: votes },
+    { data: notifications }] = await Promise.all([
+    sb.from('round_phases').select('*').eq('round_id', round.id).order('id'),
+    sb.from('category_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SUBMISSIONS')),
+    sb.from('category_spins').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SPIN')),
+    sb.from('movie_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'MOVIE_SUBMISSIONS')),
+    sb.from('bracket_entries').select('*').eq('round_id', round.id).order('seed'),
+    sb.from('bracket_matchups').select('*').eq('round_id', round.id).order('bracket_round_number').order('id'),
+    sb.from('bracket_votes').select('*').in('matchup_id', await matchupIdsForRound(round.id)),
+    sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
+  ]);
+  return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [] };
+}
+
+async function dbLoadRoundHistory() {
+  const { data: rounds, error: roundsError } = await sb.from('rounds')
+    .select('*').in('status', ['COMPLETE', 'CANCELLED'])
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .limit(24);
+  if (roundsError) throw roundsError;
+  if (!rounds?.length) return [];
+  const ids = rounds.map(round => round.id);
+  const [{ data: phases, error: phasesError }, { data: events, error: eventsError }] = await Promise.all([
+    sb.from('round_phases').select('*').in('round_id', ids).order('id'),
+    sb.from('round_events').select('*').in('round_id', ids).order('created_at', { ascending: true }),
+  ]);
+  if (phasesError) throw phasesError;
+  if (eventsError) throw eventsError;
+  const phaseIds = (phases || []).map(phase => phase.id);
+  const [{ data: categorySubmissions }, { data: categorySpins }, { data: movieSubmissions }, { data: entries }, { data: matchups }] = await Promise.all([
+    sb.from('category_submissions').select('*').in('phase_id', phaseIds),
+    sb.from('category_spins').select('*').in('phase_id', phaseIds),
+    sb.from('movie_submissions').select('*').in('phase_id', phaseIds),
+    sb.from('bracket_entries').select('*').in('round_id', ids).order('seed'),
+    sb.from('bracket_matchups').select('*').in('round_id', ids).order('bracket_round_number').order('id'),
+  ]);
+  return rounds.map(round => ({
+    ...round,
+    phases: (phases || []).filter(phase => phase.round_id === round.id),
+    events: (events || []).filter(event => event.round_id === round.id),
+    categorySubmissions: (categorySubmissions || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    categorySpins: (categorySpins || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    movieSubmissions: (movieSubmissions || []).filter(row =>
+      (phases || []).some(phase => phase.id === row.phase_id && phase.round_id === round.id)),
+    entries: (entries || []).filter(entry => entry.round_id === round.id),
+    matchups: (matchups || []).filter(matchup => matchup.round_id === round.id),
+  }));
+}
+
+async function phaseIdsForRound(roundId, phaseType) {
+  const { data } = await sb.from('round_phases').select('id').eq('round_id', roundId).eq('phase_type', phaseType);
+  return (data || []).map(row => row.id);
+}
+
+async function matchupIdsForRound(roundId) {
+  const { data } = await sb.from('bracket_matchups').select('id').eq('round_id', roundId);
+  return (data || []).map(row => row.id);
 }
 
 async function dbSaveMovies(existingMovies, newMovieData) {
@@ -114,12 +185,6 @@ async function dbSaveMovies(existingMovies, newMovieData) {
 }
 
 async function dbSaveRating(movieId, memberName, score) {
-  if (score === 0) {
-    const { error } = await sb.from('ratings').delete()
-      .eq('movie_id', movieId).eq('member_name', memberName);
-    if (error) throw error;
-    return;
-  }
   const { error } = await sb.from('ratings').upsert(
     { movie_id: movieId, member_name: memberName, score },
     { onConflict: 'movie_id,member_name' }
@@ -246,6 +311,72 @@ async function dbVoteForOption(pollId, optionId, memberName) {
     { onConflict: 'poll_id,member_name' }
   );
   if (error) throw error;
+}
+
+// ─── ROUND WORKFLOW RPCs ─────────────────────────────────────────────────────
+// These calls are intentionally kept separate from the legacy poll/bracket
+// helpers. The corresponding SQL functions enforce phase validity and the
+// unique per-member action constraints in the database.
+async function dbRoundAction(functionName, args) {
+  const { data, error } = await sb.rpc(functionName, args);
+  if (error) throw error;
+  return data;
+}
+
+async function dbAdminRoundAction(functionName, args, adminToken) {
+  const response = await fetch('/.netlify/functions/round-admin', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'content-type': 'application/json',
+      ...(adminToken ? { 'x-round-admin-token': adminToken } : {}),
+    },
+    body: JSON.stringify({ action: functionName, args }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Admin action failed');
+  return payload.data;
+}
+
+async function dbAdminSessionStatus() {
+  const response = await fetch('/.netlify/functions/round-admin', { credentials: 'include' });
+  if (!response.ok) return { authenticated: false };
+  return response.json();
+}
+
+async function dbSubmitCategory(phaseId, memberId, text) {
+  return dbRoundAction('mc_submit_category', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+    p_text: text,
+  });
+}
+
+async function dbSpinCategory(phaseId, memberId) {
+  return dbRoundAction('mc_spin_category', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+  });
+}
+
+async function dbSubmitRoundMovie(phaseId, memberId, slot, movie) {
+  return dbRoundAction('mc_submit_movie', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+    p_slot: slot,
+    p_tmdb_id: movie.tmdbId || null,
+    p_title: movie.title,
+    p_year: movie.year || null,
+    p_poster: movie.poster || null,
+  });
+}
+
+async function dbVoteRoundMatchup(matchupId, memberId, entryId) {
+  return dbRoundAction('mc_vote_matchup', {
+    p_matchup_id: matchupId,
+    p_member_id: memberId,
+    p_entry_id: entryId,
+  });
 }
 
 async function dbAddOptionAndVote(pollId, text, memberName, currentPoll, imageUrl) {

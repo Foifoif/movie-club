@@ -80,7 +80,25 @@ function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) 
   );
 }
 
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket, currentEvent, onThisMonthClick }) {
+function RoundHomeNotification({ workflow, onClick }) {
+  const phase = workflow?.phases?.find(roundPhaseIsOpen);
+  if (!workflow?.round || !phase) return null;
+  const saved = (workflow.notifications || []).find(n => !n.expires_at || new Date(n.expires_at) > new Date());
+  const copy = {
+    CATEGORY_SUBMISSIONS: ['New round', 'Submit a category for the next movie round →'],
+    CATEGORY_SPIN: ['Category wheel', 'Spin to choose the winning category →'],
+    MOVIE_SUBMISSIONS: ['Movie submissions', 'Submit your two movies for the round →'],
+    BRACKET: ['Bracket voting', 'Vote in the round bracket →'],
+  }[phase.phase_type] || ['New round', 'Take the next round action →'];
+  return (
+    <a className="poll-card" href="/poll" onClick={e => { e.preventDefault(); if (onClick) onClick(); }}>
+      <div className="poll-card-label">{saved?.title || copy[0]}</div>
+      <div className="poll-card-question">{saved?.body || copy[1]}</div>
+    </a>
+  );
+}
+
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket, currentEvent, onThisMonthClick, roundWorkflow, onRoundClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -93,10 +111,11 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
     return (
       <div className="main">
         <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
+        <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
         {activePoll && (
           <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
-            <div className="poll-card-label">Today's Poll</div>
+            <div className="poll-card-label">Rate now</div>
             <div className="poll-card-question">{activePoll.question}</div>
             {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
           </a>
@@ -116,10 +135,11 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   return (
     <div className="main">
       <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
+      <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
       {activePoll && (
         <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
-          <div className="poll-card-label">Today's Poll</div>
+          <div className="poll-card-label">Rate now</div>
           <div className="poll-card-question">{activePoll.question}</div>
           {activePoll.created_by && <div className="poll-card-asker">asked by {activePoll.created_by}</div>}
         </a>
@@ -987,6 +1007,532 @@ function BracketVoteView({ bracket, members, onVoteUpdate }) {
   );
 }
 
+// ─── RATE CARD STACK ──────────────────────────────────────────────────────────
+function RateCardStack({ poll, options, selectedMember, onVote, onAddAnswer }) {
+  const [index, setIndex] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setIndex(0);
+    setChosen(null);
+  }, [poll.id]);
+
+  const current = options[index];
+  const total = options.length;
+  const progress = total ? Math.min(100, Math.round(((index + (chosen ? 1 : 0)) / total) * 100)) : 0;
+
+  async function voteForCurrent() {
+    if (!current || !selectedMember || busy) return;
+    setBusy(true);
+    try {
+      await onVote(current.id);
+      setChosen(current);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function skipCurrent() {
+    if (!current || busy) return;
+    setIndex(i => i + 1);
+  }
+
+  return (
+    <div className="rate-stack">
+      <div className="rate-stack-intro">
+        <div>
+          <div className="rate-kicker">Quick pick</div>
+          <div className="rate-prompt">{poll.question}</div>
+        </div>
+        {total > 0 && <div className="rate-progress-label">{Math.min(index + 1, total)} of {total}</div>}
+      </div>
+      {total > 0 && <div className="rate-progress"><div style={{width:`${progress}%`}} /></div>}
+
+      {chosen ? (
+        <div className="rate-complete">
+          <div className="rate-complete-icon">✓</div>
+          <div className="rate-complete-title">You picked {chosen.text}</div>
+          <div className="rate-complete-copy">Your vote is in. You can change it below if you want.</div>
+        </div>
+      ) : current ? (
+        <div className="rate-card-stage">
+          <div className="rate-card-shadow rate-card-shadow-back" />
+          <div className="rate-card-shadow rate-card-shadow-middle" />
+          <article className="rate-card">
+            {current.image_url
+              ? <img className="rate-card-image" src={current.image_url} alt="" />
+              : <div className="rate-card-image rate-card-placeholder">🎬</div>}
+            <div className="rate-card-body">
+              <div className="rate-card-rank">Option {index + 1}</div>
+              <div className="rate-card-title">{current.text}</div>
+              <div className="rate-card-hint">Would you choose this for the club?</div>
+            </div>
+          </article>
+        </div>
+      ) : (
+        <div className="rate-complete">
+          <div className="rate-complete-icon">🎬</div>
+          <div className="rate-complete-title">That’s the list</div>
+          <div className="rate-complete-copy">Add an answer or use the results below to see what’s leading.</div>
+          <button className="home-add-btn" onClick={onAddAnswer}>＋ Add an option</button>
+        </div>
+      )}
+
+      {!chosen && current && (
+        <div className="rate-actions">
+          <button className="rate-skip-btn" onClick={skipCurrent} disabled={busy}>Skip</button>
+          <button className="rate-vote-btn" onClick={voteForCurrent} disabled={!selectedMember || busy}>
+            {busy ? 'Saving…' : 'Vote for this'}
+          </button>
+        </div>
+      )}
+      {!selectedMember && <div className="rate-login-hint">Pick your name above to cast a vote.</div>}
+    </div>
+  );
+}
+
+// ─── MONTHLY MOVIE RATE CARDS ────────────────────────────────────────────────
+function MonthlyRateCards({ alltime, ratings, setRatings }) {
+  const { currentUser } = React.useContext(UserContext);
+  const [index, setIndex] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const memberKey = currentUser?.id || currentUser?.name || 'guest';
+  const skippedStorageKey = `movie-club-rate-skips:${memberKey}`;
+  const [skippedMovieIds, setSkippedMovieIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(skippedStorageKey) || '[]'); }
+    catch (_) { return []; }
+  });
+
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const recentMonths = Array.from({ length: 3 }, (_, offset) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - offset, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase();
+  });
+  const recentMovies = (alltime || [])
+    .filter(movie => recentMonths.includes((movie.month || movie.shownMonth || '').toLowerCase()))
+    .sort((a, b) => recentMonths.indexOf((a.month || a.shownMonth || '').toLowerCase())
+      - recentMonths.indexOf((b.month || b.shownMonth || '').toLowerCase()));
+  const skippedSet = new Set(skippedMovieIds.map(String));
+  const monthMovies = recentMovies.filter(movie => {
+    const ratedByMember = currentUser?.name && ratings?.[movie.id]?.[currentUser.name] !== undefined;
+    return !skippedSet.has(String(movie.id)) && !ratedByMember;
+  });
+  const movie = monthMovies[index] || null;
+
+  useEffect(() => {
+    try { setSkippedMovieIds(JSON.parse(localStorage.getItem(skippedStorageKey) || '[]')); }
+    catch (_) { setSkippedMovieIds([]); }
+    setIndex(0);
+    setSaved(false);
+    setRatingOpen(false);
+  }, [currentMonth, alltime?.length, skippedStorageKey]);
+
+  if (!movie) {
+    return (
+      <div className="rate-month-empty">
+        <div className="rate-kicker">This month</div>
+        <div className="rate-movie-empty-title">
+          {recentMovies.length > 0 ? 'You’re all caught up.' : 'No recent movies to rate yet.'}
+        </div>
+        <div className="rate-movie-empty-copy">
+          {recentMovies.length > 0
+            ? 'New movies will appear here when they’re added to the Movies list.'
+            : 'Movies from the last three months will appear here when they’re added.'}
+        </div>
+      </div>
+    );
+  }
+
+  const tags = [
+    movie.sessionTheme,
+    movie.ratingScale,
+  ].filter(Boolean).filter((tag, i, all) => all.indexOf(tag) === i);
+
+  async function saveMovieRating(member, score) {
+    await dbSaveRating(movie.id, member, score);
+    const nextRatings = { ...ratings, [movie.id]: { ...(ratings?.[movie.id] || {}), [member]: score } };
+    if (setRatings) setRatings(nextRatings);
+    setSaved(true);
+    setRatingOpen(false);
+    setIndex(0);
+  }
+
+  function skipMovie() {
+    const nextSkippedMovieIds = [...new Set([...skippedMovieIds.map(String), String(movie.id)])];
+    try { localStorage.setItem(skippedStorageKey, JSON.stringify(nextSkippedMovieIds)); }
+    catch (_) {}
+    setSkippedMovieIds(nextSkippedMovieIds);
+    setRatingOpen(false);
+    setSaved(false);
+    setIndex(0);
+  }
+
+  return (
+    <section className="rate-month-section">
+      <div className="rate-month-heading">
+        <div>
+          <div className="rate-kicker">Last three months</div>
+          <div className="rate-month-title">Rate your unrated movies</div>
+        </div>
+        <div className="rate-progress-label">{index + 1} of {monthMovies.length}</div>
+      </div>
+      <div className="rate-progress"><div style={{width:`${Math.round(((index + (saved ? 1 : 0)) / monthMovies.length) * 100)}%`}} /></div>
+
+      <article className="rate-movie-card">
+        <div className="rate-movie-poster-wrap">
+          {movie.poster
+            ? <img className="rate-movie-poster" src={movie.poster} alt={movie.title} />
+            : <div className="rate-movie-poster rate-movie-poster-placeholder">🎬</div>}
+        </div>
+        <div className="rate-movie-body">
+          <div className="rate-movie-title">{movie.title}</div>
+          {movie.year && <div className="rate-movie-year">{movie.year}</div>}
+          {tags.length > 0 && (
+            <div className="rate-movie-tags">
+              {tags.map(tag => <span key={tag} className="rate-movie-tag">{tag}</span>)}
+            </div>
+          )}
+          {!saved && (
+            <div className="rate-movie-actions">
+              <button className="rate-movie-rate-btn" onClick={() => setRatingOpen(true)}>Rate</button>
+              <button className="rate-movie-skip-btn" onClick={skipMovie}>Skip</button>
+            </div>
+          )}
+          {ratingOpen && !saved && (
+            <HomeRatingArea
+              movieId={movie.id}
+              movieRatings={ratings?.[movie.id] || {}}
+              onSave={saveMovieRating}
+              openByDefault
+            />
+          )}
+        </div>
+      </article>
+      {saved && <div className="rate-saved">✓ Rating saved</div>}
+    </section>
+  );
+}
+
+// ─── ROUND WORKFLOW PANEL ────────────────────────────────────────────────────
+function roundPhaseIsOpen(phase) {
+  return phase?.status === 'OPEN' && (!phase.opens_at || new Date(phase.opens_at) <= new Date());
+}
+
+function makeRoundPreview(monthKey) {
+  return {
+    preview: true,
+    round: { id: 'preview-round', month_key: monthKey || 'Preview Round', mode: null },
+    phases: [{ id: 'preview-category', phase_type: 'CATEGORY_SUBMISSIONS', status: 'OPEN' }],
+    categorySubmissions: [], categorySpins: [], movieSubmissions: [], entries: [], matchups: [], votes: [],
+    notifications: [{ title: 'Preview round', body: 'Submit a category for the next movie round →' }],
+  };
+}
+
+function RoundWorkflowPanel({ workflow, onUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
+  const [category, setCategory] = useState('');
+  const [spinResult, setSpinResult] = useState(null);
+  const [movieOne, setMovieOne] = useState(null);
+  const [movieTwo, setMovieTwo] = useState(null);
+  const [movieOneQuery, setMovieOneQuery] = useState('');
+  const [movieTwoQuery, setMovieTwoQuery] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelDragging, setWheelDragging] = useState(false);
+  const wheelDrag = useRef(null);
+  const activePhase = workflow?.phases?.find(roundPhaseIsOpen);
+  const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
+  const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
+
+  useEffect(() => {
+    setCategory(existing?.raw_text || '');
+    const toMovie = row => row ? {
+      title: row.title, year: row.year || '', poster: row.poster || null, tmdbId: row.tmdb_id || null,
+    } : null;
+    setMovieOne(toMovie(existingMovies.find(row => row.slot === 1)));
+    setMovieTwo(toMovie(existingMovies.find(row => row.slot === 2)));
+    setMovieOneQuery(existingMovies.find(row => row.slot === 1)?.title || '');
+    setMovieTwoQuery(existingMovies.find(row => row.slot === 2)?.title || '');
+    setSpinResult(null);
+    setWheelRotation(0);
+    setWheelDragging(false);
+    wheelDrag.current = null;
+  }, [workflow?.round?.id, activePhase?.id, currentUser?.id]);
+
+  if (!workflow || !activePhase) return null;
+  if (activePhase.phase_type === 'BRACKET') return null;
+
+  const savedSpin = workflow.categorySpins.find(row => row.member_id === currentUser?.id);
+  const categoryCounts = Object.entries(workflow.categorySubmissions.reduce((counts, row) => {
+    counts[row.normalized_text] = (counts[row.normalized_text] || 0) + 1;
+    return counts;
+  }, {}));
+
+  async function submitCategory() {
+    if (!currentUser?.id || !category.trim()) return;
+    setSaving(true); setError('');
+    try {
+      if (workflow.preview) {
+        const row = { id: `preview-category-${currentUser.id}`, member_id: currentUser.id, raw_text: category.trim(), normalized_text: category.trim().toLowerCase() };
+        onUpdate({ ...workflow, categorySubmissions: [...workflow.categorySubmissions.filter(item => item.member_id !== currentUser.id), row] });
+        setCategory('');
+        setSaving(false);
+        return;
+      }
+      const saved = await dbSubmitCategory(activePhase.id, currentUser.id, category);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+      setCategory('');
+    } catch (e) { setError(e.message || 'Could not save your submission.'); }
+    setSaving(false);
+  }
+
+  async function spinCategory() {
+    if (!currentUser?.id) return;
+    setSaving(true); setError('');
+    setWheelSpinning(true);
+    setWheelRotation(rotation => rotation + 1080 + Math.floor(Math.random() * 360));
+    try {
+      if (workflow.preview) {
+        const result = { id: `preview-spin-${currentUser.id}`, member_id: currentUser.id, result_category: categoryCounts[0]?.[0] || 'Preview category', result_weight: 1 };
+        await new Promise(resolve => setTimeout(resolve, 1100));
+        onUpdate({ ...workflow, categorySpins: [...workflow.categorySpins.filter(item => item.member_id !== currentUser.id), result] });
+        setSpinResult(result);
+        setWheelSpinning(false);
+        setSaving(false);
+        return;
+      }
+      const result = await dbSpinCategory(activePhase.id, currentUser.id);
+      setSpinResult(result);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not record your spin.'); }
+    setWheelSpinning(false);
+    setSaving(false);
+  }
+
+  function wheelPointerDown(event) {
+    if (saving || spinResult || savedSpin || !currentUser?.id) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    wheelDrag.current = {
+      pointerId: event.pointerId,
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+      lastAngle: Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2)),
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setWheelDragging(true);
+  }
+
+  function wheelPointerMove(event) {
+    const drag = wheelDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const angle = Math.atan2(event.clientY - drag.centerY, event.clientX - drag.centerX);
+    let delta = (angle - drag.lastAngle) * 180 / Math.PI;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    if (Math.abs(delta) > 0.1) drag.moved = true;
+    drag.lastAngle = angle;
+    setWheelRotation(rotation => rotation + delta);
+  }
+
+  function wheelPointerUp(event) {
+    const drag = wheelDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const shouldSpin = drag.moved;
+    wheelDrag.current = null;
+    setWheelDragging(false);
+    if (shouldSpin) spinCategory();
+  }
+
+  async function saveMovies() {
+    if (!currentUser?.id || !movieOne || !movieTwo) return;
+    setSaving(true); setError('');
+    try {
+      if (workflow.preview) {
+        const rows = [
+          { id: `preview-movie-${currentUser.id}-1`, member_id: currentUser.id, slot: 1, title: movieOne.title, year: movieOne.year, poster: movieOne.poster },
+          { id: `preview-movie-${currentUser.id}-2`, member_id: currentUser.id, slot: 2, title: movieTwo.title, year: movieTwo.year, poster: movieTwo.poster },
+        ];
+        onUpdate({ ...workflow, movieSubmissions: [...workflow.movieSubmissions.filter(item => item.member_id !== currentUser.id), ...rows] });
+        setSaving(false);
+        return;
+      }
+      await dbSubmitRoundMovie(activePhase.id, currentUser.id, 1, movieOne);
+      await dbSubmitRoundMovie(activePhase.id, currentUser.id, 2, movieTwo);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not save both movies.'); }
+    setSaving(false);
+  }
+
+  return (
+    <section className="round-workflow-panel">
+      <div className="rate-kicker">New round</div>
+      <div className="round-workflow-title">
+        {activePhase.phase_type === 'CATEGORY_SUBMISSIONS' ? 'Submit a category' : activePhase.phase_type.replaceAll('_', ' ')}
+      </div>
+      <div className="round-workflow-copy">
+        {activePhase.phase_type === 'CATEGORY_SUBMISSIONS'
+          ? 'Suggest a genre or category for the next movie round.'
+          : 'This round is active. Your next action will appear here.'}
+      </div>
+      {activePhase.phase_type === 'CATEGORY_SUBMISSIONS' && (
+        <>
+          <input className="form-input" value={category} onChange={e => setCategory(e.target.value)}
+            placeholder={existing ? existing.raw_text : 'e.g. courtroom dramas, road movies…'} maxLength="120" />
+          <button className="home-save-btn" onClick={submitCategory} disabled={!category.trim() || !currentUser?.id || saving}>
+            {saving ? 'Saving…' : existing ? 'Update submission' : 'Submit category'}
+          </button>
+          {existing && <div className="round-workflow-note">Your current submission is saved and editable until this phase closes.</div>}
+        </>
+      )}
+      {activePhase.phase_type === 'CATEGORY_SPIN' && (
+        <>
+          <div className="round-wheel-stage">
+            <div className="round-wheel-pointer" aria-hidden="true" />
+            <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}${wheelDragging ? ' dragging' : ''}`} role="button"
+              tabIndex={spinResult || savedSpin ? -1 : 0}
+              aria-label="Grab and spin the category wheel"
+              onPointerDown={wheelPointerDown}
+              onPointerMove={wheelPointerMove}
+              onPointerUp={wheelPointerUp}
+              onPointerCancel={wheelPointerUp}
+              onKeyDown={event => { if ((event.key === 'Enter' || event.key === ' ') && !saving && !spinResult && !savedSpin) { event.preventDefault(); spinCategory(); } }}
+              style={{
+              transform: `rotate(${wheelRotation}deg)`,
+              background: categoryCounts.length
+                ? `conic-gradient(${categoryCounts.map(([name, count], index) => {
+                    const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+                    const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+                    const end = (start + count / total * 360).toFixed(2);
+                    return `${['#f5c518', '#8ec5e6', '#f2b5d4', '#b8d8ba'][index % 4]} ${start.toFixed(2)}deg ${end}deg`;
+                  }).join(', ')})`
+                : 'conic-gradient(var(--cream) 0 360deg)'
+            }}>
+              <div className="round-wheel-labels" aria-hidden="true">
+                {categoryCounts.map(([name, count], index) => {
+                  const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+                  const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+                  const end = (start + count / total * 360);
+                  const midpoint = start + (end - start) / 2;
+                  const shortName = name.length > 15 ? `${name.slice(0, 14)}…` : name;
+                  return <span key={name} className="round-wheel-label"
+                    title={name}
+                    style={{ transform: `translate(-50%, -50%) rotate(${midpoint}deg) translateY(-65px) rotate(90deg)` }}>
+                    {shortName}
+                  </span>;
+                })}
+              </div>
+              <span className="round-wheel-center">{wheelDragging ? 'RELEASE' : 'SPIN'}</span>
+            </div>
+          </div>
+          {!spinResult && !savedSpin && <div className="round-workflow-note round-wheel-hint">Grab and drag the wheel, or use the button below.</div>}
+          <div className="round-category-list">
+            {categoryCounts.map(([name, count]) => (
+              <div className="round-category-row" key={name}><span>{name}</span><strong>{count}</strong></div>
+            ))}
+          </div>
+          {(spinResult || savedSpin) ? (
+            <div className="round-spin-result">Your spin: <strong>{(spinResult || savedSpin).result_category}</strong></div>
+          ) : (
+            <button className="home-save-btn" onClick={spinCategory} disabled={saving || !currentUser?.id}>
+              {saving ? 'Spinning…' : 'Spin the wheel'}
+            </button>
+          )}
+        </>
+      )}
+      {activePhase.phase_type === 'MOVIE_SUBMISSIONS' && (
+        <>
+          <div className="round-movie-slot-label">Movie 1</div>
+          <MovieSearch value={movieOneQuery} onChange={value => { setMovieOneQuery(value); setMovieOne(null); }} onSelect={setMovieOne} multi placeholder="Search for your first movie…" />
+          <div className="round-movie-slot-label">Movie 2</div>
+          <MovieSearch value={movieTwoQuery} onChange={value => { setMovieTwoQuery(value); setMovieTwo(null); }} onSelect={setMovieTwo} multi placeholder="Search for your second movie…" />
+          <button className="home-save-btn" onClick={saveMovies} disabled={saving || !movieOne || !movieTwo || !currentUser?.id}>
+            {saving ? 'Saving…' : existingMovies.length === 2 ? 'Update both movies' : 'Submit both movies'}
+          </button>
+          <div className="round-workflow-note">Both movie selections are required. You can edit them until this phase closes.</div>
+        </>
+      )}
+      {error && <div className="round-workflow-error">{error}</div>}
+      {workflow.preview && (
+        <button className="btn-secondary" style={{marginTop:12,width:'100%'}} onClick={() => {
+          const order = ['CATEGORY_SUBMISSIONS', 'CATEGORY_SPIN', 'MOVIE_SUBMISSIONS', 'BRACKET'];
+          const index = order.indexOf(activePhase.phase_type);
+          const next = order[index + 1];
+          if (!next) return;
+          onUpdate({ ...workflow, phases: [{ id: `preview-${next}`, phase_type: next, status: 'OPEN' }] });
+          setSpinResult(null);
+        }}>
+          Preview next stage →
+        </button>
+      )}
+    </section>
+  );
+}
+
+function RoundBracketPanel({ workflow, onUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!workflow) return null;
+  const activePhase = workflow.phases.find(roundPhaseIsOpen);
+  if (!activePhase || activePhase.phase_type !== 'BRACKET') return null;
+
+  const openMatchups = workflow.matchups.filter(matchup => matchup.status === 'OPEN');
+  const currentRound = openMatchups.length ? Math.min(...openMatchups.map(matchup => matchup.bracket_round_number)) : null;
+  const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
+  const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
+
+  function entryLabel(entry) {
+    if (!entry) return 'BYE';
+    return entry.entry_type === 'PAIR'
+      ? `${entry.movie_a_title} + ${entry.movie_b_title}`
+      : entry.movie_a_title;
+  }
+
+  async function vote(matchup, entryId) {
+    if (!currentUser?.id) return;
+    setSaving(true); setError('');
+    try {
+      await dbVoteRoundMatchup(matchup.id, currentUser.id, entryId);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not save your vote.'); }
+    setSaving(false);
+  }
+
+  return (
+    <section className="round-workflow-panel">
+      <div className="rate-kicker">Bracket round {currentRound || 1}</div>
+      <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
+      <div className="round-workflow-copy">You can change your vote until this round closes.</div>
+      {matchups.map(matchup => {
+        const currentVote = workflow.votes.find(vote => vote.matchup_id === matchup.id && vote.member_id === currentUser?.id);
+        return (
+          <div className="round-matchup" key={matchup.id}>
+            {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map(entryId => (
+              <button key={entryId}
+                className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
+                onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
+                {entryLabel(entries[entryId])}
+              </button>
+            ))}
+          </div>
+        );
+      })}
+      {!matchups.length && <div className="round-workflow-note">This bracket round is waiting for the next matchups.</div>}
+      {error && <div className="round-workflow-error">{error}</div>}
+    </section>
+  );
+}
+
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
 function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const { currentUser } = React.useContext(UserContext);
@@ -1103,6 +1649,15 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
 
   return (
     <div className="poll-card">
+      <RateCardStack
+        poll={localPoll}
+        options={optionsWithCounts}
+        selectedMember={selectedMember}
+        onVote={handleVoteForOption}
+        onAddAnswer={() => setShowAddAnswer(true)}
+      />
+      <details className="rate-details">
+        <summary>See all options and results</summary>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:14}}>
         {editingQuestion ? (
           <div style={{flex:1}}>
@@ -1217,6 +1772,8 @@ function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
           </div>
         </div>
       )}
+
+      </details>
 
       {adminAuthed && (
         <div style={{borderTop:'1px dashed var(--cream)',marginTop:14,paddingTop:10,textAlign:'right'}}>
@@ -1497,12 +2054,66 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+function PastRoundCard({ round }) {
+  const [expanded, setExpanded] = useState(false);
+  const events = round.events || [];
+  return (
+    <article className="past-poll-card">
+      <button className="past-poll-header" onClick={() => setExpanded(value => !value)}>
+        <span>
+          <span className="past-poll-label">Round · {round.mode || 'Mode not selected'}</span>
+          <strong>{round.month_key}</strong>
+        </span>
+        <span className="past-poll-chevron">{expanded ? '−' : '+'}</span>
+      </button>
+      {expanded && (
+        <div className="past-poll-body">
+          <div className="round-workflow-note">{round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
+          {round.categorySubmissions?.length > 0 && (
+            <>
+              <div className="round-history-heading">Category submissions</div>
+              {round.categorySubmissions.map(row => (
+                <div className="round-category-row" key={row.id}><span>{row.raw_text}</span></div>
+              ))}
+            </>
+          )}
+          {round.categorySpins?.length > 0 && (
+            <>
+              <div className="round-history-heading">Wheel results</div>
+              {round.categorySpins.map(row => (
+                <div className="round-category-row" key={row.id}><span>{row.result_category}</span><strong>{row.result_weight}× weight</strong></div>
+              ))}
+            </>
+          )}
+          {round.movieSubmissions?.length > 0 && (
+            <>
+              <div className="round-history-heading">Movie submissions</div>
+              {round.movieSubmissions.map(row => (
+                <div className="round-category-row" key={row.id}><span>Movie {row.slot}</span><strong>{row.title}</strong></div>
+              ))}
+            </>
+          )}
+          {round.entries?.length > 0 && (
+            <div className="round-workflow-note">Bracket entries: {round.entries.length} · Matchups: {round.matchups?.length || 0}</div>
+          )}
+          <div className="round-history-heading">Activity log</div>
+          {events.map(event => (
+            <div className="round-category-row" key={event.id}>
+              <span>{event.event_type.replaceAll('_', ' ')}</span>
+              <small>{new Date(event.created_at).toLocaleString()}</small>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function PollPage({ polls, bracket, bracketHistory, roundHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove, roundWorkflow, onRoundWorkflowUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
   const [showBracketSetup, setShowBracketSetup] = useState(false);
-  const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState('');
@@ -1519,48 +2130,26 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
       const newPoll = await dbCreatePoll(newQuestion.trim(), newPollAsker);
       if (onPollsAdd) onPollsAdd(newPoll);
       setNewQuestion('');
-      setShowCreatePoll(false);
+      setTab('live');
     } catch(e) { setCreateErr('Error: ' + e.message); }
     setCreating(false);
   }
 
   return (
     <div className="main">
-      <div className="page-title">Poll</div>
-      <div className="page-subtitle">Vote on what's next</div>
+      <div className="page-title">Rate</div>
+      <div className="page-subtitle">Make the next pick in a few taps</div>
 
       <div className="ratings-tabs" style={{marginBottom:20}}>
         <button className={`ratings-tab ${tab==='live'?'active':''}`} onClick={()=>setTab('live')}>Live</button>
         <button className={`ratings-tab ${tab==='past'?'active':''}`} onClick={()=>setTab('past')}>Past</button>
+        <button className={`ratings-tab ${tab==='create'?'active':''}`} onClick={()=>setTab('create')}>Create</button>
       </div>
 
       {tab === 'live' && (
         <>
-          {!activeBracket && !activePoll && !showCreatePoll && (
-            <button className="setup-bracket-btn" style={{marginTop:0,padding:'14px 16px',fontSize:'1rem',marginBottom:16}}
-              onClick={()=>setShowCreatePoll(true)}>
-              + Ask a question
-            </button>
-          )}
-
-          {!activeBracket && showCreatePoll && (
-            <div style={{marginBottom:16,background:'white',border:'2px solid var(--blue)',borderRadius:8,padding:16,boxShadow:'3px 3px 0 var(--yellow)'}}>
-              <div style={{fontWeight:700,marginBottom:12,fontSize:'1rem'}}>New Poll</div>
-              <ActingAs />
-              <label className="form-label">Your question</label>
-              <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
-                placeholder="Ask the group anything…"
-                onKeyDown={e=>e.key==='Enter'&&handleCreatePoll()} />
-              {createErr && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{createErr}</div>}
-              <div style={{display:'flex',gap:8}}>
-                <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll}
-                  disabled={!newQuestion.trim()||!newPollAsker||creating}>
-                  {creating ? '…' : 'Post Poll'}
-                </button>
-                <button className="home-cancel-btn" onClick={()=>{setShowCreatePoll(false);setNewQuestion('');setCreateErr('');}}>Cancel</button>
-              </div>
-            </div>
-          )}
+          <RoundWorkflowPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
+          <RoundBracketPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
 
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
@@ -1570,12 +2159,35 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
               onDelete={async () => {
                 try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
               }} />
-          ) : (
-            !showCreatePoll && <div className="empty-state"><div>No active poll yet.</div></div>
+          ) : null}
+          <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
+          {!activeBracket && !activePoll && !roundWorkflow?.phases?.some(roundPhaseIsOpen) && (
+            <div className="empty-state"><div>No active action yet.</div></div>
           )}
+        </>
+      )}
+
+      {tab === 'create' && (
+        <div className="rate-create-options">
+          <div className="rate-create-option-card">
+            <div className="rate-create-option-title">Create a new poll</div>
+            <ActingAs />
+            <label className="form-label">Your question</label>
+            <input className="form-input" value={newQuestion} onChange={e=>setNewQuestion(e.target.value)}
+              placeholder="Ask the group anything…"
+              onKeyDown={e=>e.key==='Enter'&&handleCreatePoll()} />
+            {createErr && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{createErr}</div>}
+            <div style={{display:'flex',gap:8}}>
+              <button className="home-save-btn" style={{flex:1,padding:'8px'}} onClick={handleCreatePoll}
+                disabled={!newQuestion.trim()||!newPollAsker||creating}>
+                {creating ? '…' : 'Post question'}
+              </button>
+              <button className="home-cancel-btn" onClick={()=>{setNewQuestion('');setCreateErr('');}}>Clear</button>
+            </div>
+          </div>
 
           {adminAuthed && !activeBracket && !showBracketSetup && (
-            <button className="setup-bracket-btn" style={{marginTop:8}} onClick={()=>setShowBracketSetup(true)}>
+            <button className="setup-bracket-btn" style={{marginTop:0}} onClick={()=>setShowBracketSetup(true)}>
               + Set Up Bracket
             </button>
           )}
@@ -1588,21 +2200,23 @@ function PollPage({ polls, bracket, bracketHistory, members, onPollUpdate, onBra
                   await dbSaveBracket(newBracket);
                   onBracketUpdate(newBracket);
                   setShowBracketSetup(false);
+                  setTab('live');
                 } catch(e) { console.error('Error creating bracket:', e); }
               }}
               onCancel={() => setShowBracketSetup(false)}
             />
           )}
-        </>
+        </div>
       )}
 
       {tab === 'past' && (
         <>
+          {(roundHistory || []).map(round => <PastRoundCard key={round.id} round={round} />)}
           {(bracketHistory || []).map(record => (
             <PastBracketCard key={record.id} bracket={record.data} finishedAt={record.finished_at}
               onViewFull={() => onNavigate(`bracket/${record.id}`)} />
           ))}
-          {pastPolls.length === 0 && (bracketHistory || []).length === 0 && (
+          {pastPolls.length === 0 && (bracketHistory || []).length === 0 && (roundHistory || []).length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
               <div>No past polls yet.</div>
@@ -1832,9 +2446,187 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
+  const [roundAdminToken, setRoundAdminToken] = useState('');
+  const [roundAdminAuthenticated, setRoundAdminAuthenticated] = useState(false);
+  const [stageMode, setStageMode] = useState('');
+  const [stageOpening, setStageOpening] = useState(false);
+  const [reopenPhaseId, setReopenPhaseId] = useState('');
+  const adminReady = Boolean(roundAdminToken || roundAdminAuthenticated);
+
+  useEffect(() => {
+    dbAdminSessionStatus()
+      .then(result => setRoundAdminAuthenticated(Boolean(result.authenticated)))
+      .catch(() => {});
+  }, []);
+
+  const pacificMonth = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
+  }).format(new Date());
+  const [roundMonth, setRoundMonth] = useState(() => localStorage.getItem('mc_round_draft_month') || pacificMonth);
+  const [roundMode, setRoundMode] = useState(() => localStorage.getItem('mc_round_draft_mode') || '');
+  const [roundDuration, setRoundDuration] = useState(() => localStorage.getItem('mc_round_draft_duration') || '24');
+
+  function saveRoundDraft() {
+    localStorage.setItem('mc_round_draft_month', roundMonth.trim());
+    if (roundMode) localStorage.setItem('mc_round_draft_mode', roundMode);
+    else localStorage.removeItem('mc_round_draft_mode');
+    localStorage.setItem('mc_round_draft_duration', roundDuration);
+    showMsg('Round setup saved on this staging browser. No database round was created.');
+  }
+
+  function clearRoundDraft() {
+    localStorage.removeItem('mc_round_draft_month');
+    localStorage.removeItem('mc_round_draft_mode');
+    localStorage.removeItem('mc_round_draft_duration');
+    setRoundMonth(pacificMonth);
+    setRoundMode('');
+    setRoundDuration('24');
+    showMsg('Round setup draft cleared.');
+  }
+
+  async function openMovieStage() {
+    if (!roundWorkflow?.round?.id || !stageMode || !currentUser?.id) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_open_movie_stage', {
+        p_round_id: roundWorkflow.round.id,
+        p_mode: stageMode,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      showMsg(`Movie stage opened in ${stageMode} mode.`);
+    } catch (e) {
+      showMsg('Could not open movie stage: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function createActualRound() {
+    if (!roundMonth.trim() || !adminReady || !currentUser?.id) return;
+    if (!window.confirm('This creates a real shared round in Supabase. It will be visible to the club, though it will not change Cloudflare code. Continue?')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_create_round', {
+        p_month_key: roundMonth.trim(),
+        p_mode: null,
+        p_created_by: currentUser.id,
+        p_open_at: null,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Real round created. Category submissions are now open.');
+    } catch (e) {
+      showMsg('Could not create round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function advanceActivePhase() {
+    const activePhase = roundWorkflow?.phases?.find(roundPhaseIsOpen);
+    if (!activePhase || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
+    if (activePhase.phase_type === 'CATEGORY_SPIN') {
+      showMsg('Choose Paired or Scrambled before opening the movie stage.', 'error');
+      return;
+    }
+    if (!window.confirm(`Advance ${activePhase.phase_type.replaceAll('_', ' ')} now?`)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_advance_phase', {
+        p_phase_id: activePhase.id,
+        p_actor_member_id: currentUser.id,
+        p_reason: 'admin',
+      }, roundAdminToken);
+      if (activePhase.phase_type === 'MOVIE_SUBMISSIONS') {
+        await dbAdminRoundAction('mc_build_bracket', {
+          p_round_id: roundWorkflow.round.id,
+          p_actor_member_id: currentUser.id,
+        }, roundAdminToken);
+      }
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Round advanced.');
+    } catch (e) {
+      showMsg('Could not advance round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function resolveOpenMatchups() {
+    const openMatchups = (roundWorkflow?.matchups || []).filter(matchup => matchup.status === 'OPEN');
+    if (!openMatchups.length || !adminReady || !currentUser?.id) return;
+    if (!window.confirm(`Resolve ${openMatchups.length} open matchup${openMatchups.length === 1 ? '' : 's'} now? The server will count votes and randomly resolve ties.`)) return;
+    setStageOpening(true);
+    try {
+      for (const matchup of openMatchups) {
+        await dbAdminRoundAction('mc_resolve_matchup', {
+          p_matchup_id: matchup.id,
+          p_actor_member_id: currentUser.id,
+          p_reason: 'admin',
+        }, roundAdminToken);
+      }
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Open matchups resolved.');
+    } catch (e) {
+      showMsg('Could not resolve matchups: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function reopenPhase() {
+    if (!reopenPhaseId || !adminReady || !currentUser?.id) return;
+    if (!window.confirm('Reopen this phase for another 24 hours?')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_reopen_phase', {
+        p_phase_id: Number(reopenPhaseId),
+        p_actor_member_id: currentUser.id,
+        p_reason: 'admin reopened from Round settings',
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      setReopenPhaseId('');
+      showMsg('Phase reopened for another 24 hours.');
+    } catch (e) {
+      showMsg('Could not reopen phase: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function runTimerProcessor() {
+    if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_process_due_rounds', {}, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Timer processor ran successfully.');
+    } catch (e) {
+      showMsg('Could not run timer processor: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function undoLastRoundResult() {
+    if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
+    if (!window.confirm('Undo the latest wheel or bracket result? This reopens only the latest undoable result and records the admin action.')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_undo_last_round_result', {
+        p_round_id: roundWorkflow.round.id,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Latest round result undone.');
+    } catch (e) {
+      showMsg('Could not undo the latest result: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
 
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
@@ -2275,9 +3067,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav">
-          {['movies','members','poll','bracket','ratings','movienight','thismonth'].map(s => (
+          {['movies','members','poll','round','bracket','ratings','movienight','thismonth'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'round' ? 'Round' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
             </button>
           ))}
         </div>
@@ -2443,6 +3235,119 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   </div>
                 ))}
               </>
+            )}
+          </>
+        )}
+
+        {section === 'round' && (
+          <>
+            <div className="admin-section-title">New Round Setup</div>
+            <div className="round-workflow-note" style={{marginBottom:14}}>
+              Staging setup only. This saves a local draft in this browser and does not create or expose a round to the club yet. The bracket mode is chosen after the category wheel.
+            </div>
+            <label className="form-label">Round label</label>
+            <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
+            <label className="form-label">Bracket mode</label>
+            <select className="form-input" value={roundMode} onChange={e => setRoundMode(e.target.value)}>
+              <option value="">Choose after category wheel</option>
+              <option value="paired">Paired — permanent two-movie teams</option>
+              <option value="scrambled">Scrambled — individual movies</option>
+            </select>
+            <label className="form-label">Default phase duration</label>
+            <select className="form-input" value={roundDuration} onChange={e => setRoundDuration(e.target.value)}>
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+            </select>
+            <div className="round-workflow-note" style={{marginTop:12}}>
+              Opens at 9:00 AM Pacific · minimum 3 responses · phases: category → spin → movies → bracket
+            </div>
+            <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
+            <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
+            <button className="btn-secondary" onClick={() => {
+              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
+              showMsg('Preview Round started in this browser only.');
+            }}>▶ Preview Submission Experience</button>
+            <div className="round-workflow-note" style={{marginTop:14}}>
+              When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
+            </div>
+            <button className="btn-primary" onClick={createActualRound}
+              disabled={!roundMonth.trim() || !adminReady || !currentUser?.id || stageOpening}>
+              {stageOpening ? 'Creating…' : 'Create Actual Round'}
+            </button>
+
+            <hr className="section-divider" />
+            <div className="admin-section-title">Active Round</div>
+            <label className="form-label">Round admin token</label>
+            <input className="form-input" type="password" value={roundAdminToken}
+              onChange={e => setRoundAdminToken(e.target.value)}
+              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
+            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; the site will keep a secure browser session for future visits.'}</div>
+            {roundWorkflow?.round ? (
+              <>
+                <div className="round-workflow-note">
+                  <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.preview ? 'Local preview' : (roundWorkflow.round.mode || 'Mode not selected')}
+                </div>
+                <div className="round-workflow-note">
+                  Current phase: {roundWorkflow.phases?.find(roundPhaseIsOpen)?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
+                  {roundWorkflow.phases?.find(roundPhaseIsOpen)?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(roundPhaseIsOpen).closes_at).toLocaleString()}`}
+                </div>
+                {roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'CATEGORY_SPIN') && (
+                  <>
+                    <label className="form-label">Choose movie bracket mode</label>
+                    <select className="form-input" value={stageMode} onChange={e => setStageMode(e.target.value)}>
+                      <option value="">Choose a mode…</option>
+                      <option value="paired">Paired — permanent two-movie teams</option>
+                      <option value="scrambled">Scrambled — individual movies</option>
+                    </select>
+                    <button className="btn-primary" onClick={openMovieStage}
+                      disabled={!stageMode || !adminReady || !currentUser?.id || stageOpening}>
+                      {stageOpening ? 'Opening…' : 'Open up movie stage'}
+                    </button>
+                  </>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type !== 'CATEGORY_SPIN' && p.phase_type !== 'BRACKET') && (
+                  <button className="btn-secondary" onClick={advanceActivePhase}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
+                    {stageOpening ? 'Advancing…' : 'Advance current phase'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
+                  <button className="btn-secondary" onClick={resolveOpenMatchups}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
+                    {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'CLOSED') && (
+                  <>
+                    <label className="form-label">Reopen a closed phase</label>
+                    <select className="form-input" value={reopenPhaseId} onChange={e => setReopenPhaseId(e.target.value)}>
+                      <option value="">Choose a phase…</option>
+                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED').map(phase => (
+                        <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_', ' ')}</option>
+                      ))}
+                    </select>
+                    <button className="btn-secondary" onClick={reopenPhase}
+                      disabled={!reopenPhaseId || !adminReady || !currentUser?.id || stageOpening}>
+                      {stageOpening ? 'Reopening…' : 'Reopen phase'}
+                    </button>
+                  </>
+                )}
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary" onClick={runTimerProcessor}
+                    disabled={!adminReady || stageOpening}>
+                    {stageOpening ? 'Running…' : 'Run timer processor now'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary" onClick={undoLastRoundResult}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
+                    Undo latest wheel/bracket result
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
             )}
           </>
         )}

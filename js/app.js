@@ -32,6 +32,8 @@ function App() {
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
   const [currentEvent, setCurrentEvent] = useState(null);
+  const [roundWorkflow, setRoundWorkflow] = useState(null);
+  const [roundHistory, setRoundHistory] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => readUserCookie());
@@ -92,7 +94,7 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData, roundHistoryData } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
@@ -102,6 +104,8 @@ function App() {
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
         if (currentMonthlyEvent) setCurrentEvent(currentMonthlyEvent);
+        if (roundWorkflowData) setRoundWorkflow(roundWorkflowData);
+        if (roundHistoryData) setRoundHistory(roundHistoryData);
       } catch(e) {
         console.error('Failed to load from Supabase:', e);
       }
@@ -158,13 +162,13 @@ function App() {
             <span className="nav-label">Next Club</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V9h16v12zM4 7V5h16v2H4z"/></svg></span>
           </button>
+          <button className={`nav-btn ${page==='poll'||page==='bracket'?'active':''}`} onClick={()=>setPage('poll')}>
+            <span className="nav-label">Rate</span>
+            <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></span>
+          </button>
           <button className={`nav-btn ${page==='ratings'?'active':''}`} onClick={()=>setPage('ratings')}>
             <span className="nav-label">Movies</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></span>
-          </button>
-          <button className={`nav-btn ${page==='poll'||page==='bracket'?'active':''}`} onClick={()=>setPage('poll')}>
-            <span className="nav-label">Poll</span>
-            <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></span>
           </button>
         </nav>
         <button className="user-chip" onClick={openUserPicker} title="Change identity">
@@ -176,16 +180,20 @@ function App() {
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
         bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
         onHideBracket={hideBracketFromCurrent}
-        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
+        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')}
+        roundWorkflow={roundWorkflow} onRoundClick={()=>setPage('poll')} />}
       {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies}
         ratings={ratings} setRatings={setRatings} members={members} adminAuthed={adminAuthed} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
-      {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Polls couldn't load right now</div></div>}>
+      {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Ratings couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
+          roundHistory={roundHistory}
+          alltime={alltime} ratings={ratings} setRatings={setRatings}
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
           onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
-          onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />
+          onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage}
+          roundWorkflow={roundWorkflow} onRoundWorkflowUpdate={setRoundWorkflow} />
       </ErrorBoundary>}
       {page === 'bracket' && <BracketReadOnlyPage
         bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}
@@ -214,6 +222,8 @@ function App() {
           polls={polls} setPolls={setPolls}
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
           currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
+          roundWorkflow={roundWorkflow}
+          onRoundWorkflowUpdate={setRoundWorkflow}
         />
       )}
 
