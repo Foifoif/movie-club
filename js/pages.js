@@ -1239,6 +1239,8 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   const [error, setError] = useState('');
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelDragging, setWheelDragging] = useState(false);
+  const wheelDrag = useRef(null);
   const activePhase = workflow?.phases?.find(phase => phase.status === 'OPEN');
   const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
   const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
@@ -1307,6 +1309,41 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     setSaving(false);
   }
 
+  function wheelPointerDown(event) {
+    if (saving || spinResult || savedSpin || !currentUser?.id) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    wheelDrag.current = {
+      pointerId: event.pointerId,
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+      lastAngle: Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2)),
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setWheelDragging(true);
+  }
+
+  function wheelPointerMove(event) {
+    const drag = wheelDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const angle = Math.atan2(event.clientY - drag.centerY, event.clientX - drag.centerX);
+    let delta = (angle - drag.lastAngle) * 180 / Math.PI;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    if (Math.abs(delta) > 0.1) drag.moved = true;
+    drag.lastAngle = angle;
+    setWheelRotation(rotation => rotation + delta);
+  }
+
+  function wheelPointerUp(event) {
+    const drag = wheelDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const shouldSpin = drag.moved;
+    wheelDrag.current = null;
+    setWheelDragging(false);
+    if (shouldSpin) spinCategory();
+  }
+
   async function saveMovies() {
     if (!currentUser?.id || !movieOne || !movieTwo) return;
     setSaving(true); setError('');
@@ -1353,7 +1390,15 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
         <>
           <div className="round-wheel-stage">
             <div className="round-wheel-pointer" aria-hidden="true" />
-            <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}`} style={{
+            <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}${wheelDragging ? ' dragging' : ''}`} role="button"
+              tabIndex={spinResult || savedSpin ? -1 : 0}
+              aria-label="Grab and spin the category wheel"
+              onPointerDown={wheelPointerDown}
+              onPointerMove={wheelPointerMove}
+              onPointerUp={wheelPointerUp}
+              onPointerCancel={wheelPointerUp}
+              onKeyDown={event => { if ((event.key === 'Enter' || event.key === ' ') && !saving && !spinResult && !savedSpin) { event.preventDefault(); spinCategory(); } }}
+              style={{
               transform: `rotate(${wheelRotation}deg)`,
               background: categoryCounts.length
                 ? `conic-gradient(${categoryCounts.map(([name, count], index) => {
@@ -1364,9 +1409,10 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
                   }).join(', ')})`
                 : 'conic-gradient(var(--cream) 0 360deg)'
             }}>
-              <span>SPIN</span>
+              <span>{wheelDragging ? 'RELEASE' : 'SPIN'}</span>
             </div>
           </div>
+          {!spinResult && !savedSpin && <div className="round-workflow-note round-wheel-hint">Grab and drag the wheel, or use the button below.</div>}
           <div className="round-category-list">
             {categoryCounts.map(([name, count]) => (
               <div className="round-category-row" key={name}><span>{name}</span><strong>{count}</strong></div>
