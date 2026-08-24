@@ -223,6 +223,7 @@ function App() {
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
           currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
           roundWorkflow={roundWorkflow}
+          onRoundWorkflowUpdate={setRoundWorkflow}
         />
       )}
 

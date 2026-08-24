@@ -1217,6 +1217,16 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
 }
 
 // ─── ROUND WORKFLOW PANEL ────────────────────────────────────────────────────
+function makeRoundPreview(monthKey) {
+  return {
+    preview: true,
+    round: { id: 'preview-round', month_key: monthKey || 'Preview Round', mode: null },
+    phases: [{ id: 'preview-category', phase_type: 'CATEGORY_SUBMISSIONS', status: 'OPEN' }],
+    categorySubmissions: [], categorySpins: [], movieSubmissions: [], entries: [], matchups: [], votes: [],
+    notifications: [{ title: 'Preview round', body: 'Submit a category for the next movie round →' }],
+  };
+}
+
 function RoundWorkflowPanel({ workflow, onUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const [category, setCategory] = useState('');
@@ -1256,6 +1266,13 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (!currentUser?.id || !category.trim()) return;
     setSaving(true); setError('');
     try {
+      if (workflow.preview) {
+        const row = { id: `preview-category-${currentUser.id}`, member_id: currentUser.id, raw_text: category.trim(), normalized_text: category.trim().toLowerCase() };
+        onUpdate({ ...workflow, categorySubmissions: [...workflow.categorySubmissions.filter(item => item.member_id !== currentUser.id), row] });
+        setCategory('');
+        setSaving(false);
+        return;
+      }
       const saved = await dbSubmitCategory(activePhase.id, currentUser.id, category);
       const next = await dbLoadRoundWorkflow();
       if (onUpdate && next) onUpdate(next);
@@ -1268,6 +1285,13 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (!currentUser?.id) return;
     setSaving(true); setError('');
     try {
+      if (workflow.preview) {
+        const result = { id: `preview-spin-${currentUser.id}`, member_id: currentUser.id, result_category: categoryCounts[0]?.[0] || 'Preview category', result_weight: 1 };
+        onUpdate({ ...workflow, categorySpins: [...workflow.categorySpins.filter(item => item.member_id !== currentUser.id), result] });
+        setSpinResult(result);
+        setSaving(false);
+        return;
+      }
       const result = await dbSpinCategory(activePhase.id, currentUser.id);
       setSpinResult(result);
       const next = await dbLoadRoundWorkflow();
@@ -1280,6 +1304,15 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (!currentUser?.id || !movieOne || !movieTwo) return;
     setSaving(true); setError('');
     try {
+      if (workflow.preview) {
+        const rows = [
+          { id: `preview-movie-${currentUser.id}-1`, member_id: currentUser.id, slot: 1, title: movieOne.title, year: movieOne.year, poster: movieOne.poster },
+          { id: `preview-movie-${currentUser.id}-2`, member_id: currentUser.id, slot: 2, title: movieTwo.title, year: movieTwo.year, poster: movieTwo.poster },
+        ];
+        onUpdate({ ...workflow, movieSubmissions: [...workflow.movieSubmissions.filter(item => item.member_id !== currentUser.id), ...rows] });
+        setSaving(false);
+        return;
+      }
       await dbSubmitRoundMovie(activePhase.id, currentUser.id, 1, movieOne);
       await dbSubmitRoundMovie(activePhase.id, currentUser.id, 2, movieTwo);
       const next = await dbLoadRoundWorkflow();
@@ -1338,6 +1371,18 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
         </>
       )}
       {error && <div className="round-workflow-error">{error}</div>}
+      {workflow.preview && (
+        <button className="btn-secondary" style={{marginTop:12,width:'100%'}} onClick={() => {
+          const order = ['CATEGORY_SUBMISSIONS', 'CATEGORY_SPIN', 'MOVIE_SUBMISSIONS', 'BRACKET'];
+          const index = order.indexOf(activePhase.phase_type);
+          const next = order[index + 1];
+          if (!next) return;
+          onUpdate({ ...workflow, phases: [{ id: `preview-${next}`, phase_type: next, status: 'OPEN' }] });
+          setSpinResult(null);
+        }}>
+          Preview next stage →
+        </button>
+      )}
     </section>
   );
 }
@@ -2310,7 +2355,7 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
@@ -2995,6 +3040,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             </div>
             <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
             <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
+            <button className="btn-secondary" onClick={() => {
+              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
+              showMsg('Preview Round started in this browser only.');
+            }}>▶ Preview Submission Experience</button>
 
             <hr className="section-divider" />
             <div className="admin-section-title">Active Round</div>
@@ -3005,7 +3054,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
-                  <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.round.mode || 'Mode not selected'}
+                  <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.preview ? 'Local preview' : (roundWorkflow.round.mode || 'Mode not selected')}
                 </div>
                 <div className="round-workflow-note">
                   Current phase: {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
