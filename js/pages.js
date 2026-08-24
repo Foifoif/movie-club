@@ -2472,6 +2472,28 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function resolveOpenMatchups() {
+    const openMatchups = (roundWorkflow?.matchups || []).filter(matchup => matchup.status === 'OPEN');
+    if (!openMatchups.length || !roundAdminToken || !currentUser?.id) return;
+    if (!window.confirm(`Resolve ${openMatchups.length} open matchup${openMatchups.length === 1 ? '' : 's'} now? The server will count votes and randomly resolve ties.`)) return;
+    setStageOpening(true);
+    try {
+      for (const matchup of openMatchups) {
+        await dbAdminRoundAction('mc_resolve_matchup', {
+          p_matchup_id: matchup.id,
+          p_actor_member_id: currentUser.id,
+          p_reason: 'admin',
+        }, roundAdminToken);
+      }
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Open matchups resolved.');
+    } catch (e) {
+      showMsg('Could not resolve matchups: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -3152,6 +3174,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <button className="btn-secondary" onClick={advanceActivePhase}
                     disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Advancing…' : 'Advance current phase'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
+                  <button className="btn-secondary" onClick={resolveOpenMatchups}
+                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
                   </button>
                 )}
               </>
