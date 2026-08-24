@@ -2,7 +2,7 @@
 function pageFromPath() {
   const p = window.location.pathname.replace(/^\//, '').replace(/\/$/, '');
   if (p === 'ratings' || p.startsWith('ratings/') || p === 'watchlist' || p.startsWith('watchlist/')) return 'ratings';
-  if (p === 'poll' || p.startsWith('poll/')) return 'poll';
+  if (p === 'rate' || p.startsWith('rate/') || p === 'poll' || p.startsWith('poll/')) return 'poll';
   if (p === 'bracket' || p.startsWith('bracket/')) return 'bracket';
   if (p === 'this-month') return 'this-month';
   return 'home';
@@ -40,6 +40,14 @@ function App() {
   const [showUserPicker, setShowUserPicker] = useState(false);
   const [isInitialPick, setIsInitialPick] = useState(false);
 
+  useEffect(() => {
+    const path = window.location.pathname.replace(/^\//, '');
+    if (path === 'poll' || path.startsWith('poll/')) {
+      const suffix = path.slice('poll'.length);
+      window.history.replaceState(null, '', `/rate${suffix}`);
+    }
+  }, []);
+
   function openUserPicker() {
     setIsInitialPick(false);
     setShowUserPicker(true);
@@ -57,9 +65,12 @@ function App() {
   }
 
   function setPage(newPage) {
-    const path = newPage === 'home' ? '/' : `/${newPage}`;
+    const normalizedPage = newPage === 'poll' || newPage.startsWith('poll/')
+      ? `rate${newPage.slice('poll'.length)}`
+      : newPage;
+    const path = normalizedPage === 'home' ? '/' : `/${normalizedPage}`;
     window.history.pushState(null, '', path);
-    _setPage(newPage.split('/')[0]);
+    _setPage(normalizedPage.split('/')[0] === 'rate' ? 'poll' : normalizedPage.split('/')[0]);
     const bracketMatch = newPage.match(/^bracket\/(\d+)$/);
     setBracketViewId(bracketMatch ? parseInt(bracketMatch[1]) : null);
   }
@@ -162,7 +173,7 @@ function App() {
             <span className="nav-label">Next Club</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V9h16v12zM4 7V5h16v2H4z"/></svg></span>
           </button>
-          <button className={`nav-btn ${page==='poll'||page==='bracket'?'active':''}`} onClick={()=>setPage('poll')}>
+          <button className={`nav-btn ${page==='poll'||page==='bracket'?'active':''}`} onClick={()=>setPage('rate')}>
             <span className="nav-label">Rate</span>
             <span className="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></span>
           </button>
@@ -177,11 +188,11 @@ function App() {
       </header>
 
       {page === 'home' && <HomePage movies={movies} ratings={ratings} setRatings={setRatings} members={members}
-        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
-        bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
+        activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('rate/' + slugify(q))}
+        bracket={bracket} onBracketClick={()=>setPage('rate')} adminAuthed={adminAuthed}
         onHideBracket={hideBracketFromCurrent}
         currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')}
-        roundWorkflow={roundWorkflow} onRoundClick={()=>setPage('poll')} />}
+        roundWorkflow={roundWorkflow} onRoundClick={()=>setPage('rate')} />}
       {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies}
         ratings={ratings} setRatings={setRatings} members={members} adminAuthed={adminAuthed} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
@@ -197,7 +208,7 @@ function App() {
       </ErrorBoundary>}
       {page === 'bracket' && <BracketReadOnlyPage
         bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}
-        onBack={() => { setBracketViewId(null); setPage('poll'); }} />}
+        onBack={() => { setBracketViewId(null); setPage('rate'); }} />}
 
       <div className="footer-logo-section" ref={footerRef}
         onClick={() => { setPage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
