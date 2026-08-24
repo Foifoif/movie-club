@@ -947,6 +947,12 @@
 .round-workflow-panel .home-save-btn { margin-top:9px; width:100%; }
 .round-workflow-note { color:#777; font-size:.72rem; margin-top:8px; }
 .round-workflow-error { color:var(--red); font-size:.78rem; margin-top:8px; }
+.round-category-list { border:1px solid #e3ded4; border-radius:8px; margin:10px 0; overflow:hidden; }
+.round-category-row { align-items:center; display:flex; justify-content:space-between; padding:8px 10px; }
+.round-category-row + .round-category-row { border-top:1px solid #eee9df; }
+.round-category-row strong { background:var(--yellow); border-radius:999px; color:var(--ink); font-size:.75rem; min-width:24px; padding:3px 7px; text-align:center; }
+.round-spin-result { background:var(--cream); border-radius:8px; color:var(--ink); margin-top:10px; padding:12px; text-align:center; }
+.round-movie-slot-label { color:var(--ink); font-size:.76rem; font-weight:700; margin-top:10px; text-transform:uppercase; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
 @media (max-width: 420px) {

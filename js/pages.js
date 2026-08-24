@@ -1200,26 +1200,70 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
 function RoundWorkflowPanel({ workflow, onUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const [category, setCategory] = useState('');
+  const [spinResult, setSpinResult] = useState(null);
+  const [movieOne, setMovieOne] = useState(null);
+  const [movieTwo, setMovieTwo] = useState(null);
+  const [movieOneQuery, setMovieOneQuery] = useState('');
+  const [movieTwoQuery, setMovieTwoQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  if (!workflow) return null;
+  const activePhase = workflow?.phases?.find(phase => phase.status === 'OPEN');
+  const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
+  const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
 
-  const activePhase = workflow.phases.find(phase => phase.status === 'OPEN');
-  if (!activePhase) return null;
-  const existing = workflow.categorySubmissions.find(row => row.member_id === currentUser?.id);
+  useEffect(() => {
+    setCategory(existing?.raw_text || '');
+    const toMovie = row => row ? {
+      title: row.title, year: row.year || '', poster: row.poster || null, tmdbId: row.tmdb_id || null,
+    } : null;
+    setMovieOne(toMovie(existingMovies.find(row => row.slot === 1)));
+    setMovieTwo(toMovie(existingMovies.find(row => row.slot === 2)));
+    setMovieOneQuery(existingMovies.find(row => row.slot === 1)?.title || '');
+    setMovieTwoQuery(existingMovies.find(row => row.slot === 2)?.title || '');
+    setSpinResult(null);
+  }, [workflow?.round?.id, activePhase?.id, currentUser?.id]);
+
+  if (!workflow || !activePhase) return null;
+
+  const savedSpin = workflow.categorySpins.find(row => row.member_id === currentUser?.id);
+  const categoryCounts = Object.entries(workflow.categorySubmissions.reduce((counts, row) => {
+    counts[row.normalized_text] = (counts[row.normalized_text] || 0) + 1;
+    return counts;
+  }, {}));
 
   async function submitCategory() {
     if (!currentUser?.id || !category.trim()) return;
     setSaving(true); setError('');
     try {
       const saved = await dbSubmitCategory(activePhase.id, currentUser.id, category);
-      const next = {
-        ...workflow,
-        categorySubmissions: [...workflow.categorySubmissions.filter(row => row.member_id !== currentUser.id), saved],
-      };
-      if (onUpdate) onUpdate(next);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
       setCategory('');
     } catch (e) { setError(e.message || 'Could not save your submission.'); }
+    setSaving(false);
+  }
+
+  async function spinCategory() {
+    if (!currentUser?.id) return;
+    setSaving(true); setError('');
+    try {
+      const result = await dbSpinCategory(activePhase.id, currentUser.id);
+      setSpinResult(result);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not record your spin.'); }
+    setSaving(false);
+  }
+
+  async function saveMovies() {
+    if (!currentUser?.id || !movieOne || !movieTwo) return;
+    setSaving(true); setError('');
+    try {
+      await dbSubmitRoundMovie(activePhase.id, currentUser.id, 1, movieOne);
+      await dbSubmitRoundMovie(activePhase.id, currentUser.id, 2, movieTwo);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not save both movies.'); }
     setSaving(false);
   }
 
@@ -1242,6 +1286,34 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
             {saving ? 'Saving…' : existing ? 'Update submission' : 'Submit category'}
           </button>
           {existing && <div className="round-workflow-note">Your current submission is saved and editable until this phase closes.</div>}
+        </>
+      )}
+      {activePhase.phase_type === 'CATEGORY_SPIN' && (
+        <>
+          <div className="round-category-list">
+            {categoryCounts.map(([name, count]) => (
+              <div className="round-category-row" key={name}><span>{name}</span><strong>{count}</strong></div>
+            ))}
+          </div>
+          {(spinResult || savedSpin) ? (
+            <div className="round-spin-result">Your spin: <strong>{(spinResult || savedSpin).result_category}</strong></div>
+          ) : (
+            <button className="home-save-btn" onClick={spinCategory} disabled={saving || !currentUser?.id}>
+              {saving ? 'Spinning…' : 'Spin the wheel'}
+            </button>
+          )}
+        </>
+      )}
+      {activePhase.phase_type === 'MOVIE_SUBMISSIONS' && (
+        <>
+          <div className="round-movie-slot-label">Movie 1</div>
+          <MovieSearch value={movieOneQuery} onChange={value => { setMovieOneQuery(value); setMovieOne(null); }} onSelect={setMovieOne} multi placeholder="Search for your first movie…" />
+          <div className="round-movie-slot-label">Movie 2</div>
+          <MovieSearch value={movieTwoQuery} onChange={value => { setMovieTwoQuery(value); setMovieTwo(null); }} onSelect={setMovieTwo} multi placeholder="Search for your second movie…" />
+          <button className="home-save-btn" onClick={saveMovies} disabled={saving || !movieOne || !movieTwo || !currentUser?.id}>
+            {saving ? 'Saving…' : existingMovies.length === 2 ? 'Update both movies' : 'Submit both movies'}
+          </button>
+          <div className="round-workflow-note">Both movie selections are required. You can edit them until this phase closes.</div>
         </>
       )}
       {error && <div className="round-workflow-error">{error}</div>}
