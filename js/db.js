@@ -67,6 +67,7 @@ async function loadAll() {
   const pollsData = await dbLoadPolls().catch(() => []);
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
   const currentMonthlyEvent = await dbLoadMonthlyEvents({ isCurrent: true }).catch(() => null);
+  const roundWorkflowData = await dbLoadRoundWorkflow().catch(() => null);
 
   // Older finished brackets predate finishedAt in the live bracket JSON.
   // Recover it from the matching history record so Current-page expiry still works.
@@ -79,7 +80,39 @@ async function loadAll() {
     }
   }
 
-  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent };
+  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData };
+}
+
+async function dbLoadRoundWorkflow() {
+  const { data: rounds, error: roundsError } = await sb.from('rounds')
+    .select('*').in('status', ['DRAFT', 'ACTIVE']).order('created_at', { ascending: false }).limit(1);
+  if (roundsError) throw roundsError;
+  const round = rounds?.[0];
+  if (!round) return null;
+
+  const [{ data: phases }, { data: categorySubmissions }, { data: categorySpins },
+    { data: movieSubmissions }, { data: entries }, { data: matchups }, { data: votes },
+    { data: notifications }] = await Promise.all([
+    sb.from('round_phases').select('*').eq('round_id', round.id).order('id'),
+    sb.from('category_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SUBMISSIONS')),
+    sb.from('category_spins').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SPIN')),
+    sb.from('movie_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'MOVIE_SUBMISSIONS')),
+    sb.from('bracket_entries').select('*').eq('round_id', round.id).order('seed'),
+    sb.from('bracket_matchups').select('*').eq('round_id', round.id).order('bracket_round_number').order('id'),
+    sb.from('bracket_votes').select('*').in('matchup_id', await matchupIdsForRound(round.id)),
+    sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
+  ]);
+  return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [] };
+}
+
+async function phaseIdsForRound(roundId, phaseType) {
+  const { data } = await sb.from('round_phases').select('id').eq('round_id', roundId).eq('phase_type', phaseType);
+  return (data || []).map(row => row.id);
+}
+
+async function matchupIdsForRound(roundId) {
+  const { data } = await sb.from('bracket_matchups').select('id').eq('round_id', roundId);
+  return (data || []).map(row => row.id);
 }
 
 async function dbSaveMovies(existingMovies, newMovieData) {

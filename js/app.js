@@ -32,6 +32,7 @@ function App() {
   const [alltime, setAlltime] = useState([]);
   const [polls, setPolls] = useState([]);
   const [currentEvent, setCurrentEvent] = useState(null);
+  const [roundWorkflow, setRoundWorkflow] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => readUserCookie());
@@ -92,7 +93,7 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
@@ -102,6 +103,7 @@ function App() {
         if (alltimeMovies.length) setAlltime(alltimeMovies);
         if (pollsData && pollsData.length) setPolls(pollsData);
         if (currentMonthlyEvent) setCurrentEvent(currentMonthlyEvent);
+        if (roundWorkflowData) setRoundWorkflow(roundWorkflowData);
       } catch(e) {
         console.error('Failed to load from Supabase:', e);
       }
@@ -186,7 +188,8 @@ function App() {
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
           onPollsRemove={pollId => setPolls(prev => (prev || []).filter(p => p.id !== pollId))}
-          onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage} />
+          onBracketUpdate={setBracket} adminAuthed={adminAuthed} onNavigate={setPage}
+          roundWorkflow={roundWorkflow} onRoundWorkflowUpdate={setRoundWorkflow} />
       </ErrorBoundary>}
       {page === 'bracket' && <BracketReadOnlyPage
         bracket={bracketViewId ? (bracketHistory.find(h => h.id === bracketViewId) || {}).data || null : bracket}

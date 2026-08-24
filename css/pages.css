@@ -941,6 +941,12 @@
 .rate-create-options { display:flex; flex-direction:column; gap:12px; }
 .rate-create-option-card { background:white; border:2px solid var(--blue); border-radius:8px; box-shadow:3px 3px 0 var(--yellow); padding:16px; }
 .rate-create-option-title { font-size:1rem; font-weight:700; margin-bottom:12px; }
+.round-workflow-panel { background:white; border:2px solid var(--blue); border-radius:12px; box-shadow:3px 3px 0 var(--yellow); margin:0 0 18px; padding:16px; }
+.round-workflow-title { color:var(--ink); font-size:1.15rem; font-weight:700; margin-top:4px; }
+.round-workflow-copy { color:#777; font-size:.82rem; line-height:1.4; margin:6px 0 12px; }
+.round-workflow-panel .home-save-btn { margin-top:9px; width:100%; }
+.round-workflow-note { color:#777; font-size:.72rem; margin-top:8px; }
+.round-workflow-error { color:var(--red); font-size:.78rem; margin-top:8px; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
 @media (max-width: 420px) {

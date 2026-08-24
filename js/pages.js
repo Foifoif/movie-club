@@ -1196,6 +1196,59 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
   );
 }
 
+// ─── ROUND WORKFLOW PANEL ────────────────────────────────────────────────────
+function RoundWorkflowPanel({ workflow, onUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
+  const [category, setCategory] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!workflow) return null;
+
+  const activePhase = workflow.phases.find(phase => phase.status === 'OPEN');
+  if (!activePhase) return null;
+  const existing = workflow.categorySubmissions.find(row => row.member_id === currentUser?.id);
+
+  async function submitCategory() {
+    if (!currentUser?.id || !category.trim()) return;
+    setSaving(true); setError('');
+    try {
+      const saved = await dbSubmitCategory(activePhase.id, currentUser.id, category);
+      const next = {
+        ...workflow,
+        categorySubmissions: [...workflow.categorySubmissions.filter(row => row.member_id !== currentUser.id), saved],
+      };
+      if (onUpdate) onUpdate(next);
+      setCategory('');
+    } catch (e) { setError(e.message || 'Could not save your submission.'); }
+    setSaving(false);
+  }
+
+  return (
+    <section className="round-workflow-panel">
+      <div className="rate-kicker">New round</div>
+      <div className="round-workflow-title">
+        {activePhase.phase_type === 'CATEGORY_SUBMISSIONS' ? 'Submit a category' : activePhase.phase_type.replaceAll('_', ' ')}
+      </div>
+      <div className="round-workflow-copy">
+        {activePhase.phase_type === 'CATEGORY_SUBMISSIONS'
+          ? 'Suggest a genre or category for the next movie round.'
+          : 'This round is active. Your next action will appear here.'}
+      </div>
+      {activePhase.phase_type === 'CATEGORY_SUBMISSIONS' && (
+        <>
+          <input className="form-input" value={category} onChange={e => setCategory(e.target.value)}
+            placeholder={existing ? existing.raw_text : 'e.g. courtroom dramas, road movies…'} maxLength="120" />
+          <button className="home-save-btn" onClick={submitCategory} disabled={!category.trim() || !currentUser?.id || saving}>
+            {saving ? 'Saving…' : existing ? 'Update submission' : 'Submit category'}
+          </button>
+          {existing && <div className="round-workflow-note">Your current submission is saved and editable until this phase closes.</div>}
+        </>
+      )}
+      {error && <div className="round-workflow-error">{error}</div>}
+    </section>
+  );
+}
+
 // ─── POLL VOTE VIEW ───────────────────────────────────────────────────────────
 function PollVoteView({ poll, members, onUpdate, adminAuthed, onDelete }) {
   const { currentUser } = React.useContext(UserContext);
@@ -1717,7 +1770,7 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove }) {
+function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove, roundWorkflow, onRoundWorkflowUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
@@ -1757,6 +1810,7 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
       {tab === 'live' && (
         <>
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
+          <RoundWorkflowPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
 
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
