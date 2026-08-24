@@ -63,7 +63,7 @@ function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) 
 
   return (
     <div className="current-bracket-row">
-      <a className="poll-card current-bracket-card" href="/poll"
+      <a className="poll-card current-bracket-card" href="/rate"
         onClick={e => { e.preventDefault(); if (onBracketClick) onBracketClick(); }}>
         <div className="poll-card-label">Bracket · Round {(bracket.currentRound||0)+1}{bracket.finished?' — Final':''}</div>
         <div className="poll-card-question">
@@ -91,7 +91,7 @@ function RoundHomeNotification({ workflow, onClick }) {
     BRACKET: ['Bracket voting', 'Vote in the round bracket →'],
   }[phase.phase_type] || ['New round', 'Take the next round action →'];
   return (
-    <a className="poll-card" href="/poll" onClick={e => { e.preventDefault(); if (onClick) onClick(); }}>
+    <a className="poll-card" href="/rate" onClick={e => { e.preventDefault(); if (onClick) onClick(); }}>
       <div className="poll-card-label">{saved?.title || copy[0]}</div>
       <div className="poll-card-question">{saved?.body || copy[1]}</div>
     </a>
@@ -113,7 +113,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
         <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
         <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
         {activePoll && (
-          <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
+          <a className="poll-card" href={`/rate/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
             <div className="poll-card-label">Rate now</div>
             <div className="poll-card-question">{activePoll.question}</div>
@@ -137,7 +137,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
       <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
       <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
       {activePoll && (
-        <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
+        <a className="poll-card" href={`/rate/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
           <div className="poll-card-label">Rate now</div>
           <div className="poll-card-question">{activePoll.question}</div>
