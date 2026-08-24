@@ -2383,7 +2383,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
-  const [roundAdminToken, setRoundAdminToken] = useState('');
+  const [roundAdminToken, setRoundAdminToken] = useState(() => sessionStorage.getItem('mc_round_admin_token') || '');
   const [stageMode, setStageMode] = useState('');
   const [stageOpening, setStageOpening] = useState(false);
   const [reopenPhaseId, setReopenPhaseId] = useState('');
@@ -3173,7 +3173,11 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             <div className="admin-section-title">Active Round</div>
             <label className="form-label">Round admin token</label>
             <input className="form-input" type="password" value={roundAdminToken}
-              onChange={e => setRoundAdminToken(e.target.value)}
+              onChange={e => {
+                setRoundAdminToken(e.target.value);
+                if (e.target.value) sessionStorage.setItem('mc_round_admin_token', e.target.value);
+                else sessionStorage.removeItem('mc_round_admin_token');
+              }}
               placeholder="Paste your Netlify ROUND_ADMIN_TOKEN" autoComplete="off" />
             {roundWorkflow?.round ? (
               <>
