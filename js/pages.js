@@ -1085,12 +1085,18 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
     catch (_) { return []; }
   });
 
-  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const allMonthlyMovies = (alltime || []).filter(movie =>
-    (movie.month || movie.shownMonth || '').toLowerCase() === currentMonth.toLowerCase()
-  );
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const recentMonths = Array.from({ length: 3 }, (_, offset) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - offset, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase();
+  });
+  const recentMovies = (alltime || [])
+    .filter(movie => recentMonths.includes((movie.month || movie.shownMonth || '').toLowerCase()))
+    .sort((a, b) => recentMonths.indexOf((a.month || a.shownMonth || '').toLowerCase())
+      - recentMonths.indexOf((b.month || b.shownMonth || '').toLowerCase()));
   const skippedSet = new Set(skippedMovieIds.map(String));
-  const monthMovies = allMonthlyMovies.filter(movie => {
+  const monthMovies = recentMovies.filter(movie => {
     const ratedByMember = currentUser?.name && ratings?.[movie.id]?.[currentUser.name] !== undefined;
     return !skippedSet.has(String(movie.id)) && !ratedByMember;
   });
@@ -1109,12 +1115,12 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
       <div className="rate-month-empty">
         <div className="rate-kicker">This month</div>
         <div className="rate-movie-empty-title">
-          {allMonthlyMovies.length > 0 ? 'You’re all caught up.' : 'No current movies to rate yet.'}
+          {recentMovies.length > 0 ? 'You’re all caught up.' : 'No recent movies to rate yet.'}
         </div>
         <div className="rate-movie-empty-copy">
-          {allMonthlyMovies.length > 0
-            ? 'New movies will appear here when they’re added to this month’s list.'
-            : 'The monthly lineup will appear here when it’s set.'}
+          {recentMovies.length > 0
+            ? 'New movies will appear here when they’re added to the Movies list.'
+            : 'Movies from the last three months will appear here when they’re added.'}
         </div>
       </div>
     );
@@ -1148,8 +1154,8 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
     <section className="rate-month-section">
       <div className="rate-month-heading">
         <div>
-          <div className="rate-kicker">{currentMonth}</div>
-          <div className="rate-month-title">Rate this month’s movies</div>
+          <div className="rate-kicker">Last three months</div>
+          <div className="rate-month-title">Rate your unrated movies</div>
         </div>
         <div className="rate-progress-label">{index + 1} of {monthMovies.length}</div>
       </div>

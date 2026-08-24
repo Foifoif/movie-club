@@ -114,12 +114,6 @@ async function dbSaveMovies(existingMovies, newMovieData) {
 }
 
 async function dbSaveRating(movieId, memberName, score) {
-  if (score === 0) {
-    const { error } = await sb.from('ratings').delete()
-      .eq('movie_id', movieId).eq('member_name', memberName);
-    if (error) throw error;
-    return;
-  }
   const { error } = await sb.from('ratings').upsert(
     { movie_id: movieId, member_name: memberName, score },
     { onConflict: 'movie_id,member_name' }
