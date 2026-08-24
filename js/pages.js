@@ -2070,7 +2070,7 @@ function PastRoundCard({ round }) {
       </button>
       {expanded && (
         <div className="past-poll-body">
-          <div className="round-workflow-note">{round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
+          <div className="round-workflow-note">{round.archived_at ? 'Archived' : round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
           {round.categorySubmissions?.length > 0 && (
             <>
               <div className="round-history-heading">Category submissions</div>
@@ -2626,6 +2626,27 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       showMsg('Latest round result undone.');
     } catch (e) {
       showMsg('Could not undo the latest result: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function archiveCurrentRound() {
+    if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
+    const confirmed = window.confirm(
+      'Are you really sure you want to archive this round? It will close the current round and move it to Past. All information already submitted will be preserved.'
+    );
+    if (!confirmed) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_archive_round', {
+        p_round_id: roundWorkflow.round.id,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Round archived and moved to Past.');
+    } catch (e) {
+      showMsg('Could not archive the round: ' + e.message, 'error');
     }
     setStageOpening(false);
   }
@@ -3345,6 +3366,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <button className="btn-secondary" onClick={undoLastRoundResult}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
                     Undo latest wheel/bracket result
+                  </button>
+                )}
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary" onClick={archiveCurrentRound}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}
+                    style={{background:'var(--red)', borderColor:'var(--red)', color:'white'}}>
+                    Archive current round
                   </button>
                 )}
               </>

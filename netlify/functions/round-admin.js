@@ -9,6 +9,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_resolve_matchup',
   'mc_process_due_rounds',
   'mc_undo_last_round_result',
+  'mc_archive_round',
 ]);
 
 function response(statusCode, body, cookie) {
