@@ -2422,6 +2422,26 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function createActualRound() {
+    if (!roundMonth.trim() || !roundAdminToken || !currentUser?.id) return;
+    if (!window.confirm('This creates a real shared round in Supabase. It will be visible to the club, though it will not change Cloudflare code. Continue?')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_create_round', {
+        p_month_key: roundMonth.trim(),
+        p_mode: null,
+        p_created_by: currentUser.id,
+        p_open_at: null,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Real round created. Category submissions are now open.');
+    } catch (e) {
+      showMsg('Could not create round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -3062,6 +3082,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
               showMsg('Preview Round started in this browser only.');
             }}>▶ Preview Submission Experience</button>
+            <div className="round-workflow-note" style={{marginTop:14}}>
+              When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
+            </div>
+            <button className="btn-primary" onClick={createActualRound}
+              disabled={!roundMonth.trim() || !roundAdminToken || !currentUser?.id || stageOpening}>
+              {stageOpening ? 'Creating…' : 'Create Actual Round'}
+            </button>
 
             <hr className="section-divider" />
             <div className="admin-section-title">Active Round</div>
