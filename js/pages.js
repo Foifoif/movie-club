@@ -2380,6 +2380,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [roundAdminToken, setRoundAdminToken] = useState('');
   const [stageMode, setStageMode] = useState('');
   const [stageOpening, setStageOpening] = useState(false);
+  const [reopenPhaseId, setReopenPhaseId] = useState('');
 
   const pacificMonth = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
@@ -2490,6 +2491,26 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       showMsg('Open matchups resolved.');
     } catch (e) {
       showMsg('Could not resolve matchups: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function reopenPhase() {
+    if (!reopenPhaseId || !roundAdminToken || !currentUser?.id) return;
+    if (!window.confirm('Reopen this phase for another 24 hours?')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_reopen_phase', {
+        p_phase_id: Number(reopenPhaseId),
+        p_actor_member_id: currentUser.id,
+        p_reason: 'admin reopened from Round settings',
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      setReopenPhaseId('');
+      showMsg('Phase reopened for another 24 hours.');
+    } catch (e) {
+      showMsg('Could not reopen phase: ' + e.message, 'error');
     }
     setStageOpening(false);
   }
@@ -3181,6 +3202,21 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
                   </button>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'CLOSED') && (
+                  <>
+                    <label className="form-label">Reopen a closed phase</label>
+                    <select className="form-input" value={reopenPhaseId} onChange={e => setReopenPhaseId(e.target.value)}>
+                      <option value="">Choose a phase…</option>
+                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED').map(phase => (
+                        <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_', ' ')}</option>
+                      ))}
+                    </select>
+                    <button className="btn-secondary" onClick={reopenPhase}
+                      disabled={!reopenPhaseId || !roundAdminToken || !currentUser?.id || stageOpening}>
+                      {stageOpening ? 'Reopening…' : 'Reopen phase'}
+                    </button>
+                  </>
                 )}
               </>
             ) : (
