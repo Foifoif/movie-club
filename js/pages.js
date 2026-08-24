@@ -81,7 +81,7 @@ function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) 
 }
 
 function RoundHomeNotification({ workflow, onClick }) {
-  const phase = workflow?.phases?.find(p => p.status === 'OPEN');
+  const phase = workflow?.phases?.find(roundPhaseIsOpen);
   if (!workflow?.round || !phase) return null;
   const saved = (workflow.notifications || []).find(n => !n.expires_at || new Date(n.expires_at) > new Date());
   const copy = {
@@ -1217,6 +1217,10 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
 }
 
 // ─── ROUND WORKFLOW PANEL ────────────────────────────────────────────────────
+function roundPhaseIsOpen(phase) {
+  return phase?.status === 'OPEN' && (!phase.opens_at || new Date(phase.opens_at) <= new Date());
+}
+
 function makeRoundPreview(monthKey) {
   return {
     preview: true,
@@ -1241,7 +1245,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   const [wheelRotation, setWheelRotation] = useState(0);
   const [wheelDragging, setWheelDragging] = useState(false);
   const wheelDrag = useRef(null);
-  const activePhase = workflow?.phases?.find(phase => phase.status === 'OPEN');
+  const activePhase = workflow?.phases?.find(roundPhaseIsOpen);
   const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
   const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
 
@@ -1461,7 +1465,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   if (!workflow) return null;
-  const activePhase = workflow.phases.find(phase => phase.status === 'OPEN');
+  const activePhase = workflow.phases.find(roundPhaseIsOpen);
   if (!activePhase || activePhase.phase_type !== 'BRACKET') return null;
 
   const openMatchups = workflow.matchups.filter(matchup => matchup.status === 'OPEN');
@@ -2140,7 +2144,7 @@ function PollPage({ polls, bracket, bracketHistory, roundHistory, members, allti
               }} />
           ) : null}
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
-          {!activeBracket && !activePoll && !roundWorkflow?.phases?.some(phase => phase.status === 'OPEN') && (
+          {!activeBracket && !activePoll && !roundWorkflow?.phases?.some(roundPhaseIsOpen) && (
             <div className="empty-state"><div>No active action yet.</div></div>
           )}
         </>
@@ -2496,7 +2500,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function advanceActivePhase() {
-    const activePhase = roundWorkflow?.phases?.find(phase => phase.status === 'OPEN');
+    const activePhase = roundWorkflow?.phases?.find(roundPhaseIsOpen);
     if (!activePhase || roundWorkflow.preview || !roundAdminToken || !currentUser?.id) return;
     if (activePhase.phase_type === 'CATEGORY_SPIN') {
       showMsg('Choose Paired or Scrambled before opening the movie stage.', 'error');
@@ -3245,10 +3249,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.preview ? 'Local preview' : (roundWorkflow.round.mode || 'Mode not selected')}
                 </div>
                 <div className="round-workflow-note">
-                  Current phase: {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
-                  {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(p => p.status === 'OPEN').closes_at).toLocaleString()}`}
+                  Current phase: {roundWorkflow.phases?.find(roundPhaseIsOpen)?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
+                  {roundWorkflow.phases?.find(roundPhaseIsOpen)?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(roundPhaseIsOpen).closes_at).toLocaleString()}`}
                 </div>
-                {roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type === 'CATEGORY_SPIN') && (
+                {roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'CATEGORY_SPIN') && (
                   <>
                     <label className="form-label">Choose movie bracket mode</label>
                     <select className="form-input" value={stageMode} onChange={e => setStageMode(e.target.value)}>
@@ -3262,13 +3266,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     </button>
                   </>
                 )}
-                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type !== 'CATEGORY_SPIN' && p.phase_type !== 'BRACKET') && (
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type !== 'CATEGORY_SPIN' && p.phase_type !== 'BRACKET') && (
                   <button className="btn-secondary" onClick={advanceActivePhase}
                     disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Advancing…' : 'Advance current phase'}
                   </button>
                 )}
-                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
                     disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
