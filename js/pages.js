@@ -2234,7 +2234,7 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow }) {
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
 
@@ -2242,12 +2242,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
   }).format(new Date());
   const [roundMonth, setRoundMonth] = useState(() => localStorage.getItem('mc_round_draft_month') || pacificMonth);
-  const [roundMode, setRoundMode] = useState(() => localStorage.getItem('mc_round_draft_mode') || 'paired');
+  const [roundMode, setRoundMode] = useState(() => localStorage.getItem('mc_round_draft_mode') || '');
   const [roundDuration, setRoundDuration] = useState(() => localStorage.getItem('mc_round_draft_duration') || '24');
 
   function saveRoundDraft() {
     localStorage.setItem('mc_round_draft_month', roundMonth.trim());
-    localStorage.setItem('mc_round_draft_mode', roundMode);
+    if (roundMode) localStorage.setItem('mc_round_draft_mode', roundMode);
+    else localStorage.removeItem('mc_round_draft_mode');
     localStorage.setItem('mc_round_draft_duration', roundDuration);
     showMsg('Round setup saved on this staging browser. No database round was created.');
   }
@@ -2257,7 +2258,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     localStorage.removeItem('mc_round_draft_mode');
     localStorage.removeItem('mc_round_draft_duration');
     setRoundMonth(pacificMonth);
-    setRoundMode('paired');
+    setRoundMode('');
     setRoundDuration('24');
     showMsg('Round setup draft cleared.');
   }
@@ -2877,12 +2878,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           <>
             <div className="admin-section-title">New Round Setup</div>
             <div className="round-workflow-note" style={{marginBottom:14}}>
-              Staging setup only. This saves a local draft in this browser and does not create or expose a round to the club yet.
+              Staging setup only. This saves a local draft in this browser and does not create or expose a round to the club yet. The bracket mode is chosen after the category wheel.
             </div>
             <label className="form-label">Round label</label>
             <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
             <label className="form-label">Bracket mode</label>
             <select className="form-input" value={roundMode} onChange={e => setRoundMode(e.target.value)}>
+              <option value="">Choose after category wheel</option>
               <option value="paired">Paired — permanent two-movie teams</option>
               <option value="scrambled">Scrambled — individual movies</option>
             </select>
@@ -2897,6 +2899,21 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             </div>
             <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
             <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
+
+            <hr className="section-divider" />
+            <div className="admin-section-title">Active Round</div>
+            {roundWorkflow?.round ? (
+              <>
+                <div className="round-workflow-note">
+                  <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.round.mode || 'Mode not selected'}
+                </div>
+                <div className="round-workflow-note">
+                  Current phase: {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
+                </div>
+              </>
+            ) : (
+              <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
+            )}
           </>
         )}
 

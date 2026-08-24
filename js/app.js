@@ -218,6 +218,7 @@ function App() {
           polls={polls} setPolls={setPolls}
           onBracketHistoryAdd={record => setBracketHistory(prev => [record, ...prev])}
           currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
+          roundWorkflow={roundWorkflow}
         />
       )}
 
