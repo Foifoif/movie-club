@@ -2521,6 +2521,20 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function runTimerProcessor() {
+    if (!roundWorkflow?.round || roundWorkflow.preview || !roundAdminToken) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_process_due_rounds', {}, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Timer processor ran successfully.');
+    } catch (e) {
+      showMsg('Could not run timer processor: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -3186,6 +3200,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 </div>
                 <div className="round-workflow-note">
                   Current phase: {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
+                  {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(p => p.status === 'OPEN').closes_at).toLocaleString()}`}
                 </div>
                 {roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type === 'CATEGORY_SPIN') && (
                   <>
@@ -3227,6 +3242,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                       {stageOpening ? 'Reopening…' : 'Reopen phase'}
                     </button>
                   </>
+                )}
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary" onClick={runTimerProcessor}
+                    disabled={!roundAdminToken || stageOpening}>
+                    {stageOpening ? 'Running…' : 'Run timer processor now'}
+                  </button>
                 )}
               </>
             ) : (

@@ -7,6 +7,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_open_movie_stage',
   'mc_build_bracket',
   'mc_resolve_matchup',
+  'mc_process_due_rounds',
 ]);
 
 function response(statusCode, body) {
