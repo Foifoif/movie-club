@@ -957,6 +957,13 @@
 .round-matchup-entry { background:var(--cream); border:2px solid var(--ink); border-radius:9px; color:var(--ink); cursor:pointer; flex:1; font-family:inherit; font-size:.82rem; font-weight:700; line-height:1.25; min-height:70px; padding:10px; }
 .round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
 .round-matchup-entry:disabled { cursor:wait; opacity:.7; }
+
+.past-poll-card { border:2px solid var(--ink); border-radius:10px; margin-bottom:12px; overflow:hidden; background:#fff; }
+.past-poll-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border:0; background:transparent; padding:14px 16px; text-align:left; cursor:pointer; }
+.past-poll-header strong { display:block; margin-top:3px; font-size:1rem; }
+.past-poll-label { display:block; color:var(--blue); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.past-poll-chevron { font-size:1.35rem; font-weight:700; }
+.past-poll-body { border-top:1px dashed var(--cream); padding:12px 16px 16px; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
 @media (max-width: 420px) {

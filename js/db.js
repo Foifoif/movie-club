@@ -68,6 +68,7 @@ async function loadAll() {
   const bracketHistoryData = await dbLoadBracketHistory().catch(() => []);
   const currentMonthlyEvent = await dbLoadMonthlyEvents({ isCurrent: true }).catch(() => null);
   const roundWorkflowData = await dbLoadRoundWorkflow().catch(() => null);
+  const roundHistoryData = await dbLoadRoundHistory().catch(() => []);
 
   // Older finished brackets predate finishedAt in the live bracket JSON.
   // Recover it from the matching history record so Current-page expiry still works.
@@ -80,7 +81,7 @@ async function loadAll() {
     }
   }
 
-  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData };
+  return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData, roundHistoryData };
 }
 
 async function dbLoadRoundWorkflow() {
@@ -103,6 +104,23 @@ async function dbLoadRoundWorkflow() {
     sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
   ]);
   return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [] };
+}
+
+async function dbLoadRoundHistory() {
+  const { data: rounds, error: roundsError } = await sb.from('rounds')
+    .select('*').in('status', ['COMPLETE', 'CANCELLED'])
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .limit(24);
+  if (roundsError) throw roundsError;
+  if (!rounds?.length) return [];
+  const ids = rounds.map(round => round.id);
+  const { data: events, error: eventsError } = await sb.from('round_events')
+    .select('*').in('round_id', ids).order('created_at', { ascending: true });
+  if (eventsError) throw eventsError;
+  return rounds.map(round => ({
+    ...round,
+    events: (events || []).filter(event => event.round_id === round.id),
+  }));
 }
 
 async function phaseIdsForRound(roundId, phaseType) {

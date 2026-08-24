@@ -1919,7 +1919,34 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 }
 
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
-function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove, roundWorkflow, onRoundWorkflowUpdate }) {
+function PastRoundCard({ round }) {
+  const [expanded, setExpanded] = useState(false);
+  const events = round.events || [];
+  return (
+    <article className="past-poll-card">
+      <button className="past-poll-header" onClick={() => setExpanded(value => !value)}>
+        <span>
+          <span className="past-poll-label">Round · {round.mode || 'Mode not selected'}</span>
+          <strong>{round.month_key}</strong>
+        </span>
+        <span className="past-poll-chevron">{expanded ? '−' : '+'}</span>
+      </button>
+      {expanded && (
+        <div className="past-poll-body">
+          <div className="round-workflow-note">{round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
+          {events.map(event => (
+            <div className="round-category-row" key={event.id}>
+              <span>{event.event_type.replaceAll('_', ' ')}</span>
+              <small>{new Date(event.created_at).toLocaleString()}</small>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function PollPage({ polls, bracket, bracketHistory, roundHistory, members, alltime, ratings, setRatings, onPollUpdate, onBracketUpdate, adminAuthed, onNavigate, onPollsAdd, onPollsRemove, roundWorkflow, onRoundWorkflowUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const newPollAsker = currentUser?.id ? currentUser.name : '';
   const [tab, setTab] = useState('live');
@@ -2020,11 +2047,12 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
 
       {tab === 'past' && (
         <>
+          {(roundHistory || []).map(round => <PastRoundCard key={round.id} round={round} />)}
           {(bracketHistory || []).map(record => (
             <PastBracketCard key={record.id} bracket={record.data} finishedAt={record.finished_at}
               onViewFull={() => onNavigate(`bracket/${record.id}`)} />
           ))}
-          {pastPolls.length === 0 && (bracketHistory || []).length === 0 && (
+          {pastPolls.length === 0 && (bracketHistory || []).length === 0 && (roundHistory || []).length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
               <div>No past polls yet.</div>

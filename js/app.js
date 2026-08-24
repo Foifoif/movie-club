@@ -33,6 +33,7 @@ function App() {
   const [polls, setPolls] = useState([]);
   const [currentEvent, setCurrentEvent] = useState(null);
   const [roundWorkflow, setRoundWorkflow] = useState(null);
+  const [roundHistory, setRoundHistory] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => readUserCookie());
@@ -93,7 +94,7 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData } = await loadAll();
+        const { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData, roundHistoryData } = await loadAll();
         if (currentMovies.length) setMovies(currentMovies);
         if (Object.keys(ratingsData).length) setRatings(ratingsData);
         if (bracketData) setBracket(bracketData);
@@ -104,6 +105,7 @@ function App() {
         if (pollsData && pollsData.length) setPolls(pollsData);
         if (currentMonthlyEvent) setCurrentEvent(currentMonthlyEvent);
         if (roundWorkflowData) setRoundWorkflow(roundWorkflowData);
+        if (roundHistoryData) setRoundHistory(roundHistoryData);
       } catch(e) {
         console.error('Failed to load from Supabase:', e);
       }
@@ -185,6 +187,7 @@ function App() {
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
       {page === 'poll' && <ErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center',color:'#888'}}><div style={{fontWeight:600,marginBottom:8}}>Ratings couldn't load right now</div></div>}>
         <PollPage polls={polls} bracket={bracket} bracketHistory={bracketHistory} members={members}
+          roundHistory={roundHistory}
           alltime={alltime} ratings={ratings} setRatings={setRatings}
           onPollUpdate={updatePoll}
           onPollsAdd={newPoll => setPolls(prev => [newPoll, ...(prev || [])])}
