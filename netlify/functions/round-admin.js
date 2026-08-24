@@ -11,7 +11,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_undo_last_round_result',
 ]);
 
-function response(statusCode, body) {
+function response(statusCode, body, cookie) {
   return {
     statusCode,
     headers: {
@@ -19,9 +19,16 @@ function response(statusCode, body) {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'content-type,x-round-admin-token',
       'access-control-allow-methods': 'POST,OPTIONS',
+      ...(cookie ? { 'set-cookie': cookie } : {}),
     },
     body: JSON.stringify(body),
   };
+}
+
+function cookieValue(cookieHeader, name) {
+  const match = String(cookieHeader || '').split(';').map(part => part.trim())
+    .find(part => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : '';
 }
 
 function tokenMatches(received, expected) {
@@ -33,9 +40,15 @@ function tokenMatches(received, expected) {
 
 exports.handler = async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return response(204, {});
+  const expectedToken = process.env.ROUND_ADMIN_TOKEN;
+  const headerToken = event.headers?.['x-round-admin-token'] || event.headers?.['X-Round-Admin-Token'];
+  const cookieToken = cookieValue(event.headers?.cookie, 'mc_round_admin');
+  const authenticated = tokenMatches(headerToken, expectedToken) || tokenMatches(cookieToken, expectedToken);
+
+  if (event.httpMethod === 'GET') return response(200, { authenticated });
   if (event.httpMethod !== 'POST') return response(405, { error: 'POST required' });
 
-  if (!tokenMatches(event.headers['x-round-admin-token'], process.env.ROUND_ADMIN_TOKEN)) {
+  if (!authenticated) {
     return response(401, { error: 'Invalid admin token' });
   }
 
@@ -59,5 +72,8 @@ exports.handler = async function handler(event) {
   const text = await upstream.text();
   let payload;
   try { payload = JSON.parse(text); } catch { payload = { message: text }; }
-  return response(upstream.status, upstream.ok ? { data: payload } : { error: payload });
+  const sessionCookie = upstream.ok
+    ? `mc_round_admin=${encodeURIComponent(expectedToken)}; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax`
+    : null;
+  return response(upstream.status, upstream.ok ? { data: payload } : { error: payload }, sessionCookie);
 };

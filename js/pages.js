@@ -2436,10 +2436,18 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
-  const [roundAdminToken, setRoundAdminToken] = useState(() => sessionStorage.getItem('mc_round_admin_token') || '');
+  const [roundAdminToken, setRoundAdminToken] = useState('');
+  const [roundAdminAuthenticated, setRoundAdminAuthenticated] = useState(false);
   const [stageMode, setStageMode] = useState('');
   const [stageOpening, setStageOpening] = useState(false);
   const [reopenPhaseId, setReopenPhaseId] = useState('');
+  const adminReady = Boolean(roundAdminToken || roundAdminAuthenticated);
+
+  useEffect(() => {
+    dbAdminSessionStatus()
+      .then(result => setRoundAdminAuthenticated(Boolean(result.authenticated)))
+      .catch(() => {});
+  }, []);
 
   const pacificMonth = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
@@ -2483,7 +2491,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function createActualRound() {
-    if (!roundMonth.trim() || !roundAdminToken || !currentUser?.id) return;
+    if (!roundMonth.trim() || !adminReady || !currentUser?.id) return;
     if (!window.confirm('This creates a real shared round in Supabase. It will be visible to the club, though it will not change Cloudflare code. Continue?')) return;
     setStageOpening(true);
     try {
@@ -2504,7 +2512,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function advanceActivePhase() {
     const activePhase = roundWorkflow?.phases?.find(roundPhaseIsOpen);
-    if (!activePhase || roundWorkflow.preview || !roundAdminToken || !currentUser?.id) return;
+    if (!activePhase || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
     if (activePhase.phase_type === 'CATEGORY_SPIN') {
       showMsg('Choose Paired or Scrambled before opening the movie stage.', 'error');
       return;
@@ -2534,7 +2542,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function resolveOpenMatchups() {
     const openMatchups = (roundWorkflow?.matchups || []).filter(matchup => matchup.status === 'OPEN');
-    if (!openMatchups.length || !roundAdminToken || !currentUser?.id) return;
+    if (!openMatchups.length || !adminReady || !currentUser?.id) return;
     if (!window.confirm(`Resolve ${openMatchups.length} open matchup${openMatchups.length === 1 ? '' : 's'} now? The server will count votes and randomly resolve ties.`)) return;
     setStageOpening(true);
     try {
@@ -2555,7 +2563,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function reopenPhase() {
-    if (!reopenPhaseId || !roundAdminToken || !currentUser?.id) return;
+    if (!reopenPhaseId || !adminReady || !currentUser?.id) return;
     if (!window.confirm('Reopen this phase for another 24 hours?')) return;
     setStageOpening(true);
     try {
@@ -2575,7 +2583,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function runTimerProcessor() {
-    if (!roundWorkflow?.round || roundWorkflow.preview || !roundAdminToken) return;
+    if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_process_due_rounds', {}, roundAdminToken);
@@ -2589,7 +2597,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   }
 
   async function undoLastRoundResult() {
-    if (!roundWorkflow?.round || roundWorkflow.preview || !roundAdminToken || !currentUser?.id) return;
+    if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
     if (!window.confirm('Undo the latest wheel or bracket result? This reopens only the latest undoable result and records the admin action.')) return;
     setStageOpening(true);
     try {
@@ -3250,7 +3258,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
             </div>
             <button className="btn-primary" onClick={createActualRound}
-              disabled={!roundMonth.trim() || !roundAdminToken || !currentUser?.id || stageOpening}>
+              disabled={!roundMonth.trim() || !adminReady || !currentUser?.id || stageOpening}>
               {stageOpening ? 'Creating…' : 'Create Actual Round'}
             </button>
 
@@ -3258,12 +3266,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             <div className="admin-section-title">Active Round</div>
             <label className="form-label">Round admin token</label>
             <input className="form-input" type="password" value={roundAdminToken}
-              onChange={e => {
-                setRoundAdminToken(e.target.value);
-                if (e.target.value) sessionStorage.setItem('mc_round_admin_token', e.target.value);
-                else sessionStorage.removeItem('mc_round_admin_token');
-              }}
-              placeholder="Paste your Netlify ROUND_ADMIN_TOKEN" autoComplete="off" />
+              onChange={e => setRoundAdminToken(e.target.value)}
+              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
+            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; the site will keep a secure browser session for future visits.'}</div>
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
@@ -3282,20 +3287,20 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                       <option value="scrambled">Scrambled — individual movies</option>
                     </select>
                     <button className="btn-primary" onClick={openMovieStage}
-                      disabled={!stageMode || !roundAdminToken || !currentUser?.id || stageOpening}>
+                      disabled={!stageMode || !adminReady || !currentUser?.id || stageOpening}>
                       {stageOpening ? 'Opening…' : 'Open up movie stage'}
                     </button>
                   </>
                 )}
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type !== 'CATEGORY_SPIN' && p.phase_type !== 'BRACKET') && (
                   <button className="btn-secondary" onClick={advanceActivePhase}
-                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Advancing…' : 'Advance current phase'}
                   </button>
                 )}
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
-                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
                   </button>
                 )}
@@ -3309,20 +3314,20 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                       ))}
                     </select>
                     <button className="btn-secondary" onClick={reopenPhase}
-                      disabled={!reopenPhaseId || !roundAdminToken || !currentUser?.id || stageOpening}>
+                      disabled={!reopenPhaseId || !adminReady || !currentUser?.id || stageOpening}>
                       {stageOpening ? 'Reopening…' : 'Reopen phase'}
                     </button>
                   </>
                 )}
                 {!roundWorkflow.preview && (
                   <button className="btn-secondary" onClick={runTimerProcessor}
-                    disabled={!roundAdminToken || stageOpening}>
+                    disabled={!adminReady || stageOpening}>
                     {stageOpening ? 'Running…' : 'Run timer processor now'}
                   </button>
                 )}
                 {!roundWorkflow.preview && (
                   <button className="btn-secondary" onClick={undoLastRoundResult}
-                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
                     Undo latest wheel/bracket result
                   </button>
                 )}
