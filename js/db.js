@@ -323,6 +323,21 @@ async function dbRoundAction(functionName, args) {
   return data;
 }
 
+async function dbAdminRoundAction(functionName, args, adminToken) {
+  if (!adminToken) throw new Error('Admin token is required');
+  const response = await fetch('/.netlify/functions/round-admin', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-round-admin-token': adminToken,
+    },
+    body: JSON.stringify({ action: functionName, args }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Admin action failed');
+  return payload.data;
+}
+
 async function dbSubmitCategory(phaseId, memberId, text) {
   return dbRoundAction('mc_submit_category', {
     p_phase_id: phaseId,
