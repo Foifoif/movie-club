@@ -248,6 +248,51 @@ async function dbVoteForOption(pollId, optionId, memberName) {
   if (error) throw error;
 }
 
+// ─── ROUND WORKFLOW RPCs ─────────────────────────────────────────────────────
+// These calls are intentionally kept separate from the legacy poll/bracket
+// helpers. The corresponding SQL functions enforce phase validity and the
+// unique per-member action constraints in the database.
+async function dbRoundAction(functionName, args) {
+  const { data, error } = await sb.rpc(functionName, args);
+  if (error) throw error;
+  return data;
+}
+
+async function dbSubmitCategory(phaseId, memberId, text) {
+  return dbRoundAction('mc_submit_category', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+    p_text: text,
+  });
+}
+
+async function dbSpinCategory(phaseId, memberId) {
+  return dbRoundAction('mc_spin_category', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+  });
+}
+
+async function dbSubmitRoundMovie(phaseId, memberId, slot, movie) {
+  return dbRoundAction('mc_submit_movie', {
+    p_phase_id: phaseId,
+    p_member_id: memberId,
+    p_slot: slot,
+    p_tmdb_id: movie.tmdbId || null,
+    p_title: movie.title,
+    p_year: movie.year || null,
+    p_poster: movie.poster || null,
+  });
+}
+
+async function dbVoteRoundMatchup(matchupId, memberId, entryId) {
+  return dbRoundAction('mc_vote_matchup', {
+    p_matchup_id: matchupId,
+    p_member_id: memberId,
+    p_entry_id: entryId,
+  });
+}
+
 async function dbAddOptionAndVote(pollId, text, memberName, currentPoll, imageUrl) {
   const trimmed = text.trim();
   const existing = (currentPoll.options || []).find(o => o.text.toLowerCase() === trimmed.toLowerCase());
