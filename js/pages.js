@@ -1155,7 +1155,9 @@ function MonthlyRateCards({ alltime, ratings, setRatings }) {
     await dbSaveRating(movie.id, member, score);
     const nextRatings = { ...ratings, [movie.id]: { ...(ratings?.[movie.id] || {}), [member]: score } };
     if (setRatings) setRatings(nextRatings);
-    setSaved(true);
+    // The saved movie leaves monthMovies on the next render. Clear this
+    // card's transient state so the next movie immediately shows controls.
+    setSaved(false);
     setRatingOpen(false);
     setIndex(0);
   }
