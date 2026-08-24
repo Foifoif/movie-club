@@ -2442,6 +2442,36 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function advanceActivePhase() {
+    const activePhase = roundWorkflow?.phases?.find(phase => phase.status === 'OPEN');
+    if (!activePhase || roundWorkflow.preview || !roundAdminToken || !currentUser?.id) return;
+    if (activePhase.phase_type === 'CATEGORY_SPIN') {
+      showMsg('Choose Paired or Scrambled before opening the movie stage.', 'error');
+      return;
+    }
+    if (!window.confirm(`Advance ${activePhase.phase_type.replaceAll('_', ' ')} now?`)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_advance_phase', {
+        p_phase_id: activePhase.id,
+        p_actor_member_id: currentUser.id,
+        p_reason: 'admin',
+      }, roundAdminToken);
+      if (activePhase.phase_type === 'MOVIE_SUBMISSIONS') {
+        await dbAdminRoundAction('mc_build_bracket', {
+          p_round_id: roundWorkflow.round.id,
+          p_actor_member_id: currentUser.id,
+        }, roundAdminToken);
+      }
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Round advanced.');
+    } catch (e) {
+      showMsg('Could not advance round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -3117,6 +3147,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                       {stageOpening ? 'Opening…' : 'Open up movie stage'}
                     </button>
                   </>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type !== 'CATEGORY_SPIN' && p.phase_type !== 'BRACKET') && (
+                  <button className="btn-secondary" onClick={advanceActivePhase}
+                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    {stageOpening ? 'Advancing…' : 'Advance current phase'}
+                  </button>
                 )}
               </>
             ) : (
