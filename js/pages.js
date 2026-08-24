@@ -1259,6 +1259,9 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     setMovieOneQuery(existingMovies.find(row => row.slot === 1)?.title || '');
     setMovieTwoQuery(existingMovies.find(row => row.slot === 2)?.title || '');
     setSpinResult(null);
+    setWheelRotation(0);
+    setWheelDragging(false);
+    wheelDrag.current = null;
   }, [workflow?.round?.id, activePhase?.id, currentUser?.id]);
 
   if (!workflow || !activePhase) return null;
