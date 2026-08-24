@@ -80,7 +80,25 @@ function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) 
   );
 }
 
-function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket, currentEvent, onThisMonthClick }) {
+function RoundHomeNotification({ workflow, onClick }) {
+  const phase = workflow?.phases?.find(p => p.status === 'OPEN');
+  if (!workflow?.round || !phase) return null;
+  const saved = (workflow.notifications || []).find(n => !n.expires_at || new Date(n.expires_at) > new Date());
+  const copy = {
+    CATEGORY_SUBMISSIONS: ['New round', 'Submit a category for the next movie round →'],
+    CATEGORY_SPIN: ['Category wheel', 'Spin to choose the winning category →'],
+    MOVIE_SUBMISSIONS: ['Movie submissions', 'Submit your two movies for the round →'],
+    BRACKET: ['Bracket voting', 'Vote in the round bracket →'],
+  }[phase.phase_type] || ['New round', 'Take the next round action →'];
+  return (
+    <a className="poll-card" href="/poll" onClick={e => { e.preventDefault(); if (onClick) onClick(); }}>
+      <div className="poll-card-label">{saved?.title || copy[0]}</div>
+      <div className="poll-card-question">{saved?.body || copy[1]}</div>
+    </a>
+  );
+}
+
+function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClick, bracket, onBracketClick, adminAuthed, onHideBracket, currentEvent, onThisMonthClick, roundWorkflow, onRoundClick }) {
   const now = new Date();
   const monthName = now.toLocaleString('default', { month: 'long' });
   const [localRatings, setLocalRatings] = useState(ratings || {});
@@ -93,6 +111,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
     return (
       <div className="main">
         <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
+        <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
         {activePoll && (
           <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
             onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>
@@ -116,6 +135,7 @@ function HomePage({ movies, ratings, setRatings, members, activePoll, onPollClic
   return (
     <div className="main">
       <ThisMonthCard currentEvent={currentEvent} movies={movies} onNavigate={onThisMonthClick} />
+      <RoundHomeNotification workflow={roundWorkflow} onClick={onRoundClick} />
       {activePoll && (
         <a className="poll-card" href={`/poll/${slugify(activePoll.question)}`}
           onClick={e => { e.preventDefault(); onPollClick(activePoll.question); }}>

@@ -178,7 +178,8 @@ function App() {
         activePoll={(polls||[]).find(p=>p.is_active)} onPollClick={q=>setPage('poll/' + slugify(q))}
         bracket={bracket} onBracketClick={()=>setPage('poll')} adminAuthed={adminAuthed}
         onHideBracket={hideBracketFromCurrent}
-        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')} />}
+        currentEvent={currentEvent} onThisMonthClick={()=>setPage('this-month')}
+        roundWorkflow={roundWorkflow} onRoundClick={()=>setPage('poll')} />}
       {page === 'this-month' && <ThisMonthPage currentEvent={currentEvent} movies={movies}
         ratings={ratings} setRatings={setRatings} members={members} adminAuthed={adminAuthed} />}
       {page === 'ratings' && <RatingsPage movies={movies} ratings={ratings} setRatings={setRatings} alltime={alltime} setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} />}
