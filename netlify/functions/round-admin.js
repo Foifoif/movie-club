@@ -8,6 +8,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_build_bracket',
   'mc_resolve_matchup',
   'mc_process_due_rounds',
+  'mc_undo_last_round_result',
 ]);
 
 function response(statusCode, body) {

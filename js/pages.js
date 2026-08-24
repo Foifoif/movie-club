@@ -2585,6 +2585,24 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function undoLastRoundResult() {
+    if (!roundWorkflow?.round || roundWorkflow.preview || !roundAdminToken || !currentUser?.id) return;
+    if (!window.confirm('Undo the latest wheel or bracket result? This reopens only the latest undoable result and records the admin action.')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_undo_last_round_result', {
+        p_round_id: roundWorkflow.round.id,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Latest round result undone.');
+    } catch (e) {
+      showMsg('Could not undo the latest result: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
 
@@ -3297,6 +3315,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <button className="btn-secondary" onClick={runTimerProcessor}
                     disabled={!roundAdminToken || stageOpening}>
                     {stageOpening ? 'Running…' : 'Run timer processor now'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary" onClick={undoLastRoundResult}
+                    disabled={!roundAdminToken || !currentUser?.id || stageOpening}>
+                    Undo latest wheel/bracket result
                   </button>
                 )}
               </>
