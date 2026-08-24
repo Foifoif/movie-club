@@ -1238,6 +1238,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
   const activePhase = workflow?.phases?.find(phase => phase.status === 'OPEN');
   const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
   const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
@@ -1286,6 +1287,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (!currentUser?.id) return;
     setSaving(true); setError('');
     setWheelSpinning(true);
+    setWheelRotation(rotation => rotation + 1080 + Math.floor(Math.random() * 360));
     try {
       if (workflow.preview) {
         const result = { id: `preview-spin-${currentUser.id}`, member_id: currentUser.id, result_category: categoryCounts[0]?.[0] || 'Preview category', result_weight: 1 };
@@ -1349,17 +1351,21 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
       )}
       {activePhase.phase_type === 'CATEGORY_SPIN' && (
         <>
-          <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}`} style={{
-            background: categoryCounts.length
-              ? `conic-gradient(${categoryCounts.map(([name, count], index) => {
-                  const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
-                  const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
-                  const end = (start + count / total * 360).toFixed(2);
-                  return `${['#f5c518', '#8ec5e6', '#f2b5d4', '#b8d8ba'][index % 4]} ${start.toFixed(2)}deg ${end}deg`;
-                }).join(', ')})`
-              : 'conic-gradient(var(--cream) 0 360deg)'
-          }}>
-            <span>SPIN</span>
+          <div className="round-wheel-stage">
+            <div className="round-wheel-pointer" aria-hidden="true" />
+            <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}`} style={{
+              transform: `rotate(${wheelRotation}deg)`,
+              background: categoryCounts.length
+                ? `conic-gradient(${categoryCounts.map(([name, count], index) => {
+                    const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+                    const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+                    const end = (start + count / total * 360).toFixed(2);
+                    return `${['#f5c518', '#8ec5e6', '#f2b5d4', '#b8d8ba'][index % 4]} ${start.toFixed(2)}deg ${end}deg`;
+                  }).join(', ')})`
+                : 'conic-gradient(var(--cream) 0 360deg)'
+            }}>
+              <span>SPIN</span>
+            </div>
           </div>
           <div className="round-category-list">
             {categoryCounts.map(([name, count]) => (
