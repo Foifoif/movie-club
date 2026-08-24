@@ -1237,6 +1237,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   const [movieTwoQuery, setMovieTwoQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [wheelSpinning, setWheelSpinning] = useState(false);
   const activePhase = workflow?.phases?.find(phase => phase.status === 'OPEN');
   const existing = workflow?.categorySubmissions?.find(row => row.member_id === currentUser?.id);
   const existingMovies = workflow?.movieSubmissions?.filter(row => row.member_id === currentUser?.id) || [];
@@ -1284,11 +1285,14 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   async function spinCategory() {
     if (!currentUser?.id) return;
     setSaving(true); setError('');
+    setWheelSpinning(true);
     try {
       if (workflow.preview) {
         const result = { id: `preview-spin-${currentUser.id}`, member_id: currentUser.id, result_category: categoryCounts[0]?.[0] || 'Preview category', result_weight: 1 };
+        await new Promise(resolve => setTimeout(resolve, 1100));
         onUpdate({ ...workflow, categorySpins: [...workflow.categorySpins.filter(item => item.member_id !== currentUser.id), result] });
         setSpinResult(result);
+        setWheelSpinning(false);
         setSaving(false);
         return;
       }
@@ -1297,6 +1301,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
       const next = await dbLoadRoundWorkflow();
       if (onUpdate && next) onUpdate(next);
     } catch (e) { setError(e.message || 'Could not record your spin.'); }
+    setWheelSpinning(false);
     setSaving(false);
   }
 
@@ -1344,6 +1349,18 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
       )}
       {activePhase.phase_type === 'CATEGORY_SPIN' && (
         <>
+          <div className={`round-wheel${wheelSpinning ? ' spinning' : ''}`} style={{
+            background: categoryCounts.length
+              ? `conic-gradient(${categoryCounts.map(([name, count], index) => {
+                  const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+                  const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+                  const end = (start + count / total * 360).toFixed(2);
+                  return `${['#f5c518', '#8ec5e6', '#f2b5d4', '#b8d8ba'][index % 4]} ${start.toFixed(2)}deg ${end}deg`;
+                }).join(', ')})`
+              : 'conic-gradient(var(--cream) 0 360deg)'
+          }}>
+            <span>SPIN</span>
+          </div>
           <div className="round-category-list">
             {categoryCounts.map(([name, count]) => (
               <div className="round-category-row" key={name}><span>{name}</span><strong>{count}</strong></div>
@@ -2058,7 +2075,6 @@ function PollPage({ polls, bracket, bracketHistory, roundHistory, members, allti
 
       {tab === 'live' && (
         <>
-          <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
           <RoundWorkflowPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
           <RoundBracketPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
 
@@ -2070,8 +2086,10 @@ function PollPage({ polls, bracket, bracketHistory, roundHistory, members, allti
               onDelete={async () => {
                 try { await dbDeletePoll(activePoll.id); if (onPollsRemove) onPollsRemove(activePoll.id); } catch(e) { console.error(e); }
               }} />
-          ) : (
-            <div className="empty-state"><div>No active poll yet.</div></div>
+          ) : null}
+          <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
+          {!activeBracket && !activePoll && !roundWorkflow?.phases?.some(phase => phase.status === 'OPEN') && (
+            <div className="empty-state"><div>No active action yet.</div></div>
           )}
         </>
       )}
