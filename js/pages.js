@@ -2311,8 +2311,12 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
 function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow }) {
+  const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('movies');
   const [msg, setMsg] = useState(null);
+  const [roundAdminToken, setRoundAdminToken] = useState('');
+  const [stageMode, setStageMode] = useState('');
+  const [stageOpening, setStageOpening] = useState(false);
 
   const pacificMonth = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
@@ -2337,6 +2341,22 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setRoundMode('');
     setRoundDuration('24');
     showMsg('Round setup draft cleared.');
+  }
+
+  async function openMovieStage() {
+    if (!roundWorkflow?.round?.id || !stageMode || !currentUser?.id) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_open_movie_stage', {
+        p_round_id: roundWorkflow.round.id,
+        p_mode: stageMode,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      showMsg(`Movie stage opened in ${stageMode} mode.`);
+    } catch (e) {
+      showMsg('Could not open movie stage: ' + e.message, 'error');
+    }
+    setStageOpening(false);
   }
 
   const [pollQuestion, setPollQuestion] = useState('');
@@ -2978,6 +2998,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <hr className="section-divider" />
             <div className="admin-section-title">Active Round</div>
+            <label className="form-label">Round admin token</label>
+            <input className="form-input" type="password" value={roundAdminToken}
+              onChange={e => setRoundAdminToken(e.target.value)}
+              placeholder="Paste your Netlify ROUND_ADMIN_TOKEN" autoComplete="off" />
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
@@ -2986,6 +3010,20 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 <div className="round-workflow-note">
                   Current phase: {roundWorkflow.phases?.find(p => p.status === 'OPEN')?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
                 </div>
+                {roundWorkflow.phases?.some(p => p.status === 'OPEN' && p.phase_type === 'CATEGORY_SPIN') && (
+                  <>
+                    <label className="form-label">Choose movie bracket mode</label>
+                    <select className="form-input" value={stageMode} onChange={e => setStageMode(e.target.value)}>
+                      <option value="">Choose a mode…</option>
+                      <option value="paired">Paired — permanent two-movie teams</option>
+                      <option value="scrambled">Scrambled — individual movies</option>
+                    </select>
+                    <button className="btn-primary" onClick={openMovieStage}
+                      disabled={!stageMode || !roundAdminToken || !currentUser?.id || stageOpening}>
+                      {stageOpening ? 'Opening…' : 'Open up movie stage'}
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
