@@ -953,6 +953,10 @@
 .round-category-row strong { background:var(--yellow); border-radius:999px; color:var(--ink); font-size:.75rem; min-width:24px; padding:3px 7px; text-align:center; }
 .round-spin-result { background:var(--cream); border-radius:8px; color:var(--ink); margin-top:10px; padding:12px; text-align:center; }
 .round-movie-slot-label { color:var(--ink); font-size:.76rem; font-weight:700; margin-top:10px; text-transform:uppercase; }
+.round-matchup { display:flex; gap:8px; margin:12px 0; }
+.round-matchup-entry { background:var(--cream); border:2px solid var(--ink); border-radius:9px; color:var(--ink); cursor:pointer; flex:1; font-family:inherit; font-size:.82rem; font-weight:700; line-height:1.25; min-height:70px; padding:10px; }
+.round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
+.round-matchup-entry:disabled { cursor:wait; opacity:.7; }
 .rate-save-movie-btn { border:none; display:block; margin:13px 0 0 auto; padding:10px 16px; }
 
 @media (max-width: 420px) {

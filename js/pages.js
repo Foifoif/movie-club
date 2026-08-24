@@ -1224,6 +1224,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   }, [workflow?.round?.id, activePhase?.id, currentUser?.id]);
 
   if (!workflow || !activePhase) return null;
+  if (activePhase.phase_type === 'BRACKET') return null;
 
   const savedSpin = workflow.categorySpins.find(row => row.member_id === currentUser?.id);
   const categoryCounts = Object.entries(workflow.categorySubmissions.reduce((counts, row) => {
@@ -1316,6 +1317,62 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
           <div className="round-workflow-note">Both movie selections are required. You can edit them until this phase closes.</div>
         </>
       )}
+      {error && <div className="round-workflow-error">{error}</div>}
+    </section>
+  );
+}
+
+function RoundBracketPanel({ workflow, onUpdate }) {
+  const { currentUser } = React.useContext(UserContext);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!workflow) return null;
+  const activePhase = workflow.phases.find(phase => phase.status === 'OPEN');
+  if (!activePhase || activePhase.phase_type !== 'BRACKET') return null;
+
+  const openMatchups = workflow.matchups.filter(matchup => matchup.status === 'OPEN');
+  const currentRound = openMatchups.length ? Math.min(...openMatchups.map(matchup => matchup.bracket_round_number)) : null;
+  const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
+  const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
+
+  function entryLabel(entry) {
+    if (!entry) return 'BYE';
+    return entry.entry_type === 'PAIR'
+      ? `${entry.movie_a_title} + ${entry.movie_b_title}`
+      : entry.movie_a_title;
+  }
+
+  async function vote(matchup, entryId) {
+    if (!currentUser?.id) return;
+    setSaving(true); setError('');
+    try {
+      await dbVoteRoundMatchup(matchup.id, currentUser.id, entryId);
+      const next = await dbLoadRoundWorkflow();
+      if (onUpdate && next) onUpdate(next);
+    } catch (e) { setError(e.message || 'Could not save your vote.'); }
+    setSaving(false);
+  }
+
+  return (
+    <section className="round-workflow-panel">
+      <div className="rate-kicker">Bracket round {currentRound || 1}</div>
+      <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
+      <div className="round-workflow-copy">You can change your vote until this round closes.</div>
+      {matchups.map(matchup => {
+        const currentVote = workflow.votes.find(vote => vote.matchup_id === matchup.id && vote.member_id === currentUser?.id);
+        return (
+          <div className="round-matchup" key={matchup.id}>
+            {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map(entryId => (
+              <button key={entryId}
+                className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
+                onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
+                {entryLabel(entries[entryId])}
+              </button>
+            ))}
+          </div>
+        );
+      })}
+      {!matchups.length && <div className="round-workflow-note">This bracket round is waiting for the next matchups.</div>}
       {error && <div className="round-workflow-error">{error}</div>}
     </section>
   );
@@ -1883,6 +1940,7 @@ function PollPage({ polls, bracket, bracketHistory, members, alltime, ratings, s
         <>
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
           <RoundWorkflowPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
+          <RoundBracketPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
 
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
