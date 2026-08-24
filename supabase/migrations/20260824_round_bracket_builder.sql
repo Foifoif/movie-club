@@ -37,8 +37,13 @@ begin
     raise exception 'Round phases are incomplete';
   end if;
 
-  delete from public.bracket_matchups where round_id = p_round_id;
-  delete from public.bracket_entries where round_id = p_round_id;
+  if exists (
+    select 1 from public.bracket_entries where round_id = p_round_id
+  ) or exists (
+    select 1 from public.bracket_matchups where round_id = p_round_id
+  ) then
+    raise exception 'Bracket already exists for this round; create a new round or use an admin reset operation';
+  end if;
 
   if round_row.mode = 'scrambled' then
     with submitted_movies as (
