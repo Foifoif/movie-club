@@ -2580,7 +2580,14 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function reopenPhase() {
     if (!reopenPhaseId || !adminReady || !currentUser?.id) return;
-    if (!window.confirm('Reopen this phase for another 24 hours?')) return;
+    const phaseToReopen = roundWorkflow?.phases?.find(phase => phase.id === Number(reopenPhaseId));
+    const phaseLabel = phaseToReopen?.phase_type?.replaceAll('_', ' ') || 'this phase';
+    const downstreamNote = phaseToReopen?.phase_type === 'CATEGORY_SUBMISSIONS'
+      ? ' The scheduled category spin will be reset.'
+      : phaseToReopen?.phase_type === 'MOVIE_SUBMISSIONS'
+        ? ' The bracket will be reset if it has not been built.'
+        : '';
+    if (!window.confirm(`Reopen ${phaseLabel} for another 24 hours?${downstreamNote}`)) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_reopen_phase', {
