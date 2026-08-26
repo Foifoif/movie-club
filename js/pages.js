@@ -1245,6 +1245,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   const [error, setError] = useState('');
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
+  const wheelRotationRef = useRef(0);
   const [wheelDragging, setWheelDragging] = useState(false);
   const wheelDrag = useRef(null);
   const activePhase = workflow?.phases?.find(roundPhaseIsOpen);
@@ -1262,6 +1263,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     setMovieTwoQuery(existingMovies.find(row => row.slot === 2)?.title || '');
     setSpinResult(null);
     setWheelRotation(0);
+    wheelRotationRef.current = 0;
     setWheelDragging(false);
     wheelDrag.current = null;
   }, [workflow?.round?.id, activePhase?.id, currentUser?.id]);
@@ -1274,6 +1276,28 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     counts[row.normalized_text] = (counts[row.normalized_text] || 0) + 1;
     return counts;
   }, {}));
+
+  function setWheelRotationValue(nextValue) {
+    setWheelRotation(current => {
+      const next = typeof nextValue === 'function' ? nextValue(current) : nextValue;
+      wheelRotationRef.current = next;
+      return next;
+    });
+  }
+
+  function settleWheelOnCategory(categoryName) {
+    const index = categoryCounts.findIndex(([name]) => name === categoryName);
+    if (index < 0) return;
+    const total = categoryCounts.reduce((sum, item) => sum + item[1], 0);
+    const start = categoryCounts.slice(0, index).reduce((sum, item) => sum + item[1], 0) / total * 360;
+    const midpoint = start + (categoryCounts[index][1] / total * 360) / 2;
+    const desired = -90 - midpoint;
+    const current = wheelRotationRef.current;
+    const currentAngle = ((current % 360) + 360) % 360;
+    let finalTurn = ((desired - currentAngle) + 360) % 360;
+    if (finalTurn < 24) finalTurn += 360;
+    setWheelRotationValue(current + 1440 + finalTurn);
+  }
 
   async function submitCategory() {
     if (!currentUser?.id || !category.trim()) return;
@@ -1298,10 +1322,11 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (!currentUser?.id) return;
     setSaving(true); setError('');
     setWheelSpinning(true);
-    setWheelRotation(rotation => rotation + 1080 + Math.floor(Math.random() * 360));
     try {
       if (workflow.preview) {
         const result = { id: `preview-spin-${currentUser.id}`, member_id: currentUser.id, result_category: categoryCounts[0]?.[0] || 'Preview category', result_weight: 1 };
+        await new Promise(resolve => setTimeout(resolve, 1100));
+        settleWheelOnCategory(result.result_category);
         await new Promise(resolve => setTimeout(resolve, 1100));
         onUpdate({ ...workflow, categorySpins: [...workflow.categorySpins.filter(item => item.member_id !== currentUser.id), result] });
         setSpinResult(result);
@@ -1310,6 +1335,8 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
         return;
       }
       const result = await dbSpinCategory(activePhase.id, currentUser.id);
+      settleWheelOnCategory(result.result_category);
+      await new Promise(resolve => setTimeout(resolve, 1100));
       setSpinResult(result);
       const next = await dbLoadRoundWorkflow();
       if (onUpdate && next) onUpdate(next);
@@ -1341,7 +1368,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
     if (delta < -180) delta += 360;
     if (Math.abs(delta) > 0.1) drag.moved = true;
     drag.lastAngle = angle;
-    setWheelRotation(rotation => rotation + delta);
+    setWheelRotationValue(rotation => rotation + delta);
   }
 
   function wheelPointerUp(event) {
