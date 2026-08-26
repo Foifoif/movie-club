@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "movie-club-round-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-25",
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "vars": {
+    "SUPABASE_URL": "https://schtizxdezxteulbvynp.supabase.co"
+  },
+  "env": {
+    "staging": {
+      "name": "movie-club-round-worker-staging",
+      "triggers": {
+        "crons": ["*/5 * * * *"]
+      }
+    },
+    "production": {
+      "name": "movie-club-round-worker",
+      "triggers": {
+        "crons": ["*/5 * * * *"]
+      }
+    }
+  }
+}
