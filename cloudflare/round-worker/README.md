@@ -9,10 +9,8 @@ It intentionally supports the existing `/.netlify/functions/round-admin` path so
 Set these as encrypted Worker secrets for each environment:
 
 ```sh
-npx wrangler secret put ROUND_ADMIN_TOKEN --env staging
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env staging
-npx wrangler secret put ROUND_ADMIN_TOKEN --env production
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env production
+npx wrangler secret put ROUND_ADMIN_TOKEN
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
 The staging Worker should use a staging Supabase project before any real round actions are tested there. The production Worker uses the existing production Supabase project.
@@ -20,8 +18,7 @@ The staging Worker should use a staging Supabase project before any real round a
 ## Deploy
 
 ```sh
-npx wrangler deploy --env staging
-npx wrangler deploy --env production
+npx wrangler deploy
 ```
 
 Configure Cloudflare routes for the Worker on:
