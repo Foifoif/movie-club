@@ -1233,6 +1233,19 @@ function makeRoundPreview(monthKey) {
   };
 }
 
+function winningRoundCategory(workflow) {
+  const counts = (workflow?.categorySpins || []).reduce((result, spin) => {
+    const category = spin.result_category;
+    if (category) result[category] = (result[category] || 0) + 1;
+    return result;
+  }, {});
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) return null;
+  const topCount = ranked[0][1];
+  const leaders = ranked.filter(([, count]) => count === topCount).map(([category]) => category);
+  return { category: leaders.length === 1 ? leaders[0] : null, tie: leaders.length > 1 ? leaders : null };
+}
+
 function RoundWorkflowPanel({ workflow, onUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const [category, setCategory] = useState('');
@@ -1272,6 +1285,7 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   if (activePhase.phase_type === 'BRACKET') return null;
 
   const savedSpin = workflow.categorySpins.find(row => row.member_id === currentUser?.id);
+  const roundCategory = winningRoundCategory(workflow);
   const categoryCounts = Object.entries(workflow.categorySubmissions.reduce((counts, row) => {
     counts[row.normalized_text] = (counts[row.normalized_text] || 0) + 1;
     return counts;
@@ -1479,6 +1493,12 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
       )}
       {activePhase.phase_type === 'MOVIE_SUBMISSIONS' && (
         <>
+          {roundCategory?.category && (
+            <div className="round-winning-category">The category is… <strong>{roundCategory.category}</strong></div>
+          )}
+          {roundCategory?.tie && (
+            <div className="round-winning-category">Category tie: <strong>{roundCategory.tie.join(' · ')}</strong></div>
+          )}
           <div className="round-movie-slot-label">Movie 1</div>
           <MovieSearch value={movieOneQuery} onChange={value => { setMovieOneQuery(value); setMovieOne(null); }} onSelect={setMovieOne} multi placeholder="Search for your first movie…" />
           <div className="round-movie-slot-label">Movie 2</div>
@@ -1518,6 +1538,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const currentRound = openMatchups.length ? Math.min(...openMatchups.map(matchup => matchup.bracket_round_number)) : null;
   const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
+  const roundCategory = winningRoundCategory(workflow);
 
   function entryLabel(entry) {
     if (!entry) return 'BYE';
@@ -1540,6 +1561,12 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   return (
     <section className="round-workflow-panel">
       <div className="rate-kicker">Bracket round {currentRound || 1}</div>
+      {roundCategory?.category && (
+        <div className="round-winning-category">The category is… <strong>{roundCategory.category}</strong></div>
+      )}
+      {roundCategory?.tie && (
+        <div className="round-winning-category">Category tie: <strong>{roundCategory.tie.join(' · ')}</strong></div>
+      )}
       <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
       <div className="round-workflow-copy">You can change your vote until this round closes.</div>
       {matchups.map(matchup => {
