@@ -943,6 +943,7 @@
 .round-workflow-panel { background:white; border:2px solid var(--blue); border-radius:12px; box-shadow:3px 3px 0 var(--yellow); margin:0 0 18px; padding:16px; }
 .round-workflow-title { color:var(--ink); font-size:1.15rem; font-weight:700; margin-top:4px; }
 .round-workflow-copy { color:#777; font-size:.82rem; line-height:1.4; margin:6px 0 12px; }
+.round-winning-category { color:var(--ink); font-size:1rem; font-weight:700; line-height:1.35; margin:4px 0 14px; }
 .round-workflow-panel .home-save-btn { margin-top:9px; width:100%; }
 .round-workflow-note { color:#777; font-size:.72rem; margin-top:8px; }
 .round-workflow-error { color:var(--red); font-size:.78rem; margin-top:8px; }
