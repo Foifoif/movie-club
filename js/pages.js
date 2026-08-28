@@ -1547,6 +1547,16 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       : entry.movie_a_title;
   }
 
+  function entryPosters(entry) {
+    if (!entry) return [];
+    return entry.entry_type === 'PAIR'
+      ? [
+          { title: entry.movie_a_title, poster: entry.movie_a_poster },
+          { title: entry.movie_b_title, poster: entry.movie_b_poster },
+        ]
+      : [{ title: entry.movie_a_title, poster: entry.movie_a_poster }];
+  }
+
   function RoundBracketTrailers({ entry }) {
     const movies = entry?.entry_type === 'PAIR'
       ? [
@@ -1603,6 +1613,13 @@ function RoundBracketPanel({ workflow, onUpdate }) {
           <div className="round-matchup" key={matchup.id}>
             {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map(entryId => (
               <div className="round-matchup-option" key={entryId}>
+                {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
+                  <div className="round-matchup-posters" aria-hidden="true">
+                    {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
+                      <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
+                    ))}
+                  </div>
+                )}
                 <button
                   className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
                   onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
