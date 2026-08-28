@@ -2663,6 +2663,24 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function startBracketNow() {
+    if (!roundWorkflow?.round?.id || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
+    if (!window.confirm('Start the bracket now? This will open the existing bracket, or build it from the completed movie submissions, and give the first bracket round 24 hours.')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_start_bracket_now', {
+        p_round_id: roundWorkflow.round.id,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      showMsg('Bracket started.');
+    } catch (e) {
+      showMsg('Could not start bracket: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   async function reopenPhase() {
     if (!reopenPhaseId || !adminReady || !currentUser?.id) return;
     const phaseToReopen = roundWorkflow?.phases?.find(phase => phase.id === Number(reopenPhaseId));
@@ -3431,6 +3449,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
                     {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
+                  </button>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.phase_type === 'MOVIE_SUBMISSIONS' && p.status === 'CLOSED') && roundWorkflow.phases?.some(p => p.phase_type === 'BRACKET' && p.status !== 'CLOSED') && (
+                  <button className="btn-primary" onClick={startBracketNow}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}
+                    style={{background:'var(--yellow)', color:'var(--ink)'}}>
+                    {stageOpening ? 'Starting…' : 'Start bracket now'}
                   </button>
                 )}
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'CLOSED') && (
