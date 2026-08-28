@@ -976,9 +976,11 @@
 .round-matchup-entry-posters.pair img { width:32px; }
 .round-matchup-entry-label { flex:1; min-width:0; }
 .round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
-.round-matchup-description { background:var(--cream); border:2px solid var(--ink); border-radius:9px; font-size:.72rem; line-height:1.35; margin:8px 0 0; padding:10px; }
+.round-matchup-description { background:var(--cream); border:0 solid var(--ink); border-radius:9px; font-size:.72rem; line-height:1.35; margin:8px 0 0; max-height:0; opacity:0; overflow:hidden; padding:0 10px; transition:max-height .32s ease, opacity .24s ease, padding .32s ease, border-width .32s ease; }
+.round-matchup-description.open { border-width:2px; max-height:280px; opacity:1; padding:10px; }
 .round-matchup-description strong { font-weight:900; }
 .round-matchup-entry:disabled { cursor:wait; opacity:.7; }
+.trailer-button-icon { border-bottom:4px solid transparent; border-left:6px solid currentColor; border-top:4px solid transparent; display:inline-block; height:0; margin-right:4px; vertical-align:-1px; width:0; }
 
 .past-poll-card { border:2px solid var(--ink); border-radius:10px; margin-bottom:12px; overflow:hidden; background:#fff; }
 .past-poll-header { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border:0; background:transparent; padding:14px 16px; text-align:left; cursor:pointer; }
@@ -993,6 +995,15 @@
   .rate-movie-card { min-height:200px; }
   .rate-movie-poster-wrap, .rate-movie-poster { min-height:200px; }
   .rate-movie-title { font-size:1.2rem; }
+  .round-matchup { gap:4px; }
+  .round-matchup-vs { font-size:.85rem; margin-top:35px; }
+  .round-matchup-entry { font-size:.68rem; gap:5px; min-height:82px; padding:6px; }
+  .round-matchup-entry-posters { flex-basis:32px; }
+  .round-matchup-entry-posters img { height:54px; width:32px; }
+  .round-matchup-entry-posters.pair { flex-basis:52px; }
+  .round-matchup-entry-posters.pair img { width:24px; }
+  .round-matchup-trailers .watch-trailer-btn { font-size:.58rem !important; padding:3px 6px !important; }
+  .round-matchup-description { font-size:.66rem; }
 }
 
 .setup-bracket-btn {

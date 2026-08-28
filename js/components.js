@@ -206,7 +206,8 @@ function TrailerButton({ trailerUrl, title, color, label, small }) {
           ...(small ? {padding: '4px 9px', fontSize: '0.68rem', boxShadow: '1px 1px 0 var(--ink)'} : {}),
         }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}>
-        {label || '▶ Trailer'}
+        <span className="trailer-button-icon" aria-hidden="true" />
+        {label || 'Trailer'}
       </button>
     </>
   );
