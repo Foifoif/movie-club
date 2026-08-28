@@ -1614,17 +1614,17 @@ function RoundBracketPanel({ workflow, onUpdate }) {
             {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map((entryId, index, entryIds) => (
               <React.Fragment key={entryId}>
                 <div className="round-matchup-option">
-                  {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
-                    <div className="round-matchup-posters" aria-hidden="true">
-                      {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
-                        <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
-                      ))}
-                    </div>
-                  )}
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
                     onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
-                    {entryLabel(entries[entryId])}
+                    {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
+                      <span className={`round-matchup-entry-posters${entryPosters(entries[entryId]).filter(movie => movie.poster).length > 1 ? ' pair' : ''}`} aria-hidden="true">
+                        {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
+                          <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
+                        ))}
+                      </span>
+                    )}
+                    <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
                   <RoundBracketTrailers entry={entries[entryId]} />
                 </div>
