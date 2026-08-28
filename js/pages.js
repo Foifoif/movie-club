@@ -1547,6 +1547,34 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       : entry.movie_a_title;
   }
 
+  function RoundBracketTrailers({ entry }) {
+    const movies = entry?.entry_type === 'PAIR'
+      ? [
+          { title: entry.movie_a_title, tmdbId: entry.movie_a_tmdb_id },
+          { title: entry.movie_b_title, tmdbId: entry.movie_b_tmdb_id },
+        ]
+      : [{ title: entry?.movie_a_title, tmdbId: entry?.movie_a_tmdb_id }];
+    const [trailers, setTrailers] = useState({});
+
+    useEffect(() => {
+      let cancelled = false;
+      Promise.all(movies.map(async movie => [movie.title, await fetchTrailerUrl(movie.tmdbId)]))
+        .then(results => { if (!cancelled) setTrailers(Object.fromEntries(results.filter(([, url]) => url))); });
+      return () => { cancelled = true; };
+    }, [entry?.id]);
+
+    const available = movies.filter(movie => trailers[movie.title]);
+    if (!available.length) return null;
+    return (
+      <div className="round-matchup-trailers">
+        {available.map(movie => (
+          <TrailerButton key={movie.title} trailerUrl={trailers[movie.title]} title={movie.title}
+            color="var(--blue-mid)" label="▶ Trailer" small />
+        ))}
+      </div>
+    );
+  }
+
   async function vote(matchup, entryId) {
     if (!currentUser?.id) return;
     setSaving(true); setError('');
@@ -1574,11 +1602,14 @@ function RoundBracketPanel({ workflow, onUpdate }) {
         return (
           <div className="round-matchup" key={matchup.id}>
             {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map(entryId => (
-              <button key={entryId}
-                className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
-                onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
-                {entryLabel(entries[entryId])}
-              </button>
+              <div className="round-matchup-option" key={entryId}>
+                <button
+                  className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
+                  onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
+                  {entryLabel(entries[entryId])}
+                </button>
+                <RoundBracketTrailers entry={entries[entryId]} />
+              </div>
             ))}
           </div>
         );
@@ -2596,7 +2627,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         p_reason: 'admin',
       }, roundAdminToken);
       if (activePhase.phase_type === 'MOVIE_SUBMISSIONS') {
-        await dbAdminRoundAction('mc_build_bracket', {
+        await dbAdminRoundAction('mc_build_bracket_immediate', {
           p_round_id: roundWorkflow.round.id,
           p_actor_member_id: currentUser.id,
         }, roundAdminToken);

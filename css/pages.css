@@ -964,7 +964,9 @@
 .round-spin-result { background:var(--cream); border-radius:8px; color:var(--ink); margin-top:10px; padding:12px; text-align:center; }
 .round-movie-slot-label { color:var(--ink); font-size:.76rem; font-weight:700; margin-top:10px; text-transform:uppercase; }
 .round-matchup { display:flex; gap:8px; margin:12px 0; }
-.round-matchup-entry { background:var(--cream); border:2px solid var(--ink); border-radius:9px; color:var(--ink); cursor:pointer; flex:1; font-family:inherit; font-size:.82rem; font-weight:700; line-height:1.25; min-height:70px; padding:10px; }
+.round-matchup-option { flex:1; min-width:0; }
+.round-matchup-trailers { display:flex; gap:5px; justify-content:center; margin:-7px 0 4px; }
+.round-matchup-entry { background:var(--cream); border:2px solid var(--ink); border-radius:9px; color:var(--ink); cursor:pointer; display:block; font-family:inherit; font-size:.82rem; font-weight:700; line-height:1.25; min-height:70px; padding:10px; width:100%; }
 .round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
 .round-matchup-entry:disabled { cursor:wait; opacity:.7; }
 

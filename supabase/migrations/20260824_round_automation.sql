@@ -88,7 +88,7 @@ begin
       );
 
       if phase_row.phase_type = 'MOVIE_SUBMISSIONS' then
-        perform public.mc_build_bracket(phase_row.round_id, null);
+        perform public.mc_build_bracket_immediate(phase_row.round_id, null);
       end if;
     end if;
     processed := processed + 1;

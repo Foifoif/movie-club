@@ -190,7 +190,7 @@ function TrailerModal({ url, title, onClose }) {
   );
 }
 
-function TrailerButton({ trailerUrl, title, color, label }) {
+function TrailerButton({ trailerUrl, title, color, label, small }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -203,6 +203,7 @@ function TrailerButton({ trailerUrl, title, color, label }) {
           border: '2px solid var(--ink)',
           borderRadius: 999,
           boxShadow: '2px 2px 0 var(--ink)',
+          ...(small ? {padding: '4px 9px', fontSize: '0.68rem', boxShadow: '1px 1px 0 var(--ink)'} : {}),
         }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}>
         {label || '▶ Trailer'}
