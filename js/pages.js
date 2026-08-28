@@ -1611,22 +1611,25 @@ function RoundBracketPanel({ workflow, onUpdate }) {
         const currentVote = workflow.votes.find(vote => vote.matchup_id === matchup.id && vote.member_id === currentUser?.id);
         return (
           <div className="round-matchup" key={matchup.id}>
-            {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map(entryId => (
-              <div className="round-matchup-option" key={entryId}>
-                {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
-                  <div className="round-matchup-posters" aria-hidden="true">
-                    {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
-                      <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
-                    ))}
-                  </div>
-                )}
-                <button
-                  className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
-                  onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
-                  {entryLabel(entries[entryId])}
-                </button>
-                <RoundBracketTrailers entry={entries[entryId]} />
-              </div>
+            {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map((entryId, index, entryIds) => (
+              <React.Fragment key={entryId}>
+                <div className="round-matchup-option">
+                  {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
+                    <div className="round-matchup-posters" aria-hidden="true">
+                      {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
+                        <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
+                    onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
+                    {entryLabel(entries[entryId])}
+                  </button>
+                  <RoundBracketTrailers entry={entries[entryId]} />
+                </div>
+                {index < entryIds.length - 1 && <div className="round-matchup-vs" aria-hidden="true">VS</div>}
+              </React.Fragment>
             ))}
           </div>
         );

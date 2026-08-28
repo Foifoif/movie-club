@@ -963,10 +963,11 @@
 .round-category-row strong { background:var(--yellow); border-radius:999px; color:var(--ink); font-size:.75rem; min-width:24px; padding:3px 7px; text-align:center; }
 .round-spin-result { background:var(--cream); border-radius:8px; color:var(--ink); margin-top:10px; padding:12px; text-align:center; }
 .round-movie-slot-label { color:var(--ink); font-size:.76rem; font-weight:700; margin-top:10px; text-transform:uppercase; }
-.round-matchup { display:flex; gap:8px; margin:12px 0; }
+.round-matchup { align-items:center; display:flex; gap:8px; margin:12px 0; }
 .round-matchup + .round-matchup { margin-top:26px; position:relative; }
 .round-matchup + .round-matchup::before { border-top:1px solid var(--ink); content:''; left:12%; opacity:.25; position:absolute; right:12%; top:-14px; }
 .round-matchup-option { flex:1; min-width:0; }
+.round-matchup-vs { color:var(--ink); flex:0 0 auto; font-size:1.15rem; font-weight:900; letter-spacing:.04em; }
 .round-matchup-posters { display:flex; gap:4px; height:58px; justify-content:center; margin:0 0 5px; }
 .round-matchup-posters img { border:1px solid var(--ink); border-radius:4px; height:58px; object-fit:cover; width:40px; }
 .round-matchup-trailers { display:flex; gap:5px; justify-content:center; margin:-7px 0 4px; }
