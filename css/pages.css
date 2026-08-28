@@ -976,6 +976,8 @@
 .round-matchup-entry-posters.pair img { width:32px; }
 .round-matchup-entry-label { flex:1; min-width:0; }
 .round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
+.round-matchup-description { background:var(--cream); border:2px solid var(--ink); border-top:0; border-radius:0 0 9px 9px; font-size:.72rem; line-height:1.35; margin:-8px 0 0; padding:10px; position:relative; }
+.round-matchup-description strong { font-weight:900; }
 .round-matchup-entry:disabled { cursor:wait; opacity:.7; }
 
 .past-poll-card { border:2px solid var(--ink); border-radius:10px; margin-bottom:12px; overflow:hidden; background:#fff; }

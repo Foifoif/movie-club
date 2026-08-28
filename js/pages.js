@@ -1539,6 +1539,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
+  const [hoveredEntryId, setHoveredEntryId] = useState(null);
 
   function entryLabel(entry) {
     if (!entry) return 'BYE';
@@ -1584,6 +1585,39 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       <span className={`round-matchup-entry-posters${available.length > 1 ? ' pair' : ''}`} aria-hidden="true">
         {available.map(movie => <img key={movie.title} src={posters[movie.title]} alt="" title={movie.title} />)}
       </span>
+    );
+  }
+
+  function RoundBracketDescription({ entry, visible }) {
+    const movies = entryPosters(entry).filter(movie => movie.tmdbId);
+    const [descriptions, setDescriptions] = useState({});
+
+    useEffect(() => {
+      let cancelled = false;
+      if (!visible || !movies.length) return undefined;
+      Promise.all(movies.map(async movie => {
+        try {
+          const response = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}?api_key=${TMDB_KEY}`);
+          const data = await response.json();
+          return [movie.title, data.overview || 'Description unavailable.'];
+        } catch (e) { return [movie.title, 'Description unavailable.']; }
+      })).then(results => {
+        if (!cancelled) setDescriptions(Object.fromEntries(results));
+      });
+      return () => { cancelled = true; };
+    }, [entry?.id, visible]);
+
+    if (!visible || !movies.length) return null;
+    return (
+      <div className="round-matchup-description">
+        {movies.map(movie => descriptions[movie.title] && (
+          <div key={movie.title}>
+            {movies.length > 1 && <strong>{movie.title}: </strong>}
+            {descriptions[movie.title]}
+          </div>
+        ))}
+        {!Object.keys(descriptions).length && <span>Loading description…</span>}
+      </div>
     );
   }
 
@@ -1643,14 +1677,20 @@ function RoundBracketPanel({ workflow, onUpdate }) {
           <div className="round-matchup" key={matchup.id}>
             {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map((entryId, index, entryIds) => (
               <React.Fragment key={entryId}>
-                <div className="round-matchup-option">
+                <div className="round-matchup-option"
+                  onMouseEnter={() => setHoveredEntryId(entryId)}
+                  onMouseLeave={() => setHoveredEntryId(null)}>
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
-                    onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
+                    onClick={() => vote(matchup, entryId)}
+                    onFocus={() => setHoveredEntryId(entryId)}
+                    onBlur={() => setHoveredEntryId(null)}
+                    disabled={saving || !currentUser?.id}>
                     <RoundBracketPosters entry={entries[entryId]} />
                     <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
                   <RoundBracketTrailers entry={entries[entryId]} />
+                  <RoundBracketDescription entry={entries[entryId]} visible={hoveredEntryId === entryId} />
                 </div>
                 {index < entryIds.length - 1 && <div className="round-matchup-vs" aria-hidden="true">VS</div>}
               </React.Fragment>
