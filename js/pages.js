@@ -1551,10 +1551,40 @@ function RoundBracketPanel({ workflow, onUpdate }) {
     if (!entry) return [];
     return entry.entry_type === 'PAIR'
       ? [
-          { title: entry.movie_a_title, poster: entry.movie_a_poster },
-          { title: entry.movie_b_title, poster: entry.movie_b_poster },
+          { title: entry.movie_a_title, poster: entry.movie_a_poster, tmdbId: entry.movie_a_tmdb_id },
+          { title: entry.movie_b_title, poster: entry.movie_b_poster, tmdbId: entry.movie_b_tmdb_id },
         ]
-      : [{ title: entry.movie_a_title, poster: entry.movie_a_poster }];
+      : [{ title: entry.movie_a_title, poster: entry.movie_a_poster, tmdbId: entry.movie_a_tmdb_id }];
+  }
+
+  function RoundBracketPosters({ entry }) {
+    const movies = entryPosters(entry);
+    const [posters, setPosters] = useState(() => Object.fromEntries(
+      movies.filter(movie => movie.poster).map(movie => [movie.title, movie.poster])
+    ));
+
+    useEffect(() => {
+      let cancelled = false;
+      Promise.all(movies.map(async movie => {
+        if (movie.poster || !movie.tmdbId) return [movie.title, movie.poster];
+        try {
+          const response = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}?api_key=${TMDB_KEY}`);
+          const data = await response.json();
+          return [movie.title, data.poster_path ? `https://image.tmdb.org/t/p/w92${data.poster_path}` : null];
+        } catch (e) { return [movie.title, null]; }
+      })).then(results => {
+        if (!cancelled) setPosters(Object.fromEntries(results.filter(([, poster]) => poster)));
+      });
+      return () => { cancelled = true; };
+    }, [entry?.id]);
+
+    const available = movies.filter(movie => posters[movie.title]);
+    if (!available.length) return null;
+    return (
+      <span className={`round-matchup-entry-posters${available.length > 1 ? ' pair' : ''}`} aria-hidden="true">
+        {available.map(movie => <img key={movie.title} src={posters[movie.title]} alt="" title={movie.title} />)}
+      </span>
+    );
   }
 
   function RoundBracketTrailers({ entry }) {
@@ -1617,13 +1647,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
                     onClick={() => vote(matchup, entryId)} disabled={saving || !currentUser?.id}>
-                    {!!entryPosters(entries[entryId]).filter(movie => movie.poster).length && (
-                      <span className={`round-matchup-entry-posters${entryPosters(entries[entryId]).filter(movie => movie.poster).length > 1 ? ' pair' : ''}`} aria-hidden="true">
-                        {entryPosters(entries[entryId]).filter(movie => movie.poster).map(movie => (
-                          <img key={movie.title} src={movie.poster} alt="" title={movie.title} />
-                        ))}
-                      </span>
-                    )}
+                    <RoundBracketPosters entry={entries[entryId]} />
                     <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
                   <RoundBracketTrailers entry={entries[entryId]} />
