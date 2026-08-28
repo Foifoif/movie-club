@@ -1607,16 +1607,16 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       return () => { cancelled = true; };
     }, [entry?.id, visible]);
 
-    if (!visible || !movies.length) return null;
+    if (!movies.length) return null;
     return (
-      <div className="round-matchup-description">
-        {movies.map(movie => descriptions[movie.title] && (
+      <div className={`round-matchup-description${visible ? ' open' : ''}`}>
+        {visible && movies.map(movie => descriptions[movie.title] && (
           <div key={movie.title}>
             {movies.length > 1 && <strong>{movie.title}: </strong>}
             {descriptions[movie.title]}
           </div>
         ))}
-        {!Object.keys(descriptions).length && <span>Loading description…</span>}
+        {visible && !Object.keys(descriptions).length && <span>Loading description…</span>}
       </div>
     );
   }
@@ -1643,7 +1643,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       <div className="round-matchup-trailers">
         {available.map(movie => (
           <TrailerButton key={movie.title} trailerUrl={trailers[movie.title]} title={movie.title}
-            color="var(--blue-mid)" label="▶ Trailer" small />
+            color="var(--red)" label="Trailer" small />
         ))}
       </div>
     );
