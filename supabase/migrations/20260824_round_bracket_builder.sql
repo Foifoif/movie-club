@@ -58,9 +58,9 @@ begin
       order by movie_key, title
     )
     insert into public.bracket_entries (
-      round_id, entry_type, movie_a_tmdb_id, movie_a_title, seed
+      round_id, entry_type, movie_a_tmdb_id, movie_a_title, movie_a_poster, seed
     )
-    select p_round_id, 'MOVIE', tmdb_id, title,
+    select p_round_id, 'MOVIE', tmdb_id, title, poster,
            floor(random() * 1000000000)::integer
     from unique_movies;
   else
@@ -91,10 +91,11 @@ begin
     insert into public.bracket_entries (
       round_id, entry_type, source_member_id,
       movie_a_tmdb_id, movie_b_tmdb_id,
-      movie_a_title, movie_b_title, seed
+      movie_a_title, movie_b_title, movie_a_poster, movie_b_poster, seed
     )
     select p_round_id, 'PAIR', member_id,
            a_tmdb_id, b_tmdb_id, a_title, b_title,
+           a_poster, b_poster,
            floor(random() * 1000000000)::integer
     from deduped_pairs;
 
