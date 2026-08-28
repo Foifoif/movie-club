@@ -963,12 +963,12 @@
 .round-category-row strong { background:var(--yellow); border-radius:999px; color:var(--ink); font-size:.75rem; min-width:24px; padding:3px 7px; text-align:center; }
 .round-spin-result { background:var(--cream); border-radius:8px; color:var(--ink); margin-top:10px; padding:12px; text-align:center; }
 .round-movie-slot-label { color:var(--ink); font-size:.76rem; font-weight:700; margin-top:10px; text-transform:uppercase; }
-.round-matchup { align-items:center; display:flex; gap:8px; margin:12px 0; }
+.round-matchup { align-items:flex-start; display:flex; gap:8px; margin:12px 0; }
 .round-matchup + .round-matchup { margin-top:26px; position:relative; }
 .round-matchup + .round-matchup::before { border-top:1px solid var(--ink); content:''; left:12%; opacity:.25; position:absolute; right:12%; top:-14px; }
 .round-matchup-option { flex:1; min-width:0; }
-.round-matchup-vs { color:var(--ink); flex:0 0 auto; font-size:1.15rem; font-weight:900; letter-spacing:.04em; }
-.round-matchup-trailers { display:flex; gap:5px; justify-content:center; margin:-7px 0 4px; }
+.round-matchup-vs { color:var(--ink); flex:0 0 auto; font-size:1.15rem; font-weight:900; letter-spacing:.04em; margin-top:42px; }
+.round-matchup-trailers { align-items:flex-start; display:flex; gap:5px; justify-content:center; margin:4px 0 0; min-height:26px; }
 .round-matchup-entry { align-items:center; background:var(--cream); border:2px solid var(--ink); border-radius:9px; color:var(--ink); cursor:pointer; display:flex; font-family:inherit; font-size:.82rem; font-weight:700; gap:9px; line-height:1.25; min-height:98px; padding:10px; text-align:left; width:100%; }
 .round-matchup-entry-posters { display:flex; flex:0 0 42px; gap:3px; justify-content:flex-start; }
 .round-matchup-entry-posters img { border:1px solid var(--ink); border-radius:4px; height:68px; object-fit:cover; width:42px; }
@@ -976,7 +976,7 @@
 .round-matchup-entry-posters.pair img { width:32px; }
 .round-matchup-entry-label { flex:1; min-width:0; }
 .round-matchup-entry:hover, .round-matchup-entry.selected { background:var(--yellow); }
-.round-matchup-description { background:var(--cream); border:2px solid var(--ink); border-top:0; border-radius:0 0 9px 9px; font-size:.72rem; line-height:1.35; margin:-8px 0 0; padding:10px; position:relative; }
+.round-matchup-description { background:var(--cream); border:2px solid var(--ink); border-radius:9px; font-size:.72rem; line-height:1.35; margin:8px 0 0; padding:10px; }
 .round-matchup-description strong { font-weight:900; }
 .round-matchup-entry:disabled { cursor:wait; opacity:.7; }
 

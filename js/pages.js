@@ -1539,7 +1539,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
-  const [hoveredEntryId, setHoveredEntryId] = useState(null);
+  const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
 
   function entryLabel(entry) {
     if (!entry) return 'BYE';
@@ -1674,23 +1674,23 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       {matchups.map(matchup => {
         const currentVote = workflow.votes.find(vote => vote.matchup_id === matchup.id && vote.member_id === currentUser?.id);
         return (
-          <div className="round-matchup" key={matchup.id}>
+          <div className="round-matchup" key={matchup.id}
+            onMouseEnter={() => setHoveredMatchupId(matchup.id)}
+            onMouseLeave={() => setHoveredMatchupId(null)}>
             {[matchup.entry_a_id, matchup.entry_b_id].filter(Boolean).map((entryId, index, entryIds) => (
               <React.Fragment key={entryId}>
-                <div className="round-matchup-option"
-                  onMouseEnter={() => setHoveredEntryId(entryId)}
-                  onMouseLeave={() => setHoveredEntryId(null)}>
+                <div className="round-matchup-option">
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
                     onClick={() => vote(matchup, entryId)}
-                    onFocus={() => setHoveredEntryId(entryId)}
-                    onBlur={() => setHoveredEntryId(null)}
+                    onFocus={() => setHoveredMatchupId(matchup.id)}
+                    onBlur={() => setHoveredMatchupId(null)}
                     disabled={saving || !currentUser?.id}>
                     <RoundBracketPosters entry={entries[entryId]} />
                     <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
                   <RoundBracketTrailers entry={entries[entryId]} />
-                  <RoundBracketDescription entry={entries[entryId]} visible={hoveredEntryId === entryId} />
+                  <RoundBracketDescription entry={entries[entryId]} visible={hoveredMatchupId === matchup.id} />
                 </div>
                 {index < entryIds.length - 1 && <div className="round-matchup-vs" aria-hidden="true">VS</div>}
               </React.Fragment>
