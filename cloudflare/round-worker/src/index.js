@@ -7,6 +7,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_build_bracket_immediate',
   'mc_start_bracket_now',
   'mc_resolve_matchup',
+  'mc_resolve_matchup_immediate',
   'mc_process_due_rounds',
   'mc_undo_last_round_result',
   'mc_archive_round',
