@@ -2735,7 +2735,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         await dbAdminRoundAction('mc_resolve_matchup_immediate', {
           p_matchup_id: matchup.id,
           p_actor_member_id: currentUser.id,
-          p_reason: 'admin',
         }, roundAdminToken);
       }
       const next = await dbLoadRoundWorkflow();
