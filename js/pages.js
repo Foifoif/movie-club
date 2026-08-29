@@ -2732,7 +2732,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(true);
     try {
       for (const matchup of openMatchups) {
-        await dbAdminRoundAction('mc_resolve_matchup', {
+        await dbAdminRoundAction('mc_resolve_matchup_immediate', {
           p_matchup_id: matchup.id,
           p_actor_member_id: currentUser.id,
           p_reason: 'admin',
@@ -3532,10 +3532,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
-                    {stageOpening ? 'Resolving…' : 'Resolve open matchups'}
+                    {stageOpening ? 'Advancing…' : 'Advance bracket now'}
                   </button>
                 )}
-                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.phase_type === 'MOVIE_SUBMISSIONS' && p.status === 'CLOSED') && roundWorkflow.phases?.some(p => p.phase_type === 'BRACKET' && p.status !== 'CLOSED') && (
+                {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.phase_type === 'MOVIE_SUBMISSIONS' && p.status === 'CLOSED') && roundWorkflow.phases?.some(p => p.phase_type === 'BRACKET' && p.status !== 'CLOSED') && !roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && (
                   <button className="btn-primary" onClick={startBracketNow}
                     disabled={!adminReady || !currentUser?.id || stageOpening}
                     style={{background:'var(--yellow)', color:'var(--ink)'}}>
