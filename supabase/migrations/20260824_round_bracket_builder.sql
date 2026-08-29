@@ -194,6 +194,7 @@ returns public.bracket_matchups
 language plpgsql
 security definer
 set search_path = public
+set plpgsql.variable_conflict = 'use_column'
 as $$
 declare
   matchup public.bracket_matchups;
