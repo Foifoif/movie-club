@@ -1536,7 +1536,13 @@ function RoundBracketPanel({ workflow, onUpdate }) {
 
   const openMatchups = workflow.matchups.filter(matchup => matchup.status === 'OPEN');
   const currentRound = openMatchups.length ? Math.min(...openMatchups.map(matchup => matchup.bracket_round_number)) : null;
-  const matchups = currentRound == null ? [] : openMatchups.filter(matchup => matchup.bracket_round_number === currentRound);
+  const currentRoundMatchups = currentRound == null ? [] : workflow.matchups.filter(matchup =>
+    matchup.bracket_round_number === currentRound && matchup.status !== 'CANCELLED'
+  );
+  const matchups = currentRoundMatchups.filter(matchup => matchup.status === 'OPEN');
+  const byeMatchups = currentRoundMatchups.filter(matchup =>
+    matchup.status === 'CLOSED' && matchup.entry_a_id && !matchup.entry_b_id && matchup.winner_entry_id
+  );
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
   const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
@@ -1671,6 +1677,14 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       )}
       <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
       <div className="round-workflow-copy">You can change your vote until this round closes.</div>
+      {byeMatchups.map(matchup => (
+        <div className="round-matchup round-matchup-bye" key={`bye-${matchup.id}`}>
+          <div className="round-matchup-bye-label">
+            <strong>BYE</strong>
+            <span>{entryLabel(entries[matchup.winner_entry_id])} advances automatically</span>
+          </div>
+        </div>
+      ))}
       {matchups.map(matchup => {
         const currentVote = workflow.votes.find(vote => vote.matchup_id === matchup.id && vote.member_id === currentUser?.id);
         return (
