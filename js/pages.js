@@ -2626,6 +2626,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [stageMode, setStageMode] = useState('');
   const [stageOpening, setStageOpening] = useState(false);
   const [reopenPhaseId, setReopenPhaseId] = useState('');
+  const [reopenBracketRoundNumber, setReopenBracketRoundNumber] = useState('');
   const adminReady = Boolean(roundAdminToken || roundAdminAuthenticated);
 
   useEffect(() => {
@@ -2760,6 +2761,27 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       showMsg('Bracket started.');
     } catch (e) {
       showMsg('Could not start bracket: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  async function reopenBracketRound() {
+    if (!roundWorkflow?.round?.id || roundWorkflow.preview || !reopenBracketRoundNumber || !adminReady || !currentUser?.id) return;
+    const roundNumber = Number(reopenBracketRoundNumber);
+    if (!window.confirm(`Reopen bracket Round ${roundNumber}? Existing votes in that round will be cleared for a fresh vote, downstream matchups will be cancelled, and the round will get a new 24-hour window.`)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_reopen_bracket_round', {
+        p_round_id: roundWorkflow.round.id,
+        p_bracket_round_number: roundNumber,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      setReopenBracketRoundNumber('');
+      showMsg(`Bracket Round ${roundNumber} reopened.`);
+    } catch (e) {
+      showMsg('Could not reopen bracket round: ' + e.message, 'error');
     }
     setStageOpening(false);
   }
@@ -3553,6 +3575,21 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     <button className="btn-secondary" onClick={reopenPhase}
                       disabled={!reopenPhaseId || !adminReady || !currentUser?.id || stageOpening}>
                       {stageOpening ? 'Reopening…' : 'Reopen phase'}
+                    </button>
+                  </>
+                )}
+                {!roundWorkflow.preview && roundWorkflow.matchups?.length > 0 && (
+                  <>
+                    <label className="form-label">Reopen a bracket round</label>
+                    <select className="form-input" value={reopenBracketRoundNumber} onChange={e => setReopenBracketRoundNumber(e.target.value)}>
+                      <option value="">Choose a bracket round…</option>
+                      {[...new Set(roundWorkflow.matchups.map(matchup => matchup.bracket_round_number))].sort((a, b) => a - b).map(roundNumber => (
+                        <option key={roundNumber} value={roundNumber}>Bracket Round {roundNumber}</option>
+                      ))}
+                    </select>
+                    <button className="btn-secondary" onClick={reopenBracketRound}
+                      disabled={!reopenBracketRoundNumber || !adminReady || !currentUser?.id || stageOpening}>
+                      {stageOpening ? 'Reopening…' : 'Reopen bracket round'}
                     </button>
                   </>
                 )}

@@ -67,10 +67,10 @@ begin
   end if;
 
   select count(*) > 1 into tie
-  from (select count(*) as votes from public.bracket_votes where matchup_id = matchup.id group by entry_id) tied
+  from (select count(*) as votes from public.bracket_votes where matchup_id = matchup.id group by public.bracket_votes.entry_id) tied
   where tied.votes = (
     select coalesce(max(votes), 0)
-    from (select count(*) as votes from public.bracket_votes where matchup_id = matchup.id group by entry_id) max_votes
+    from (select count(*) as votes from public.bracket_votes where matchup_id = matchup.id group by public.bracket_votes.entry_id) max_votes
   );
 
   select id into phase_id from public.round_phases
