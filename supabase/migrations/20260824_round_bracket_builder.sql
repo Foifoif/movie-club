@@ -271,7 +271,7 @@ begin
     select count(*) as votes
     from public.bracket_votes
     where matchup_id = matchup.id
-    group by entry_id
+    group by public.bracket_votes.entry_id
   ) tied
   where tied.votes = (
     select coalesce(max(votes), 0)
@@ -279,7 +279,7 @@ begin
       select count(*) as votes
       from public.bracket_votes
       where matchup_id = matchup.id
-      group by entry_id
+        group by public.bracket_votes.entry_id
     ) max_votes
   );
 
