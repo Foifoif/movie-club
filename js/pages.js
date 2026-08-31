@@ -1543,6 +1543,8 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const byeMatchups = currentRoundMatchups.filter(matchup =>
     matchup.status === 'CLOSED' && matchup.entry_a_id && !matchup.entry_b_id && matchup.winner_entry_id
   );
+  const scrambledFinal = workflow.round.mode === 'scrambled' && matchups.length === 1
+    && currentRoundMatchups.length === 1 && matchups[0].entry_a_id && matchups[0].entry_b_id;
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
   const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
@@ -1677,6 +1679,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       )}
       <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
       <div className="round-workflow-copy">You can change your vote until this round closes.</div>
+      {scrambledFinal && <div className="round-final-two"><strong>Final two winners</strong><span>Scrambled brackets end with these two movies. No vote is required.</span></div>}
       {byeMatchups.map(matchup => (
         <div className="round-matchup round-matchup-bye" key={`bye-${matchup.id}`}>
           <div className="round-matchup-bye-label">
@@ -1696,10 +1699,10 @@ function RoundBracketPanel({ workflow, onUpdate }) {
                 <div className="round-matchup-option">
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
-                    onClick={() => vote(matchup, entryId)}
+                    onClick={scrambledFinal ? undefined : () => vote(matchup, entryId)}
                     onFocus={() => setHoveredMatchupId(matchup.id)}
                     onBlur={() => setHoveredMatchupId(null)}
-                    disabled={saving || !currentUser?.id}>
+                    disabled={saving || !currentUser?.id || scrambledFinal}>
                     <RoundBracketPosters entry={entries[entryId]} />
                     <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
@@ -2882,6 +2885,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
+  const activeBracketIsScrambledFinal = roundWorkflow?.round?.mode === 'scrambled'
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN').length === 1
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_a_id
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_b_id;
 
   async function adminCreatePoll() {
     if (!pollQuestion.trim()) { showMsg('Enter a question', 'error'); return; }
@@ -3567,7 +3574,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
-                    {stageOpening ? 'Advancing…' : 'Advance bracket now'}
+                    {stageOpening ? 'Advancing…' : activeBracketIsScrambledFinal ? 'Finalize bracket' : 'Advance bracket now'}
                   </button>
                 )}
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.phase_type === 'MOVIE_SUBMISSIONS' && p.status === 'CLOSED') && roundWorkflow.phases?.some(p => p.phase_type === 'BRACKET' && p.status !== 'CLOSED') && !roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && (
