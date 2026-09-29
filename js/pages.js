@@ -2923,7 +2923,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [mnJoinCurrent, setMnJoinCurrent] = useState('');
   const [mnLoading,     setMnLoading]     = useState(false);
   useEffect(() => {
-    if (section === 'movienight') {
+    if (section === 'club') {
       dbLoadOverride().then(v => setMnCurrent(v));
       dbLoadJoinUrl().then(v => { setMnJoinCurrent(v||''); setMnJoinUrl(v||''); });
     }
@@ -3171,7 +3171,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [tmmTrivia, setTmmTrivia] = useState('');
 
   useEffect(() => {
-    if (section === 'thismonth' && !tmmLoaded) {
+    if (section === 'club' && !tmmLoaded) {
       Promise.all([
         dbLoadMonthlyEvents(),
         dbLoadJoinUrl(),
@@ -3326,9 +3326,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         </div>
 
         <div className="admin-nav" aria-label="Admin sections">
-          {['round','movies','members','movienight','thismonth','bracket'].map(s => (
+          {['round','movies','members','club','bracket'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'round' ? 'Round' : s === 'bracket' ? 'Test bracket' : s === 'thismonth' ? 'This Month' : 'Movie Night'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'round' ? 'Round' : s === 'bracket' ? 'Test bracket' : 'Club content'}
             </button>
           ))}
           <span className="admin-nav-divider" aria-hidden="true">Tools</span>
@@ -3741,9 +3741,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           </>
         )}
 
-        {section === 'movienight' && (
+        {section === 'club' && (
           <>
-            <div className="admin-section-title">Movie "Night" Schedule</div>
+            <div className="admin-section-title">Club content</div>
+            <div className="admin-subsection-title">Movie Night schedule</div>
             <div style={{fontSize:'0.88rem',color:'#7a6e58',marginBottom:14,lineHeight:1.5}}>
               Auto-schedule: <strong>4th Friday of each month, 9 AM PST</strong><br/>
               {mnCurrent
@@ -3808,9 +3809,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           </>
         )}
 
-        {section === 'thismonth' && (
+        {section === 'club' && (
           <>
-            <div className="admin-section-title">This Month's Movies</div>
+            <hr className="section-divider" />
+            <div className="admin-subsection-title">This Month’s movies</div>
 
             {!tmmLoaded ? (
               <div style={{textAlign:'center',padding:'20px 0',color:'#aaa'}}>Loading…</div>
