@@ -1543,6 +1543,8 @@ function RoundBracketPanel({ workflow, onUpdate }) {
   const byeMatchups = currentRoundMatchups.filter(matchup =>
     matchup.status === 'CLOSED' && matchup.entry_a_id && !matchup.entry_b_id && matchup.winner_entry_id
   );
+  const scrambledFinal = workflow.round.mode === 'scrambled' && matchups.length === 1
+    && currentRoundMatchups.length === 1 && matchups[0].entry_a_id && matchups[0].entry_b_id;
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
   const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
@@ -1677,6 +1679,7 @@ function RoundBracketPanel({ workflow, onUpdate }) {
       )}
       <div className="round-workflow-title">Choose the winning {workflow.round.mode === 'paired' ? 'pair' : 'movie'}</div>
       <div className="round-workflow-copy">You can change your vote until this round closes.</div>
+      {scrambledFinal && <div className="round-final-two"><strong>Final two winners</strong><span>Scrambled brackets end with these two movies. No vote is required.</span></div>}
       {byeMatchups.map(matchup => (
         <div className="round-matchup round-matchup-bye" key={`bye-${matchup.id}`}>
           <div className="round-matchup-bye-label">
@@ -1696,10 +1699,10 @@ function RoundBracketPanel({ workflow, onUpdate }) {
                 <div className="round-matchup-option">
                   <button
                     className={`round-matchup-entry${currentVote?.entry_id === entryId ? ' selected' : ''}`}
-                    onClick={() => vote(matchup, entryId)}
+                    onClick={scrambledFinal ? undefined : () => vote(matchup, entryId)}
                     onFocus={() => setHoveredMatchupId(matchup.id)}
                     onBlur={() => setHoveredMatchupId(null)}
-                    disabled={saving || !currentUser?.id}>
+                    disabled={saving || !currentUser?.id || scrambledFinal}>
                     <RoundBracketPosters entry={entries[entryId]} />
                     <span className="round-matchup-entry-label">{entryLabel(entries[entryId])}</span>
                   </button>
@@ -2633,7 +2636,7 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
 function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate }) {
   const { currentUser } = React.useContext(UserContext);
-  const [section, setSection] = useState('movies');
+  const [section, setSection] = useState('round');
   const [msg, setMsg] = useState(null);
   const [roundAdminToken, setRoundAdminToken] = useState('');
   const [roundAdminAuthenticated, setRoundAdminAuthenticated] = useState(false);
@@ -2882,6 +2885,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
+  const activeBracketIsScrambledFinal = roundWorkflow?.round?.mode === 'scrambled'
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN').length === 1
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_a_id
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_b_id;
 
   async function adminCreatePoll() {
     if (!pollQuestion.trim()) { showMsg('Enter a question', 'error'); return; }
@@ -2916,7 +2923,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [mnJoinCurrent, setMnJoinCurrent] = useState('');
   const [mnLoading,     setMnLoading]     = useState(false);
   useEffect(() => {
-    if (section === 'movienight') {
+    if (section === 'club') {
       dbLoadOverride().then(v => setMnCurrent(v));
       dbLoadJoinUrl().then(v => { setMnJoinCurrent(v||''); setMnJoinUrl(v||''); });
     }
@@ -3164,7 +3171,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [tmmTrivia, setTmmTrivia] = useState('');
 
   useEffect(() => {
-    if (section === 'thismonth' && !tmmLoaded) {
+    if (section === 'club' && !tmmLoaded) {
       Promise.all([
         dbLoadMonthlyEvents(),
         dbLoadJoinUrl(),
@@ -3318,10 +3325,16 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           </button>
         </div>
 
-        <div className="admin-nav">
-          {['movies','members','poll','round','bracket','ratings','movienight','thismonth'].map(s => (
+        <div className="admin-nav" aria-label="Admin sections">
+          {['round','movies','members','club','bracket'].map(s => (
             <button key={s} className={`admin-nav-btn ${section===s?'active':''}`} onClick={()=>setSection(s)}>
-              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'poll' ? 'Poll' : s === 'round' ? 'Round' : s === 'bracket' ? 'Bracket' : s === 'ratings' ? 'Ratings' : s === 'thismonth' ? '📅 This Month' : '🎬 Movie "Night"'}
+              {s === 'movies' ? 'Movies' : s === 'members' ? 'Members' : s === 'round' ? 'Round' : s === 'bracket' ? 'Test bracket' : 'Club content'}
+            </button>
+          ))}
+          <span className="admin-nav-divider" aria-hidden="true">Tools</span>
+          {['poll','ratings'].map(s => (
+            <button key={s} className={`admin-nav-btn admin-nav-tool ${section===s?'active':''}`} onClick={()=>setSection(s)}>
+              {s === 'poll' ? 'Polls' : 'Rating corrections'}
             </button>
           ))}
         </div>
@@ -3493,9 +3506,13 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
         {section === 'round' && (
           <>
-            <div className="admin-section-title">New Round Setup</div>
+            <div className="admin-section-title">Round management</div>
             <div className="round-workflow-note" style={{marginBottom:14}}>
-              Staging setup only. This saves a local draft in this browser and does not create or expose a round to the club yet. The bracket mode is chosen after the category wheel.
+              Set up the next club round here, then manage the active round below. Test brackets are kept at the bottom of this page.
+            </div>
+            <div className="admin-subsection-title">New round setup</div>
+            <div className="round-workflow-note" style={{marginBottom:14}}>
+              This draft is local to this browser until you create the real round. Bracket mode is chosen after the category wheel.
             </div>
             <label className="form-label">Round label</label>
             <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
@@ -3529,7 +3546,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             </button>
 
             <hr className="section-divider" />
-            <div className="admin-section-title">Active Round</div>
+            <div className="admin-subsection-title">Active round</div>
             <label className="form-label">Round admin token</label>
             <input className="form-input" type="password" value={roundAdminToken}
               onChange={e => setRoundAdminToken(e.target.value)}
@@ -3544,6 +3561,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                   Current phase: {roundWorkflow.phases?.find(roundPhaseIsOpen)?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
                   {roundWorkflow.phases?.find(roundPhaseIsOpen)?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(roundPhaseIsOpen).closes_at).toLocaleString()}`}
                 </div>
+                {!roundWorkflow.preview && (
+                  <button className="btn-secondary admin-archive-btn" onClick={archiveCurrentRound}
+                    disabled={!adminReady || !currentUser?.id || stageOpening}>
+                    Archive current round
+                  </button>
+                )}
                 {roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'CATEGORY_SPIN') && (
                   <>
                     <label className="form-label">Choose movie bracket mode</label>
@@ -3567,7 +3590,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && roundWorkflow.matchups?.some(matchup => matchup.status === 'OPEN') && (
                   <button className="btn-secondary" onClick={resolveOpenMatchups}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
-                    {stageOpening ? 'Advancing…' : 'Advance bracket now'}
+                    {stageOpening ? 'Advancing…' : activeBracketIsScrambledFinal ? 'Finalize bracket' : 'Advance bracket now'}
                   </button>
                 )}
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.phase_type === 'MOVIE_SUBMISSIONS' && p.status === 'CLOSED') && roundWorkflow.phases?.some(p => p.phase_type === 'BRACKET' && p.status !== 'CLOSED') && !roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'BRACKET') && (
@@ -3619,17 +3642,17 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     Undo latest wheel/bracket result
                   </button>
                 )}
-                {!roundWorkflow.preview && (
-                  <button className="btn-secondary" onClick={archiveCurrentRound}
-                    disabled={!adminReady || !currentUser?.id || stageOpening}
-                    style={{background:'var(--red)', borderColor:'var(--red)', color:'white'}}>
-                    Archive current round
-                  </button>
-                )}
               </>
             ) : (
               <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
             )}
+
+            <hr className="section-divider" />
+            <div className="admin-subsection-title">Test bracket</div>
+            <div className="round-workflow-note" style={{marginBottom:10}}>
+              The legacy bracket builder is for previews and testing only. It does not create a club round.
+            </div>
+            <button className="btn-secondary" onClick={() => setSection('bracket')}>Open test bracket builder</button>
           </>
         )}
 
@@ -3718,9 +3741,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           </>
         )}
 
-        {section === 'movienight' && (
+        {section === 'club' && (
           <>
-            <div className="admin-section-title">Movie "Night" Schedule</div>
+            <div className="admin-section-title">Club content</div>
+            <div className="admin-subsection-title">Movie Night schedule</div>
             <div style={{fontSize:'0.88rem',color:'#7a6e58',marginBottom:14,lineHeight:1.5}}>
               Auto-schedule: <strong>4th Friday of each month, 9 AM PST</strong><br/>
               {mnCurrent
@@ -3785,9 +3809,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
           </>
         )}
 
-        {section === 'thismonth' && (
+        {section === 'club' && (
           <>
-            <div className="admin-section-title">This Month's Movies</div>
+            <hr className="section-divider" />
+            <div className="admin-subsection-title">This Month’s movies</div>
 
             {!tmmLoaded ? (
               <div style={{textAlign:'center',padding:'20px 0',color:'#aaa'}}>Loading…</div>
@@ -3909,7 +3934,7 @@ function LoginPage({ onLogin, onClose }) {
         <button className="login-close" onClick={onClose} aria-label="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
-        <div className="login-title">🎬 Admin</div>
+        <div className="login-title">Admin</div>
         <div className="login-sub">Movie Club command center</div>
         {err && <div className="error-msg">{err}</div>}
         <label className="form-label">Username</label>
