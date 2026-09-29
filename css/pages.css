@@ -383,6 +383,30 @@
 }
 
 .admin-nav-btn.active { background: var(--ink); color: var(--yellow); }
+.admin-nav-divider {
+  align-self: center;
+  color: #9a8d77;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-left: 3px;
+}
+.admin-nav-tool { border-color: #9a8d77; font-size: .9rem; }
+.admin-subsection-title {
+  color: var(--blue-mid);
+  font-size: .98rem;
+  font-weight: 700;
+  margin: 14px 0 9px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+.admin-archive-btn {
+  background: var(--red) !important;
+  border-color: var(--red) !important;
+  color: white !important;
+  margin: 10px 0 14px;
+}
 
 /* FOOTER LOGO */
 .footer-logo-section {
@@ -464,7 +488,7 @@
   font-family: Calibri, Candara, 'Segoe UI', Optima, sans-serif;
   font-size: 1.8rem;
   color: var(--red);
-  text-shadow: 3px 3px 0 var(--yellow);
+  text-shadow: none;
   margin-bottom: 4px;
 }
 
