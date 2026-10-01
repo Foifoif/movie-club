@@ -16,9 +16,9 @@ $$;
 create or replace function public.mc_create_round(
   p_month_key text,
   p_mode text,
-  p_created_by bigint default null,
-  p_open_at timestamptz default null,
-  p_default_duration_hours integer default 24
+  p_created_by bigint,
+  p_open_at timestamptz,
+  p_default_duration_hours integer
 )
 returns public.rounds
 language plpgsql
@@ -66,6 +66,21 @@ begin
 
   return result;
 end;
+$$;
+
+-- Preserve the original API without overlapping default-argument signatures.
+create or replace function public.mc_create_round(
+  p_month_key text,
+  p_mode text,
+  p_created_by bigint default null,
+  p_open_at timestamptz default null
+)
+returns public.rounds
+language sql
+security definer
+set search_path = public
+as $$
+  select * from public.mc_create_round(p_month_key, p_mode, p_created_by, p_open_at, 24);
 $$;
 
 create or replace function public.mc_advance_phase(
@@ -311,6 +326,29 @@ begin
   perform 1 from public.rounds where id = result.round_id
     and status in ('ACTIVE', 'COMPLETE') for update;
   if not found then raise exception 'Archived rounds cannot be reopened'; end if;
+
+  if result.phase_type = 'BRACKET' then
+    raise exception 'Use Reopen bracket round to select a specific voting round';
+  end if;
+
+  if result.phase_type = 'CATEGORY_SPIN' then
+    insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload)
+    values (result.round_id, result.id, p_actor_member_id, 'CATEGORY_SELECTION_RESET',
+      jsonb_build_object(
+        'spins', (select coalesce(jsonb_agg(to_jsonb(cs)), '[]'::jsonb) from public.category_spins cs where cs.phase_id = result.id),
+        'movies', (select coalesce(jsonb_agg(to_jsonb(ms)), '[]'::jsonb) from public.movie_submissions ms
+          join public.round_phases rp on rp.id = ms.phase_id where rp.round_id = result.round_id)
+      ));
+    perform public.mc_reopen_phase(rp.id, p_actor_member_id, 'wheel reopened')
+    from public.round_phases rp where rp.round_id = result.round_id and rp.phase_type = 'MOVIE_SUBMISSIONS';
+    delete from public.movie_submissions where phase_id in (
+      select rp.id from public.round_phases rp where rp.round_id = result.round_id and rp.phase_type = 'MOVIE_SUBMISSIONS'
+    );
+    delete from public.category_spins where phase_id = result.id;
+    update public.round_phases set status = 'DRAFT', opens_at = null, closes_at = null,
+      closed_reason = null where round_id = result.round_id and phase_type = 'MOVIE_SUBMISSIONS';
+    update public.rounds set mode = null where id = result.round_id;
+  end if;
 
   if result.phase_type = 'CATEGORY_SUBMISSIONS' then
     select * into downstream
@@ -1239,9 +1277,38 @@ revoke all on function public.mc_delete_round(bigint, bigint) from public;
 revoke all on function public.mc_resolve_matchup_immediate(bigint, bigint) from public;
 
 grant execute on function public.mc_round_duration(bigint) to service_role;
+grant execute on function public.mc_create_round(text, text, bigint, timestamptz) to service_role;
 grant execute on function public.mc_create_round(text, text, bigint, timestamptz, integer) to service_role;
 grant execute on function public.mc_create_round_at_movie_stage(text, text, text, bigint, integer) to service_role;
 grant execute on function public.mc_build_bracket_immediate(bigint, bigint) to service_role;
 grant execute on function public.mc_undo_last_round_result(bigint, bigint) to service_role;
 grant execute on function public.mc_delete_round(bigint, bigint) to service_role;
 grant execute on function public.mc_resolve_matchup_immediate(bigint, bigint) to service_role;
+
+-- Explicitly retain the admin boundary regardless of which historical
+-- versions of these functions were previously installed.
+do $$
+declare signature text;
+begin
+  foreach signature in array array[
+    'mc_advance_phase(bigint,bigint,text)',
+    'mc_reopen_phase(bigint,bigint,text)',
+    'mc_open_movie_stage(bigint,text,bigint)',
+    'mc_build_bracket(bigint,bigint)',
+    'mc_build_bracket_immediate(bigint,bigint)',
+    'mc_resolve_matchup(bigint,bigint,text)',
+    'mc_reopen_bracket_round(bigint,integer,bigint)',
+    'mc_start_bracket_now(bigint,bigint)',
+    'mc_process_due_rounds()',
+    'mc_create_round(text,text,bigint,timestamptz)',
+    'mc_create_round(text,text,bigint,timestamptz,integer)',
+    'mc_create_round_at_movie_stage(text,text,text,bigint,integer)',
+    'mc_undo_last_round_result(bigint,bigint)',
+    'mc_delete_round(bigint,bigint)',
+    'mc_resolve_matchup_immediate(bigint,bigint)'
+  ] loop
+    execute 'revoke all on function public.' || signature || ' from public, anon, authenticated';
+    execute 'grant execute on function public.' || signature || ' to service_role';
+  end loop;
+end;
+$$;

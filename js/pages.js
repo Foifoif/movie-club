@@ -2294,9 +2294,40 @@ function PastRoundCard({ round }) {
           )}
           <div className="round-history-heading">Activity log</div>
           {events.map(event => (
-            <div className="round-category-row" key={event.id}>
+            <div key={event.id}>
+            <div className="round-category-row">
               <span>{event.event_type.replaceAll('_', ' ')}</span>
               <small>{new Date(event.created_at).toLocaleString()}</small>
+            </div>
+            {event.event_type === 'CATEGORY_WINNER_SELECTED' && (
+              <div className="round-workflow-note">
+                Category: <strong>{event.payload?.category}</strong>
+                {event.payload?.tie && <span> · Tie resolved randomly between {(event.payload.tied_categories || []).join(', ')}</span>}
+              </div>
+            )}
+            {['CATEGORY_SELECTION_RESET', 'BRACKET_RESET_FOR_SUBMISSIONS'].includes(event.event_type) && (
+              <details style={{margin:'8px 0 16px'}}>
+                <summary style={{cursor:'pointer'}}>View saved results before reset</summary>
+                {(event.payload?.spins || []).map((spin, index) => (
+                  <div className="round-category-row" key={`spin-${index}`}><span>Member {spin.member_id}</span><strong>{spin.result_category}</strong></div>
+                ))}
+                {(event.payload?.movies || []).map((movie, index) => (
+                  <div className="round-category-row" key={`movie-${index}`}><span>Member {movie.member_id}</span><strong>{movie.title}</strong></div>
+                ))}
+                {(event.payload?.matchups || []).map(matchup => {
+                  const entries = event.payload.entries || [];
+                  const label = id => {
+                    const entry = entries.find(item => String(item.id) === String(id));
+                    return entry ? [entry.movie_a_title, entry.movie_b_title].filter(Boolean).join(' + ') : 'Bye';
+                  };
+                  const votes = (event.payload.votes || []).filter(vote => String(vote.matchup_id) === String(matchup.id));
+                  return <div className="round-workflow-note" key={matchup.id}>
+                    <strong>Round {matchup.bracket_round_number}: {label(matchup.entry_a_id)} vs {label(matchup.entry_b_id)}</strong>
+                    <div>{votes.length} votes · {matchup.winner_entry_id ? `Winner: ${label(matchup.winner_entry_id)}` : matchup.status}</div>
+                  </div>;
+                })}
+              </details>
+            )}
             </div>
           ))}
         </div>
@@ -2653,6 +2684,26 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [reopenPhaseId, setReopenPhaseId] = useState('');
   const [reopenBracketRoundNumber, setReopenBracketRoundNumber] = useState('');
   const [deleteRoundId, setDeleteRoundId] = useState('');
+  const [completedRoundId, setCompletedRoundId] = useState('');
+  const [completedPhaseId, setCompletedPhaseId] = useState('');
+  const completedRound = (roundHistory || []).find(round => String(round.id) === completedRoundId && round.status === 'COMPLETE');
+
+  async function reopenCompletedPhase() {
+    if (!completedRound || !completedPhaseId || !adminReady || !currentUser?.id) return;
+    if (!window.confirm(`Reopen a phase in “${completedRound.month_key}”? Later stages will reset, with their results saved in history.`)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_reopen_phase', {
+        p_phase_id: Number(completedPhaseId), p_actor_member_id: currentUser.id,
+        p_reason: 'admin reopened completed round',
+      }, roundAdminToken);
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(await dbLoadRoundWorkflow());
+      if (onRoundHistoryUpdate) onRoundHistoryUpdate(await dbLoadRoundHistory());
+      setCompletedRoundId(''); setCompletedPhaseId('');
+      showMsg('Completed round reopened.');
+    } catch (error) { showMsg('Could not reopen completed round: ' + error.message, 'error'); }
+    setStageOpening(false);
+  }
   const adminReady = Boolean(roundAdminToken || roundAdminAuthenticated);
 
   useEffect(() => {
@@ -2839,6 +2890,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const phaseLabel = phaseToReopen?.phase_type?.replaceAll('_', ' ') || 'this phase';
     const downstreamNote = phaseToReopen?.phase_type === 'CATEGORY_SUBMISSIONS'
       ? ' Spins, movie submissions, and the bracket will be saved in history and reset. Submitted categories will be kept.'
+      : phaseToReopen?.phase_type === 'CATEGORY_SPIN'
+        ? ' Previous spins, movie submissions, and the bracket will be saved in history and reset for a fresh category result.'
       : phaseToReopen?.phase_type === 'MOVIE_SUBMISSIONS'
         ? ' The existing bracket and its votes will be saved in round history and reset. Submitted movies will be kept.'
         : '';
@@ -3674,7 +3727,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     <label className="form-label">Reopen a closed phase</label>
                     <select className="form-input" value={reopenPhaseId} onChange={e => setReopenPhaseId(e.target.value)}>
                       <option value="">Choose a phase…</option>
-                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED').map(phase => (
+                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED' && p.phase_type !== 'BRACKET').map(phase => (
                         <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_', ' ')}</option>
                       ))}
                     </select>
@@ -3718,6 +3771,28 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             )}
 
             <hr className="section-divider" />
+            <details>
+              <summary className="admin-subsection-title" style={{cursor:'pointer'}}>Reopen a completed round</summary>
+              <select className="form-input" value={completedRoundId} onChange={event => {
+                setCompletedRoundId(event.target.value); setCompletedPhaseId('');
+              }}>
+                <option value="">Choose a completed round…</option>
+                {(roundHistory || []).filter(round => round.status === 'COMPLETE').map(round => (
+                  <option key={round.id} value={round.id}>{round.month_key}</option>
+                ))}
+              </select>
+              <select className="form-input" value={completedPhaseId} onChange={event => setCompletedPhaseId(event.target.value)}>
+                <option value="">Choose a phase…</option>
+                {(completedRound?.phases || []).filter(phase => phase.phase_type !== 'BRACKET').map(phase => (
+                  <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_',' ')}</option>
+                ))}
+              </select>
+              <button className="btn-secondary" onClick={reopenCompletedPhase}
+                disabled={!completedPhaseId || !adminReady || !currentUser?.id || stageOpening || Boolean(roundWorkflow?.round && !roundWorkflow.preview)}>
+                Reopen selected phase
+              </button>
+              {roundWorkflow?.round && !roundWorkflow.preview && <div className="round-workflow-note">Finish or archive the current round before reopening an older one.</div>}
+            </details>
             <div className="admin-subsection-title">Test bracket</div>
             <div className="round-workflow-note" style={{marginBottom:10}}>
               The legacy bracket builder is for previews and testing only. It does not create a club round.
