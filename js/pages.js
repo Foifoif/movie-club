@@ -2669,7 +2669,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   function saveRoundDraft() {
     localStorage.setItem('mc_round_draft_month', roundMonth.trim());
     localStorage.setItem('mc_round_draft_duration', roundDuration);
-    showMsg('Round setup saved on this staging browser. No database round was created.');
+    showMsg('Round setup saved in this browser. No shared round was created.');
   }
 
   function clearRoundDraft() {
@@ -2701,7 +2701,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function createActualRound() {
     if (!roundMonth.trim() || !adminReady || !currentUser?.id) return;
-    if (!window.confirm('This creates a real shared round in Supabase. It will be visible to the club, though it will not change Cloudflare code. Continue?')) return;
+    if (!window.confirm('Create this club round? Category submissions will open tomorrow at 9 AM Pacific.')) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_create_round', {
@@ -2713,7 +2713,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       }, roundAdminToken);
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
-      showMsg('Real round created. Category submissions are now open.');
+      showMsg('Round created. Category submissions are scheduled for tomorrow at 9 AM Pacific.');
     } catch (e) {
       showMsg('Could not create round: ' + e.message, 'error');
     }
@@ -2761,12 +2761,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         p_actor_member_id: currentUser.id,
         p_reason: 'admin',
       }, roundAdminToken);
-      if (activePhase.phase_type === 'MOVIE_SUBMISSIONS') {
-        await dbAdminRoundAction('mc_build_bracket_immediate', {
-          p_round_id: roundWorkflow.round.id,
-          p_actor_member_id: currentUser.id,
-        }, roundAdminToken);
-      }
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
       showMsg('Round advanced.');
@@ -3568,6 +3562,11 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {section === 'round' && (
           <>
             <div className="admin-section-title">Round management</div>
+            <label className="form-label">Admin access</label>
+            <input className="form-input" type="password" value={roundAdminToken}
+              onChange={e => setRoundAdminToken(e.target.value)}
+              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
+            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; this browser will remember your admin session.'}</div>
             <div className="round-workflow-note" style={{marginBottom:14}}>
               Set up the next club round here, then manage the active round below. Test brackets are kept at the bottom of this page.
             </div>
@@ -3586,12 +3585,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             <div className="round-workflow-note" style={{marginTop:12}}>
               Opens at 9:00 AM Pacific · minimum 3 responses · phases: category → spin → movies → bracket
             </div>
-            <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
+            <button className="btn-primary" onClick={saveRoundDraft}>Save Draft</button>
             <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
-            <button className="btn-secondary" onClick={() => {
-              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
-              showMsg('Preview Round started in this browser only.');
-            }}>▶ Preview Submission Experience</button>
             <div className="round-workflow-note" style={{marginTop:14}}>
               When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
             </div>
@@ -3619,11 +3614,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
             <hr className="section-divider" />
             <div className="admin-subsection-title">Active round</div>
-            <label className="form-label">Round admin token</label>
-            <input className="form-input" type="password" value={roundAdminToken}
-              onChange={e => setRoundAdminToken(e.target.value)}
-              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
-            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; the site will keep a secure browser session for future visits.'}</div>
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
@@ -3716,7 +3706,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 )}
               </>
             ) : (
-              <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
+              <div className="round-workflow-note">No active club round. Create one using the setup above.</div>
             )}
 
             <hr className="section-divider" />
@@ -3725,6 +3715,10 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               The legacy bracket builder is for previews and testing only. It does not create a club round.
             </div>
             <button className="btn-secondary" onClick={() => setSection('bracket')}>Open test bracket builder</button>
+            <button className="btn-secondary" disabled={Boolean(roundWorkflow?.round && !roundWorkflow.preview)} onClick={() => {
+              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
+              showMsg('Preview started in this browser only.');
+            }}>Preview submission experience</button>
 
             {(roundHistory || []).some(round => round.archived_at) && (
               <>

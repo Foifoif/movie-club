@@ -145,6 +145,10 @@ begin
     raise exception 'Next phase not found';
   end if;
 
+  if current_phase.phase_type = 'MOVIE_SUBMISSIONS' then
+    perform public.mc_build_bracket_immediate(current_phase.round_id, p_actor_member_id);
+  end if;
+
   insert into public.round_events (round_id, phase_id, event_type, actor_member_id, payload)
   values (
     current_phase.round_id,
@@ -496,6 +500,23 @@ begin
   from public.bracket_entries where round_id = p_round_id;
   if entry_count < 2 then raise exception 'At least two valid bracket entries are required'; end if;
 
+  if round_row.mode = 'scrambled' and entry_count = 2 then
+    insert into public.bracket_matchups (
+      round_id, bracket_round_number, entry_a_id, entry_b_id, status,
+      opens_at, closes_at, result_entry_ids
+    ) select p_round_id, 1, min(be.id), max(be.id), 'CLOSED', now(), now(),
+        array_agg(be.id order by be.id)
+      from public.bracket_entries be where be.round_id = p_round_id;
+    update public.round_phases set status = 'CLOSED', opens_at = now(),
+      closes_at = now(), closed_reason = 'EVERYONE_COMPLETE' where id = bracket_phase_id;
+    update public.rounds set status = 'COMPLETE', completed_at = now() where id = p_round_id;
+    insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload)
+    select p_round_id, bracket_phase_id, p_actor_member_id, 'ROUND_COMPLETED',
+      jsonb_build_object('mode', 'scrambled', 'final_entry_ids', array_agg(be.id order by be.id))
+    from public.bracket_entries be where be.round_id = p_round_id;
+    return 1;
+  end if;
+
   if entry_count % 2 = 1 then
     select id into bye_entry_id
     from public.bracket_entries
@@ -611,14 +632,26 @@ begin
       'result_entry_ids', matchup.result_entry_ids, 'votes', vote_count, 'reason', p_reason));
   if exists (select 1 from public.bracket_matchups bm where bm.round_id = matchup.round_id
     and bm.bracket_round_number = matchup.bracket_round_number and bm.status = 'OPEN') then return matchup; end if;
-  select max(bracket_round_number) into current_round from public.bracket_matchups where round_id = matchup.round_id;
+  current_round := matchup.bracket_round_number;
   select count(*) into survivor_count from public.bracket_matchups bm where bm.round_id = matchup.round_id
-    and bm.bracket_round_number = current_round and bm.winner_entry_id is not null;
+    and bm.bracket_round_number = current_round and bm.status = 'CLOSED' and bm.winner_entry_id is not null;
   if round_row.mode = 'paired' and survivor_count = 1 then
     update public.round_phases set status = 'CLOSED', closes_at = now(), closed_reason = 'EVERYONE_COMPLETE' where id = phase_id;
     update public.rounds set status = 'COMPLETE', completed_at = now() where id = matchup.round_id;
     insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload) values (matchup.round_id, phase_id, p_actor_member_id, 'ROUND_COMPLETED',
       jsonb_build_object('mode', 'paired', 'winner_entry_id', matchup.winner_entry_id));
+    return matchup;
+  end if;
+  if round_row.mode = 'scrambled' and survivor_count = 2 then
+    select array_agg(bm.winner_entry_id order by bm.id) into final_ids
+    from public.bracket_matchups bm
+    where bm.round_id = matchup.round_id and bm.bracket_round_number = current_round
+      and bm.status = 'CLOSED' and bm.winner_entry_id is not null;
+    update public.round_phases set status = 'CLOSED', closes_at = now(), closed_reason = 'EVERYONE_COMPLETE' where id = phase_id;
+    update public.rounds set status = 'COMPLETE', completed_at = now() where id = matchup.round_id;
+    insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload)
+    values (matchup.round_id, phase_id, p_actor_member_id, 'ROUND_COMPLETED',
+      jsonb_build_object('mode', 'scrambled', 'final_entry_ids', final_ids));
     return matchup;
   end if;
   if round_row.mode = 'scrambled' and (select count(*) from public.bracket_matchups bm
@@ -634,7 +667,7 @@ begin
   next_round := current_round + 1;
   for entry_id in select bm.winner_entry_id from public.bracket_matchups bm
     where bm.round_id = matchup.round_id and bm.bracket_round_number = current_round
-      and bm.winner_entry_id is not null order by random() loop
+      and bm.status = 'CLOSED' and bm.winner_entry_id is not null order by random() loop
     if pending_id is null then pending_id := entry_id; else
       insert into public.bracket_matchups (round_id, bracket_round_number, entry_a_id, entry_b_id, status, opens_at, closes_at)
       values (matchup.round_id, next_round, pending_id, entry_id, 'OPEN', next_open, next_open + public.mc_round_duration(matchup.round_id));
@@ -878,6 +911,8 @@ begin
     join public.rounds r on r.id = rp.round_id
     where r.status = 'ACTIVE'
       and rp.status = 'OPEN'
+      and rp.phase_type <> 'BRACKET'
+      and (rp.opens_at is null or rp.opens_at <= now())
       and (
         rp.closes_at <= now()
         or (rp.phase_type = 'CATEGORY_SUBMISSIONS' and
@@ -942,9 +977,6 @@ begin
         case when action_count >= member_count then 'everyone_complete' else 'timer' end
       );
 
-      if phase_row.phase_type = 'MOVIE_SUBMISSIONS' then
-        perform public.mc_build_bracket_immediate(phase_row.round_id, null);
-      end if;
     end if;
     processed := processed + 1;
   end loop;
@@ -1044,7 +1076,7 @@ begin
   update public.round_phases
   set opens_at = desired_open,
       closes_at = desired_open + public.mc_round_duration(p_round_id)
-  where id = bracket_phase_id;
+  where id = bracket_phase_id and status = 'OPEN';
 
   update public.bracket_matchups
   set opens_at = desired_open,
