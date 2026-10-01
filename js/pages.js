@@ -2846,7 +2846,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   async function startBracketNow() {
     if (!roundWorkflow?.round?.id || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
     const durationLabel = roundWorkflow?.round?.default_duration_hours || 24;
-    if (!window.confirm(`Start the bracket now? This will open the existing bracket, or build it from the completed movie submissions, and give the first bracket round ${durationLabel} hours.`)) return;
+    const deadlineLabel = durationLabel === 24 ? 'tomorrow at 9 AM Pacific' : `in ${durationLabel} hours`;
+    if (!window.confirm(`Start the bracket now? This opens or builds the bracket, with voting closing ${deadlineLabel}.`)) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_start_bracket_now', {
@@ -3635,7 +3636,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
             <label className="form-label">Default phase duration</label>
             <select className="form-input" value={roundDuration} onChange={e => setRoundDuration(e.target.value)}>
-              <option value="24">24 hours</option>
+              <option value="24">Default — next day at 9 AM Pacific</option>
               <option value="48">48 hours</option>
               <option value="72">72 hours</option>
             </select>

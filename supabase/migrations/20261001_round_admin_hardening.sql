@@ -13,6 +13,15 @@ as $$
   where id = p_round_id
 $$;
 
+-- Default windows close at the following Pacific morning, including DST.
+-- An explicitly selected non-default duration remains an elapsed-hour window.
+create or replace function public.mc_round_deadline(p_round_id bigint, p_open_at timestamptz)
+returns timestamptz language sql stable set search_path = public as $$
+  select case when default_duration_hours = 24 then public.mc_next_9am_pacific(p_open_at)
+    else p_open_at + public.mc_round_duration(p_round_id) end
+  from public.rounds where id = p_round_id;
+$$;
+
 create or replace function public.mc_create_round(
   p_month_key text,
   p_mode text,
@@ -54,7 +63,7 @@ begin
       round_id, phase_type, status, opens_at, closes_at
     ) values (
       round_id, phase_type, phase_status, phase_open,
-      case when phase_open is null then null else phase_open + public.mc_round_duration(round_id) end
+      case when phase_open is null then null else public.mc_round_deadline(round_id, phase_open) end
     );
   end loop;
 
@@ -153,10 +162,7 @@ begin
   update public.round_phases
   set status = 'OPEN',
       opens_at = next_open,
-      closes_at = case
-        when p_reason = 'admin' then next_open + public.mc_round_duration(current_phase.round_id)
-        else next_open + public.mc_round_duration(current_phase.round_id)
-      end,
+      closes_at = public.mc_round_deadline(current_phase.round_id, next_open),
       closed_reason = null
   where round_id = current_phase.round_id
     and phase_type = next_type
@@ -269,7 +275,7 @@ begin
   update public.round_phases
   set status = 'OPEN',
       opens_at = open_at,
-      closes_at = open_at + public.mc_round_duration(p_round_id),
+      closes_at = public.mc_round_deadline(p_round_id, open_at),
       closed_reason = null
   where id = movie_phase.id
   returning * into movie_phase;
@@ -627,7 +633,7 @@ begin
         status, opens_at, closes_at
       ) values (
         p_round_id, 1, pending_entry_id, entry_id,
-        'OPEN', bracket_open, bracket_open + public.mc_round_duration(p_round_id)
+        'OPEN', bracket_open, public.mc_round_deadline(p_round_id, bracket_open)
       );
       matchup_count := matchup_count + 1;
       pending_entry_id := null;
@@ -636,7 +642,7 @@ begin
 
   update public.round_phases
   set status = 'OPEN', opens_at = bracket_open,
-      closes_at = bracket_open + public.mc_round_duration(p_round_id)
+      closes_at = public.mc_round_deadline(p_round_id, bracket_open)
   where id = bracket_phase_id;
 
   insert into public.round_events (
@@ -748,7 +754,7 @@ begin
       and bm.status = 'CLOSED' and bm.winner_entry_id is not null order by random() loop
     if pending_id is null then pending_id := entry_id; else
       insert into public.bracket_matchups (round_id, bracket_round_number, entry_a_id, entry_b_id, status, opens_at, closes_at)
-      values (matchup.round_id, next_round, pending_id, entry_id, 'OPEN', next_open, next_open + public.mc_round_duration(matchup.round_id));
+      values (matchup.round_id, next_round, pending_id, entry_id, 'OPEN', next_open, public.mc_round_deadline(matchup.round_id, next_open));
       next_matchups := next_matchups + 1; pending_id := null;
     end if;
   end loop;
@@ -763,7 +769,7 @@ begin
     insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload) values (matchup.round_id, phase_id, p_actor_member_id, 'ROUND_COMPLETED',
       jsonb_build_object('mode', round_row.mode, 'reason', 'final_winner'));
   else
-    update public.round_phases set opens_at = next_open, closes_at = next_open + public.mc_round_duration(matchup.round_id) where id = phase_id;
+    update public.round_phases set opens_at = next_open, closes_at = public.mc_round_deadline(matchup.round_id, next_open) where id = phase_id;
     insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload) values (matchup.round_id, phase_id, p_actor_member_id, 'BRACKET_ROUND_OPENED',
       jsonb_build_object('bracket_round_number', next_round, 'matchup_count', next_matchups, 'opens_at', next_open));
   end if;
@@ -895,12 +901,12 @@ begin
   if exists (select 1 from public.bracket_entries where round_id = p_round_id)
      or exists (select 1 from public.bracket_matchups where round_id = p_round_id) then
     update public.round_phases
-    set status = 'OPEN', opens_at = now(), closes_at = now() + public.mc_round_duration(p_round_id)
+    set status = 'OPEN', opens_at = now(), closes_at = public.mc_round_deadline(p_round_id, now())
     where id = bracket_phase.id
     returning * into updated_phase;
 
     update public.bracket_matchups
-    set opens_at = now(), closes_at = now() + public.mc_round_duration(p_round_id)
+    set opens_at = now(), closes_at = public.mc_round_deadline(p_round_id, now())
     where round_id = p_round_id
       and bracket_round_number = 1
       and status = 'OPEN';
@@ -947,7 +953,7 @@ begin
   where round_id = result_matchup.round_id;
 
   update public.round_phases
-  set opens_at = now(), closes_at = now() + public.mc_round_duration(result_matchup.round_id)
+  set opens_at = now(), closes_at = public.mc_round_deadline(result_matchup.round_id, now())
   where id = bracket_phase_id
     and status = 'OPEN'
     and exists (
@@ -958,7 +964,7 @@ begin
     );
 
   update public.bracket_matchups
-  set opens_at = now(), closes_at = now() + public.mc_round_duration(result_matchup.round_id)
+  set opens_at = now(), closes_at = public.mc_round_deadline(result_matchup.round_id, now())
   where round_id = result_matchup.round_id
     and bracket_round_number = next_bracket_round
     and status = 'OPEN';
@@ -1153,12 +1159,12 @@ begin
 
   update public.round_phases
   set opens_at = desired_open,
-      closes_at = desired_open + public.mc_round_duration(p_round_id)
+      closes_at = public.mc_round_deadline(p_round_id, desired_open)
   where id = bracket_phase_id and status = 'OPEN';
 
   update public.bracket_matchups
   set opens_at = desired_open,
-      closes_at = desired_open + public.mc_round_duration(p_round_id)
+      closes_at = public.mc_round_deadline(p_round_id, desired_open)
   where round_id = p_round_id
     and bracket_round_number = 1
     and status = 'OPEN';
