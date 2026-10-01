@@ -1309,6 +1309,8 @@ begin
     'mc_open_movie_stage(bigint,text,bigint)',
     'mc_build_bracket(bigint,bigint)',
     'mc_build_bracket_immediate(bigint,bigint)',
+    'mc_build_bracket_scheduled(bigint,bigint)',
+    'mc_archive_round(bigint,bigint)',
     'mc_resolve_matchup(bigint,bigint,text)',
     'mc_reopen_bracket_round(bigint,integer,bigint)',
     'mc_start_bracket_now(bigint,bigint)',
@@ -1318,8 +1320,12 @@ begin
     'mc_create_round_at_movie_stage(text,text,text,bigint,integer)',
     'mc_undo_last_round_result(bigint,bigint)',
     'mc_delete_round(bigint,bigint)',
-    'mc_resolve_matchup_immediate(bigint,bigint)'
+    'mc_resolve_matchup_immediate(bigint,bigint)',
+    'mc_resolve_matchup_immediate(bigint,bigint,text)'
   ] loop
+    -- Some installations retain historical wrappers. They must not provide
+    -- a public route around the service-role-only canonical functions.
+    if to_regprocedure('public.' || signature) is null then continue; end if;
     execute 'revoke all on function public.' || signature || ' from public, anon, authenticated';
     execute 'grant execute on function public.' || signature || ' to service_role';
   end loop;

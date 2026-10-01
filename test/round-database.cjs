@@ -45,14 +45,22 @@ function databaseWorker(db) {
     ]) {
       await db.exec(fs.readFileSync(path.join(__dirname, '../supabase/migrations', file), 'utf8'));
     }
+    // Reproduce production's legacy wrappers and explicit browser-role grants.
+    // Revoking PUBLIC alone does not remove these explicit grants.
+    await db.exec(`create function mc_build_bracket_scheduled(bigint,bigint)
+      returns integer language sql security definer as 'select 0';`);
+    await db.exec(fs.readFileSync(path.join(__dirname, '../supabase/migrations/20260829_bracket_manual_advance_signature.sql'), 'utf8'));
+    await db.exec(`grant execute on function mc_build_bracket_scheduled(bigint,bigint),
+      mc_resolve_matchup_immediate(bigint,bigint,text), mc_archive_round(bigint,bigint)
+      to anon, authenticated;`);
     await db.exec(fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261001_round_admin_hardening.sql'), 'utf8'));
     const { rows: permissions } = await db.query(`select p.oid::regprocedure::text as function,
       has_function_privilege('anon',p.oid,'EXECUTE') as anonymous,
       has_function_privilege('authenticated',p.oid,'EXECUTE') as member,
       has_function_privilege('service_role',p.oid,'EXECUTE') as admin
       from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-      where n.nspname='public' and p.proname in ('mc_create_round','mc_delete_round','mc_process_due_rounds','mc_build_bracket_immediate','mc_reopen_phase')`);
-    assert.ok(permissions.length >= 5);
+      where n.nspname='public' and p.proname in ('mc_create_round','mc_delete_round','mc_process_due_rounds','mc_build_bracket_immediate','mc_reopen_phase','mc_build_bracket_scheduled','mc_resolve_matchup_immediate','mc_archive_round')`);
+    assert.ok(permissions.length >= 10);
     for(const permission of permissions) {
       assert.equal(permission.anonymous,false,permission.function);
       assert.equal(permission.member,false,permission.function);

@@ -1,6 +1,19 @@
 # Round admin production rollout
 
-Status: preparation authorized; production execution still requires approval.
+Status: production execution authorized; rollout in progress (not yet deployed).
+
+## Preflight evidence — 2026-10-01
+
+- Saved a private local recovery export outside the repository: 22 installed
+  function definitions/ACLs and the existing round's ten affected data tables.
+  This is a targeted recovery copy, not a complete database backup.
+- Rehearsed replacing the actual production function definitions in isolated
+  PostgreSQL with the exported data. Upgrade succeeded; every exported row was
+  unchanged. Production schema was not cloned in full.
+- Added coverage for production's historical scheduled-builder and three-argument
+  resolver wrappers, plus archive permissions. Explicit browser-role grants are
+  revoked as well as PUBLIC grants.
+- 24 JavaScript tests and the database scenario suite pass locally.
 
 ## Targets
 
