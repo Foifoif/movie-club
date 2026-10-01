@@ -44,8 +44,23 @@ PostgreSQL instance; it does not connect to Supabase.
 Run database scenarios with `NODE_PATH` pointing at an installation of
 `@electric-sql/pglite`: `node test/round-database.cjs`.
 Run JavaScript tests with `node --test test/*.test.js`.
-The `Round regression` GitHub workflow runs both suites on pull requests and
-main pushes without Supabase credentials or live database access.
+The local `Round regression` GitHub workflow is configured to run both suites on
+pull requests and main pushes without credentials or live database access. Its
+push was rejected because the current GitHub authorization lacks `workflow`
+scope; it is not installed remotely yet.
+
+## Release gates
+
+- Confirm a separate staging Supabase destination, or explicitly approve a
+  production rollout. A Cloudflare/Netlify preview is not database isolation.
+- Install the workflow with appropriately authorized GitHub access, then confirm
+  its checks actually pass. Local test results do not prove CI execution.
+- Apply the consolidated migration to the chosen database, deploy the Worker
+  with matching database configuration, then deploy the frontend.
+- Exercise authenticated named-argument RPCs through the deployed API. Verify
+  creation, phase advancement, bracket completion/reopening, archive and delete
+  with disposable test data in the approved environment, not a real club round.
+- Verify timer execution and the final visible winner count in both modes.
 
 ## Remaining verification and implementation
 

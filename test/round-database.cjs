@@ -137,6 +137,8 @@ function databaseWorker(db) {
       else assert.ok(completion.payload.winner_entry_id);
       console.log(`PASS: ${mode} submissions → bracket votes → correct winner count`);
       await db.query('select mc_reopen_bracket_round($1,1,1)', [fixture.id]);
+      // Retained cancelled history must not determine the current voting round.
+      await db.query("update bracket_matchups set bracket_round_number=bracket_round_number+20 where round_id=$1 and status='CANCELLED'",[fixture.id]);
       const { rows: reopened } = await db.query("select * from bracket_matchups where round_id=$1 and bracket_round_number=1 and status='OPEN' order by id", [fixture.id]);
       for (const matchup of reopened) await db.query('select mc_resolve_matchup_immediate($1,1)', [matchup.id]);
       const { rows: next } = await db.query("select opens_at <= now() as ready from bracket_matchups where round_id=$1 and status='OPEN'", [fixture.id]);
@@ -151,6 +153,8 @@ function databaseWorker(db) {
       const { rows: rebuilt } = await db.query('select id from bracket_matchups where round_id=$1', [fixture.id]);
       assert.ok(rebuilt.length > 0, 'bracket rebuilt from retained submissions');
       await db.query('select mc_archive_round($1,1)', [fixture.id]);
+      await assert.rejects(db.query('select mc_build_bracket($1,1)',[fixture.id]),/Only an active round/);
+      await assert.rejects(db.query('select mc_reopen_bracket_round($1,1,1)',[fixture.id]),/Round is not available/);
       await db.query('select mc_delete_round($1,1)', [fixture.id]);
       const { rows: remaining } = await db.query('select id from bracket_matchups where round_id=$1', [fixture.id]);
       assert.equal(remaining.length, 0);

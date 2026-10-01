@@ -491,6 +491,10 @@ begin
   select * into round_row from public.rounds where id = p_round_id for update;
   if not found then raise exception 'Round not found'; end if;
 
+  if round_row.status <> 'ACTIVE' or round_row.archived_at is not null then
+    raise exception 'Only an active round can build a bracket';
+  end if;
+
   select id into movie_phase_id from public.round_phases
   where round_id = p_round_id and phase_type = 'MOVIE_SUBMISSIONS';
   select id into bracket_phase_id from public.round_phases
@@ -681,6 +685,9 @@ begin
     raise exception 'This matchup timer has not expired';
   end if;
   select r.* into round_row from public.rounds r where r.id = matchup.round_id for update;
+  if round_row.status <> 'ACTIVE' or round_row.archived_at is not null then
+    raise exception 'Only an active round can resolve matchups';
+  end if;
   select count(*)::integer into vote_count from public.bracket_votes where matchup_id = matchup.id;
   if p_reason = 'timer' and vote_count < 3 then
     update public.bracket_matchups set closes_at = coalesce(closes_at, now()) + public.mc_round_duration(matchup.round_id)
@@ -950,7 +957,7 @@ begin
 
   select max(bracket_round_number) into next_bracket_round
   from public.bracket_matchups
-  where round_id = result_matchup.round_id;
+  where round_id = result_matchup.round_id and status = 'OPEN';
 
   update public.round_phases
   set opens_at = now(), closes_at = public.mc_round_deadline(result_matchup.round_id, now())
