@@ -1234,7 +1234,8 @@ function makeRoundPreview(monthKey) {
 }
 
 function winningRoundCategory(workflow) {
-  const winnerEvent = [...(workflow?.events || [])].reverse().find(event => event.event_type === 'CATEGORY_WINNER_SELECTED');
+  const winnerEvent = [...(workflow?.events || [])].reverse().find(event =>
+    ['CATEGORY_WINNER_SELECTED', 'CATEGORY_SELECTION_RESET'].includes(event.event_type));
   if (winnerEvent?.payload?.category) {
     return {
       category: winnerEvent.payload.category,
@@ -2837,9 +2838,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const phaseToReopen = roundWorkflow?.phases?.find(phase => phase.id === Number(reopenPhaseId));
     const phaseLabel = phaseToReopen?.phase_type?.replaceAll('_', ' ') || 'this phase';
     const downstreamNote = phaseToReopen?.phase_type === 'CATEGORY_SUBMISSIONS'
-      ? ' The scheduled category spin will be reset.'
+      ? ' Spins, movie submissions, and the bracket will be saved in history and reset. Submitted categories will be kept.'
       : phaseToReopen?.phase_type === 'MOVIE_SUBMISSIONS'
-        ? ' The bracket will be reset if it has not been built.'
+        ? ' The existing bracket and its votes will be saved in round history and reset. Submitted movies will be kept.'
         : '';
     const durationLabel = roundWorkflow?.round?.default_duration_hours || 24;
     if (!window.confirm(`Reopen ${phaseLabel} for another ${durationLabel} hours?${downstreamNote}`)) return;
@@ -2935,10 +2936,12 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
+  const adminOpenMatchups = (roundWorkflow?.matchups || []).filter(matchup => matchup.status === 'OPEN');
   const activeBracketIsScrambledFinal = roundWorkflow?.round?.mode === 'scrambled'
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN').length === 1
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_a_id
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_b_id;
+    && adminOpenMatchups.length === 1
+    && adminOpenMatchups[0].entry_a_id && adminOpenMatchups[0].entry_b_id
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status !== 'CANCELLED'
+      && matchup.bracket_round_number === adminOpenMatchups[0].bracket_round_number).length === 1;
   const categorySpinReadyForMovieStage = roundWorkflow?.phases?.some(phase =>
     phase.phase_type === 'CATEGORY_SPIN' && ['OPEN', 'CLOSED'].includes(phase.status)
   ) && roundWorkflow?.phases?.some(phase =>
@@ -3570,7 +3573,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
             <div className="round-workflow-note" style={{marginBottom:14}}>
               Set up the next club round here, then manage the active round below. Test brackets are kept at the bottom of this page.
             </div>
-            <div className="admin-subsection-title">New round setup</div>
+            <details key={roundWorkflow?.round?.id || 'new-round'} open={!roundWorkflow?.round}>
+            <summary className="admin-subsection-title" style={{cursor:'pointer'}}>New round setup</summary>
             <div className="round-workflow-note" style={{marginBottom:14}}>
               This draft is local to this browser until you create the real round. Bracket mode is chosen after the category wheel.
             </div>
@@ -3611,6 +3615,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               disabled={!roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id || stageOpening}>
               {stageOpening ? 'Starting…' : 'Start movie submission round'}
             </button>
+            </details>
 
             <hr className="section-divider" />
             <div className="admin-subsection-title">Active round</div>
@@ -3662,6 +3667,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     {stageOpening ? 'Starting…' : 'Start bracket now'}
                   </button>
                 )}
+                <details>
+                <summary className="admin-subsection-title" style={{cursor:'pointer'}}>Reopen and recovery tools</summary>
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'CLOSED') && (
                   <>
                     <label className="form-label">Reopen a closed phase</label>
@@ -3704,6 +3711,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     Undo latest wheel/bracket result
                   </button>
                 )}
+                </details>
               </>
             ) : (
               <div className="round-workflow-note">No active club round. Create one using the setup above.</div>

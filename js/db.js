@@ -91,9 +91,7 @@ async function dbLoadRoundWorkflow() {
   const round = rounds?.[0];
   if (!round) return null;
 
-  const [{ data: phases }, { data: categorySubmissions }, { data: categorySpins },
-    { data: movieSubmissions }, { data: entries }, { data: matchups }, { data: votes },
-    { data: notifications }, { data: events }] = await Promise.all([
+  const results = await Promise.all([
     sb.from('round_phases').select('*').eq('round_id', round.id).order('id'),
     sb.from('category_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SUBMISSIONS')),
     sb.from('category_spins').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SPIN')),
@@ -104,6 +102,11 @@ async function dbLoadRoundWorkflow() {
     sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
     sb.from('round_events').select('*').eq('round_id', round.id).order('created_at', { ascending: true }),
   ]);
+  const failed = results.find(result => result.error);
+  if (failed) throw new Error('Could not load complete round data: ' + failed.error.message);
+  const [{ data: phases }, { data: categorySubmissions }, { data: categorySpins },
+    { data: movieSubmissions }, { data: entries }, { data: matchups }, { data: votes },
+    { data: notifications }, { data: events }] = results;
   return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [], events: events || [] };
 }
 

@@ -33,6 +33,9 @@ const assert = require('node:assert/strict');
     await db.query("select mc_open_movie_stage($1,'scrambled',1)", [round.id]);
     const { rows: events } = await db.query("select payload from round_events where event_type='CATEGORY_WINNER_SELECTED'");
     assert.equal(events[0].payload.category, 'comedy');
+    await assert.rejects(db.query("select mc_open_movie_stage($1,'paired',1)", [round.id]), /already opened/);
+    const { rows: [sameMode] } = await db.query('select mode from rounds where id=$1', [round.id]);
+    assert.equal(sameMode.mode, 'scrambled', 'retry cannot change mode or reroll category');
     console.log('PASS: create → category → spin → movie stage, custom duration and persisted winner');
     for (const mode of ['scrambled', 'paired']) {
       const { rows: [fixture] } = await db.query("select * from mc_create_round_at_movie_stage($1,$2,'Drama',1,48)", [mode, mode]);
@@ -44,6 +47,9 @@ const assert = require('node:assert/strict');
         }
       }
       await db.query("select mc_advance_phase($1,1,'admin')", [moviePhase.id]);
+      await assert.rejects(db.query("select mc_advance_phase($1,1,'admin')", [moviePhase.id]), /Phase cannot be advanced/);
+      const { rows: [bracketPhase] } = await db.query("select id from round_phases where round_id=$1 and phase_type='BRACKET'", [fixture.id]);
+      await assert.rejects(db.query("select mc_advance_phase($1,1,'admin')", [bracketPhase.id]), /Advance bracket matchups/);
       await db.query("update round_phases set closes_at=now()-interval '1 minute' where round_id=$1 and phase_type='BRACKET'", [fixture.id]);
       await db.query("update bracket_matchups set closes_at=now()-interval '1 minute' where round_id=$1 and status='OPEN'", [fixture.id]);
       await db.query('select mc_process_due_rounds()');
@@ -71,6 +77,14 @@ const assert = require('node:assert/strict');
       const { rows: next } = await db.query("select opens_at <= now() as ready from bracket_matchups where round_id=$1 and status='OPEN'", [fixture.id]);
       assert.ok(next.length > 0);
       assert.ok(next.every(matchup => matchup.ready), 'reopened progression opens immediately');
+      await db.query('select mc_reopen_phase($1,1)', [moviePhase.id]);
+      const { rows: retained } = await db.query('select id from movie_submissions where phase_id=$1', [moviePhase.id]);
+      assert.equal(retained.length, 8);
+      const { rows: [snapshot] } = await db.query("select payload from round_events where round_id=$1 and event_type='BRACKET_RESET_FOR_SUBMISSIONS'", [fixture.id]);
+      assert.ok(snapshot.payload.matchups.length > 0);
+      await db.query("select mc_advance_phase($1,1,'admin')", [moviePhase.id]);
+      const { rows: rebuilt } = await db.query('select id from bracket_matchups where round_id=$1', [fixture.id]);
+      assert.ok(rebuilt.length > 0, 'bracket rebuilt from retained submissions');
       await db.query('select mc_archive_round($1,1)', [fixture.id]);
       await db.query('select mc_delete_round($1,1)', [fixture.id]);
       const { rows: remaining } = await db.query('select id from bracket_matchups where round_id=$1', [fixture.id]);
@@ -107,5 +121,31 @@ const assert = require('node:assert/strict');
     assert.equal(twoMatchups[0].status, 'CLOSED');
     assert.equal(twoMatchups[0].result_entry_ids.length, 2);
     console.log('PASS: two scrambled entries complete immediately without voting');
+    await db.query('select mc_reopen_phase($1,1)', [phase.id]);
+    const { rows: resetPhases } = await db.query('select phase_type,status from round_phases where round_id=$1', [round.id]);
+    assert.equal(resetPhases.filter(p=>p.status==='OPEN').length, 1);
+    assert.equal(resetPhases.find(p=>p.status==='OPEN').phase_type, 'CATEGORY_SUBMISSIONS');
+    const { rows: clearedSpins } = await db.query('select id from category_spins where phase_id=$1', [spin.id]);
+    assert.equal(clearedSpins.length, 0);
+    await db.query('select mc_archive_round($1,1)', [round.id]);
+    await assert.rejects(db.query('select mc_reopen_phase($1,1)', [phase.id]), /Archived rounds/);
+    await assert.rejects(db.query("select mc_advance_phase($1,1,'admin')", [phase.id]), /Phase cannot be advanced/);
+    console.log('PASS: category reopening resets downstream work; archived round stays closed');
+    const { rows: [odd] } = await db.query("select * from mc_create_round_at_movie_stage('Three unique movies','scrambled','Drama',1,24)");
+    const { rows: [oddPhase] } = await db.query("select id from round_phases where round_id=$1 and phase_type='MOVIE_SUBMISSIONS'", [odd.id]);
+    for (let member=1; member<=2; member++) for (let slot=1; slot<=2; slot++) {
+      const movieId=member+slot;
+      await db.query('select mc_submit_movie($1,$2,$3::smallint,$4,$5,2020,null)', [oddPhase.id,member,slot,movieId,`Movie ${movieId}`]);
+    }
+    await db.query("select mc_advance_phase($1,1,'admin')", [oddPhase.id]);
+    const { rows: oddMatches } = await db.query('select * from bracket_matchups where round_id=$1', [odd.id]);
+    const bye=oddMatches.find(m=>!m.entry_b_id);
+    const contest=oddMatches.find(m=>m.status==='OPEN');
+    assert.ok(bye && contest);
+    await db.query('select mc_resolve_matchup_immediate($1,1)', [contest.id]);
+    const { rows: [oddResult] } = await db.query("select payload from round_events where round_id=$1 and event_type='ROUND_COMPLETED'", [odd.id]);
+    assert.equal(oddResult.payload.final_entry_ids.length,2);
+    assert.ok(oddResult.payload.final_entry_ids.includes(Number(bye.winner_entry_id)));
+    console.log('PASS: three unique scrambled movies retain the bye winner and matchup winner');
   } finally { await db.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

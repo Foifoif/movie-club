@@ -89,8 +89,14 @@ begin
   where id = p_phase_id
   for update;
 
-  if not found or current_phase.status not in ('OPEN', 'CLOSED') then
+  if not found or current_phase.status <> 'OPEN' then
     raise exception 'Phase cannot be advanced';
+  end if;
+
+  perform 1 from public.rounds where id = current_phase.round_id and status = 'ACTIVE' for update;
+  if not found then raise exception 'Only an active round can advance'; end if;
+  if current_phase.phase_type = 'BRACKET' then
+    raise exception 'Advance bracket matchups to determine winners';
   end if;
 
   if current_phase.phase_type = 'CATEGORY_SPIN' then
@@ -186,7 +192,7 @@ declare
   tied_categories text[];
   winning_category text;
 begin
-  if p_mode not in ('paired', 'scrambled') then
+  if p_mode is null or p_mode not in ('paired', 'scrambled') then
     raise exception 'Mode must be paired or scrambled';
   end if;
 
@@ -209,6 +215,9 @@ begin
   where round_id = p_round_id and phase_type = 'MOVIE_SUBMISSIONS'
   for update;
   if not found then raise exception 'Movie submission phase not found'; end if;
+  if movie_phase.status <> 'DRAFT' then
+    raise exception 'Movie submissions already opened; use Reopen phase to revise them';
+  end if;
 
   select count(*)::integer into spin_count
   from public.category_spins
@@ -299,6 +308,10 @@ begin
     raise exception 'Phase not found';
   end if;
 
+  perform 1 from public.rounds where id = result.round_id
+    and status in ('ACTIVE', 'COMPLETE') for update;
+  if not found then raise exception 'Archived rounds cannot be reopened'; end if;
+
   if result.phase_type = 'CATEGORY_SUBMISSIONS' then
     select * into downstream
     from public.round_phases
@@ -311,7 +324,22 @@ begin
       where phase_id = downstream.id;
 
       if spin_count > 0 then
-        raise exception 'Category Spin already has results; undo the wheel result before reopening Category Submissions';
+        insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload)
+        values (result.round_id, result.id, p_actor_member_id, 'CATEGORY_SELECTION_RESET',
+          jsonb_build_object(
+            'spins', (select jsonb_agg(to_jsonb(cs)) from public.category_spins cs where cs.phase_id = downstream.id),
+            'movies', (select coalesce(jsonb_agg(to_jsonb(ms)), '[]'::jsonb) from public.movie_submissions ms
+              join public.round_phases rp on rp.id = ms.phase_id where rp.round_id = result.round_id)
+          ));
+        perform public.mc_reopen_phase(rp.id, p_actor_member_id, 'category selection reset')
+        from public.round_phases rp where rp.round_id = result.round_id and rp.phase_type = 'MOVIE_SUBMISSIONS';
+        delete from public.movie_submissions where phase_id in (
+          select rp.id from public.round_phases rp where rp.round_id = result.round_id and rp.phase_type = 'MOVIE_SUBMISSIONS'
+        );
+        delete from public.category_spins where phase_id = downstream.id;
+        update public.round_phases set status = 'DRAFT', opens_at = null, closes_at = null,
+          closed_reason = null where round_id = result.round_id and phase_type = 'MOVIE_SUBMISSIONS';
+        update public.rounds set mode = null where id = result.round_id;
       end if;
 
       update public.round_phases
@@ -339,7 +367,16 @@ begin
       where round_id = result.round_id;
 
       if bracket_entry_count > 0 or bracket_matchup_count > 0 then
-        raise exception 'Bracket already exists; undo the latest bracket result before reopening Movie Submissions';
+        insert into public.round_events (round_id, phase_id, actor_member_id, event_type, payload)
+        values (result.round_id, downstream.id, p_actor_member_id, 'BRACKET_RESET_FOR_SUBMISSIONS',
+          jsonb_build_object(
+            'entries', (select coalesce(jsonb_agg(to_jsonb(be)), '[]'::jsonb) from public.bracket_entries be where be.round_id = result.round_id),
+            'matchups', (select coalesce(jsonb_agg(to_jsonb(bm)), '[]'::jsonb) from public.bracket_matchups bm where bm.round_id = result.round_id),
+            'votes', (select coalesce(jsonb_agg(to_jsonb(bv)), '[]'::jsonb) from public.bracket_votes bv
+              join public.bracket_matchups bm on bm.id = bv.matchup_id where bm.round_id = result.round_id)
+          ));
+        delete from public.bracket_matchups where round_id = result.round_id;
+        delete from public.bracket_entries where round_id = result.round_id;
       end if;
 
       update public.round_phases
@@ -364,6 +401,9 @@ begin
       advance_reason = p_reason
   where id = result.id
   returning * into result;
+
+  update public.rounds set status = 'ACTIVE', completed_at = null
+  where id = result.round_id and status in ('ACTIVE', 'COMPLETE');
 
   insert into public.round_events (
     round_id, phase_id, actor_member_id, event_type, payload
