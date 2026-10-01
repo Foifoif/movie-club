@@ -808,6 +808,54 @@ begin
 end;
 $$;
 
+-- The older immediate wrapper was later replaced by the scrambled-final
+-- migration. Keep that final-two behavior, while restoring the intended
+-- manual-advance behavior for every non-final bracket round.
+create or replace function public.mc_resolve_matchup_immediate(
+  p_matchup_id bigint,
+  p_actor_member_id bigint
+)
+returns public.bracket_matchups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result_matchup public.bracket_matchups;
+  bracket_phase_id bigint;
+  next_bracket_round integer;
+begin
+  result_matchup := public.mc_resolve_matchup(p_matchup_id, p_actor_member_id, 'admin');
+
+  select id into bracket_phase_id
+  from public.round_phases
+  where round_id = result_matchup.round_id and phase_type = 'BRACKET';
+
+  select max(bracket_round_number) into next_bracket_round
+  from public.bracket_matchups
+  where round_id = result_matchup.round_id;
+
+  update public.round_phases
+  set opens_at = now(), closes_at = now() + public.mc_round_duration(result_matchup.round_id)
+  where id = bracket_phase_id
+    and status = 'OPEN'
+    and exists (
+      select 1 from public.bracket_matchups
+      where round_id = result_matchup.round_id
+        and bracket_round_number = next_bracket_round
+        and status = 'OPEN'
+    );
+
+  update public.bracket_matchups
+  set opens_at = now(), closes_at = now() + public.mc_round_duration(result_matchup.round_id)
+  where round_id = result_matchup.round_id
+    and bracket_round_number = next_bracket_round
+    and status = 'OPEN';
+
+  return result_matchup;
+end;
+$$;
+
 create or replace function public.mc_process_due_rounds()
 returns integer
 language plpgsql
@@ -1116,6 +1164,7 @@ revoke all on function public.mc_create_round(text, text, bigint, timestamptz, i
 revoke all on function public.mc_create_round_at_movie_stage(text, text, text, bigint, integer) from public;
 revoke all on function public.mc_undo_last_round_result(bigint, bigint) from public;
 revoke all on function public.mc_delete_round(bigint, bigint) from public;
+revoke all on function public.mc_resolve_matchup_immediate(bigint, bigint) from public;
 
 grant execute on function public.mc_round_duration(bigint) to service_role;
 grant execute on function public.mc_create_round(text, text, bigint, timestamptz, integer) to service_role;
@@ -1123,3 +1172,4 @@ grant execute on function public.mc_create_round_at_movie_stage(text, text, text
 grant execute on function public.mc_build_bracket_immediate(bigint, bigint) to service_role;
 grant execute on function public.mc_undo_last_round_result(bigint, bigint) to service_role;
 grant execute on function public.mc_delete_round(bigint, bigint) to service_role;
+grant execute on function public.mc_resolve_matchup_immediate(bigint, bigint) to service_role;

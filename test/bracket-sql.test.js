@@ -34,6 +34,8 @@ test('round admin hardening uses the existing round model', () => {
   assert.match(migration, /mc_create_round_at_movie_stage/);
   assert.match(migration, /CATEGORY_WINNER_SELECTED/);
   assert.match(migration, /Choose a bracket mode and open the movie stage/);
+  assert.match(migration, /mc_resolve_matchup_immediate/);
+  assert.match(migration, /closes_at = now\(\) \+ public\.mc_round_duration\(result_matchup\.round_id\)/);
   assert.match(migration, /mc_round_duration/);
   assert.match(migration, /mc_build_bracket_immediate/);
   assert.match(migration, /desired_open := coalesce\(desired_open, now\(\)\)/);
