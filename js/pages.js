@@ -1234,6 +1234,14 @@ function makeRoundPreview(monthKey) {
 }
 
 function winningRoundCategory(workflow) {
+  const winnerEvent = [...(workflow?.events || [])].reverse().find(event =>
+    ['CATEGORY_WINNER_SELECTED', 'CATEGORY_SELECTION_RESET'].includes(event.event_type));
+  if (winnerEvent?.payload?.category) {
+    return {
+      category: winnerEvent.payload.category,
+      tie: winnerEvent.payload.tie ? (winnerEvent.payload.tied_categories || []) : null,
+    };
+  }
   const counts = (workflow?.categorySpins || []).reduce((result, spin) => {
     const category = spin.result_category;
     if (category) result[category] = (result[category] || 0) + 1;
@@ -2286,9 +2294,40 @@ function PastRoundCard({ round }) {
           )}
           <div className="round-history-heading">Activity log</div>
           {events.map(event => (
-            <div className="round-category-row" key={event.id}>
+            <div key={event.id}>
+            <div className="round-category-row">
               <span>{event.event_type.replaceAll('_', ' ')}</span>
               <small>{new Date(event.created_at).toLocaleString()}</small>
+            </div>
+            {event.event_type === 'CATEGORY_WINNER_SELECTED' && (
+              <div className="round-workflow-note">
+                Category: <strong>{event.payload?.category}</strong>
+                {event.payload?.tie && <span> · Tie resolved randomly between {(event.payload.tied_categories || []).join(', ')}</span>}
+              </div>
+            )}
+            {['CATEGORY_SELECTION_RESET', 'BRACKET_RESET_FOR_SUBMISSIONS'].includes(event.event_type) && (
+              <details style={{margin:'8px 0 16px'}}>
+                <summary style={{cursor:'pointer'}}>View saved results before reset</summary>
+                {(event.payload?.spins || []).map((spin, index) => (
+                  <div className="round-category-row" key={`spin-${index}`}><span>Member {spin.member_id}</span><strong>{spin.result_category}</strong></div>
+                ))}
+                {(event.payload?.movies || []).map((movie, index) => (
+                  <div className="round-category-row" key={`movie-${index}`}><span>Member {movie.member_id}</span><strong>{movie.title}</strong></div>
+                ))}
+                {(event.payload?.matchups || []).map(matchup => {
+                  const entries = event.payload.entries || [];
+                  const label = id => {
+                    const entry = entries.find(item => String(item.id) === String(id));
+                    return entry ? [entry.movie_a_title, entry.movie_b_title].filter(Boolean).join(' + ') : 'Bye';
+                  };
+                  const votes = (event.payload.votes || []).filter(vote => String(vote.matchup_id) === String(matchup.id));
+                  return <div className="round-workflow-note" key={matchup.id}>
+                    <strong>Round {matchup.bracket_round_number}: {label(matchup.entry_a_id)} vs {label(matchup.entry_b_id)}</strong>
+                    <div>{votes.length} votes · {matchup.winner_entry_id ? `Winner: ${label(matchup.winner_entry_id)}` : matchup.status}</div>
+                  </div>;
+                })}
+              </details>
+            )}
             </div>
           ))}
         </div>
@@ -2634,7 +2673,9 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, setAlltime, ratings, setRatings, polls, setPolls, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate, roundHistory, onRoundHistoryUpdate }) {
+  // Admin test brackets are disposable component state, never the shared bracket.
+  const [bracket, setBracket] = useState(null);
   const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('round');
   const [msg, setMsg] = useState(null);
@@ -2644,6 +2685,34 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   const [stageOpening, setStageOpening] = useState(false);
   const [reopenPhaseId, setReopenPhaseId] = useState('');
   const [reopenBracketRoundNumber, setReopenBracketRoundNumber] = useState('');
+  const [deleteRoundId, setDeleteRoundId] = useState('');
+  const [completedRoundId, setCompletedRoundId] = useState('');
+  const [completedPhaseId, setCompletedPhaseId] = useState('');
+  const completedRound = (roundHistory || []).find(round => String(round.id) === completedRoundId && round.status === 'COMPLETE');
+
+  async function reopenCompletedPhase() {
+    if (!completedRound || !completedPhaseId || !adminReady || !currentUser?.id) return;
+    const bracketNumber = completedPhaseId.startsWith('bracket:') ? Number(completedPhaseId.split(':')[1]) : null;
+    const warning = bracketNumber
+      ? `Reopen bracket Round ${bracketNumber} in “${completedRound.month_key}”? Votes in this voting round will be cleared and downstream matchups cancelled. Movie submissions stay intact.`
+      : `Reopen a phase in “${completedRound.month_key}”? Later stages will reset, with their results saved in history.`;
+    if (!window.confirm(warning)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction(bracketNumber ? 'mc_reopen_bracket_round' : 'mc_reopen_phase', bracketNumber ? {
+        p_round_id: completedRound.id, p_bracket_round_number: bracketNumber,
+        p_actor_member_id: currentUser.id,
+      } : {
+        p_phase_id: Number(completedPhaseId), p_actor_member_id: currentUser.id,
+        p_reason: 'admin reopened completed round',
+      }, roundAdminToken);
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(await dbLoadRoundWorkflow());
+      if (onRoundHistoryUpdate) onRoundHistoryUpdate(await dbLoadRoundHistory());
+      setCompletedRoundId(''); setCompletedPhaseId('');
+      showMsg('Completed round reopened.');
+    } catch (error) { showMsg('Could not reopen completed round: ' + error.message, 'error'); }
+    setStageOpening(false);
+  }
   const adminReady = Boolean(roundAdminToken || roundAdminAuthenticated);
 
   useEffect(() => {
@@ -2656,23 +2725,18 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     timeZone: 'America/Los_Angeles', month: 'long', year: 'numeric'
   }).format(new Date());
   const [roundMonth, setRoundMonth] = useState(() => localStorage.getItem('mc_round_draft_month') || pacificMonth);
-  const [roundMode, setRoundMode] = useState(() => localStorage.getItem('mc_round_draft_mode') || '');
   const [roundDuration, setRoundDuration] = useState(() => localStorage.getItem('mc_round_draft_duration') || '24');
 
   function saveRoundDraft() {
     localStorage.setItem('mc_round_draft_month', roundMonth.trim());
-    if (roundMode) localStorage.setItem('mc_round_draft_mode', roundMode);
-    else localStorage.removeItem('mc_round_draft_mode');
     localStorage.setItem('mc_round_draft_duration', roundDuration);
-    showMsg('Round setup saved on this staging browser. No database round was created.');
+    showMsg('Round setup saved in this browser. No shared round was created.');
   }
 
   function clearRoundDraft() {
     localStorage.removeItem('mc_round_draft_month');
-    localStorage.removeItem('mc_round_draft_mode');
     localStorage.removeItem('mc_round_draft_duration');
     setRoundMonth(pacificMonth);
-    setRoundMode('');
     setRoundDuration('24');
     showMsg('Round setup draft cleared.');
   }
@@ -2686,6 +2750,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         p_mode: stageMode,
         p_actor_member_id: currentUser.id,
       }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      setStageMode('');
       showMsg(`Movie stage opened in ${stageMode} mode.`);
     } catch (e) {
       showMsg('Could not open movie stage: ' + e.message, 'error');
@@ -2695,7 +2762,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function createActualRound() {
     if (!roundMonth.trim() || !adminReady || !currentUser?.id) return;
-    if (!window.confirm('This creates a real shared round in Supabase. It will be visible to the club, though it will not change Cloudflare code. Continue?')) return;
+    if (!window.confirm('Create this club round? Category submissions will open tomorrow at 9 AM Pacific.')) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_create_round', {
@@ -2703,12 +2770,39 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         p_mode: null,
         p_created_by: currentUser.id,
         p_open_at: null,
+        p_default_duration_hours: Number(roundDuration) || 24,
       }, roundAdminToken);
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
-      showMsg('Real round created. Category submissions are now open.');
+      showMsg('Round created. Category submissions are scheduled for tomorrow at 9 AM Pacific.');
     } catch (e) {
       showMsg('Could not create round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
+  const [shortcutMode, setShortcutMode] = useState('');
+  const [shortcutCategory, setShortcutCategory] = useState('');
+
+  async function startMovieStageRound() {
+    if (!roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id) return;
+    if (!window.confirm('Create a real round and open it directly for movie submissions? The supplied category will be recorded as the selected category.')) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_create_round_at_movie_stage', {
+        p_month_key: roundMonth.trim(),
+        p_mode: shortcutMode,
+        p_category: shortcutCategory.trim(),
+        p_created_by: currentUser.id,
+        p_default_duration_hours: Number(roundDuration) || 24,
+      }, roundAdminToken);
+      const next = await dbLoadRoundWorkflow();
+      if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      setShortcutCategory('');
+      setShortcutMode('');
+      showMsg('Movie submission round started.');
+    } catch (e) {
+      showMsg('Could not start movie submission round: ' + e.message, 'error');
     }
     setStageOpening(false);
   }
@@ -2728,12 +2822,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         p_actor_member_id: currentUser.id,
         p_reason: 'admin',
       }, roundAdminToken);
-      if (activePhase.phase_type === 'MOVIE_SUBMISSIONS') {
-        await dbAdminRoundAction('mc_build_bracket_immediate', {
-          p_round_id: roundWorkflow.round.id,
-          p_actor_member_id: currentUser.id,
-        }, roundAdminToken);
-      }
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
       showMsg('Round advanced.');
@@ -2766,7 +2854,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function startBracketNow() {
     if (!roundWorkflow?.round?.id || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
-    if (!window.confirm('Start the bracket now? This will open the existing bracket, or build it from the completed movie submissions, and give the first bracket round 24 hours.')) return;
+    const durationLabel = roundWorkflow?.round?.default_duration_hours || 24;
+    const deadlineLabel = durationLabel === 24 ? 'tomorrow at 9 AM Pacific' : `in ${durationLabel} hours`;
+    if (!window.confirm(`Start the bracket now? This opens or builds the bracket, with voting closing ${deadlineLabel}.`)) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_start_bracket_now', {
@@ -2785,7 +2875,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
   async function reopenBracketRound() {
     if (!roundWorkflow?.round?.id || roundWorkflow.preview || !reopenBracketRoundNumber || !adminReady || !currentUser?.id) return;
     const roundNumber = Number(reopenBracketRoundNumber);
-    if (!window.confirm(`Reopen bracket Round ${roundNumber}? Existing votes in that round will be cleared for a fresh vote, downstream matchups will be cancelled, and the round will get a new 24-hour window.`)) return;
+    const durationLabel = roundWorkflow?.round?.default_duration_hours || 24;
+    if (!window.confirm(`Reopen bracket Round ${roundNumber}? Existing votes in that round will be cleared for a fresh vote, downstream matchups will be cancelled, and the round will get a new ${durationLabel}-hour window.`)) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_reopen_bracket_round', {
@@ -2808,11 +2899,14 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     const phaseToReopen = roundWorkflow?.phases?.find(phase => phase.id === Number(reopenPhaseId));
     const phaseLabel = phaseToReopen?.phase_type?.replaceAll('_', ' ') || 'this phase';
     const downstreamNote = phaseToReopen?.phase_type === 'CATEGORY_SUBMISSIONS'
-      ? ' The scheduled category spin will be reset.'
+      ? ' Spins, movie submissions, and the bracket will be saved in history and reset. Submitted categories will be kept.'
+      : phaseToReopen?.phase_type === 'CATEGORY_SPIN'
+        ? ' Previous spins, movie submissions, and the bracket will be saved in history and reset for a fresh category result.'
       : phaseToReopen?.phase_type === 'MOVIE_SUBMISSIONS'
-        ? ' The bracket will be reset if it has not been built.'
+        ? ' The existing bracket and its votes will be saved in round history and reset. Submitted movies will be kept.'
         : '';
-    if (!window.confirm(`Reopen ${phaseLabel} for another 24 hours?${downstreamNote}`)) return;
+    const durationLabel = roundWorkflow?.round?.default_duration_hours || 24;
+    if (!window.confirm(`Reopen ${phaseLabel} for another ${durationLabel} hours?${downstreamNote}`)) return;
     setStageOpening(true);
     try {
       await dbAdminRoundAction('mc_reopen_phase', {
@@ -2823,7 +2917,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
       setReopenPhaseId('');
-      showMsg('Phase reopened for another 24 hours.');
+      showMsg(`Phase reopened for another ${durationLabel} hours.`);
     } catch (e) {
       showMsg('Could not reopen phase: ' + e.message, 'error');
     }
@@ -2876,6 +2970,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       }, roundAdminToken);
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
+      if (onRoundHistoryUpdate) onRoundHistoryUpdate(await dbLoadRoundHistory());
       showMsg('Round archived and moved to Past.');
     } catch (e) {
       showMsg('Could not archive the round: ' + e.message, 'error');
@@ -2883,12 +2978,38 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     setStageOpening(false);
   }
 
+  async function deleteArchivedRound() {
+    const archivedRound = (roundHistory || []).find(round => String(round.id) === String(deleteRoundId));
+    if (!archivedRound || !adminReady || !currentUser?.id) return;
+    if (!window.confirm(`Permanently delete the archived round “${archivedRound.month_key}” and all of its submissions, spins, votes, bracket data, and events? This cannot be undone.`)) return;
+    setStageOpening(true);
+    try {
+      await dbAdminRoundAction('mc_delete_round', {
+        p_round_id: archivedRound.id,
+        p_actor_member_id: currentUser.id,
+      }, roundAdminToken);
+      if (onRoundHistoryUpdate) onRoundHistoryUpdate((roundHistory || []).filter(round => round.id !== archivedRound.id));
+      setDeleteRoundId('');
+      showMsg('Archived round permanently deleted.');
+    } catch (e) {
+      showMsg('Could not delete archived round: ' + e.message, 'error');
+    }
+    setStageOpening(false);
+  }
+
   const [pollQuestion, setPollQuestion] = useState('');
   const activePollAdmin = (polls || []).find(p => p.is_active);
+  const adminOpenMatchups = (roundWorkflow?.matchups || []).filter(matchup => matchup.status === 'OPEN');
   const activeBracketIsScrambledFinal = roundWorkflow?.round?.mode === 'scrambled'
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN').length === 1
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_a_id
-    && (roundWorkflow.matchups || []).filter(matchup => matchup.status === 'OPEN')[0]?.entry_b_id;
+    && adminOpenMatchups.length === 1
+    && adminOpenMatchups[0].entry_a_id && adminOpenMatchups[0].entry_b_id
+    && (roundWorkflow.matchups || []).filter(matchup => matchup.status !== 'CANCELLED'
+      && matchup.bracket_round_number === adminOpenMatchups[0].bracket_round_number).length === 1;
+  const categorySpinReadyForMovieStage = roundWorkflow?.phases?.some(phase =>
+    phase.phase_type === 'CATEGORY_SPIN' && ['OPEN', 'CLOSED'].includes(phase.status)
+  ) && roundWorkflow?.phases?.some(phase =>
+    phase.phase_type === 'MOVIE_SUBMISSIONS' && phase.status === 'DRAFT'
+  );
 
   async function adminCreatePoll() {
     if (!pollQuestion.trim()) { showMsg('Enter a question', 'error'); return; }
@@ -3065,10 +3186,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         hiddenFromCurrent: false,
       };
       try {
-        await dbSaveBracket(final);
-        const record = await dbSaveBracketHistory(final);
         setBracket(final);
-        if (onBracketHistoryAdd && record) onBracketHistoryAdd({ id: record.id, data: final, finished_at: record.finished_at });
         showMsg(`🏆 ${winnerObjs[0].title} wins!`);
       } catch(e) {
         showMsg('Error: ' + e.message, 'error');
@@ -3093,7 +3211,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
     const updated = { ...bracket, rounds: [...bracket.rounds, nextMatchups], currentRound: bracket.currentRound + 1 };
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       showMsg('Advanced to next round!');
     } catch(e) {
@@ -3109,7 +3226,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       b: edit.b === 'BYE' ? 'BYE' : (edit.b.trim() || bracket.rounds[0][i].b),
     }));
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       setEditingRound1(false);
       showMsg('Bracket updated!');
@@ -3136,7 +3252,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
     const updated = { ...bracket, rounds: [newMatchups, ...bracket.rounds.slice(1)] };
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       showMsg('Bracket shuffled!');
     } catch(e) { showMsg('Error: ' + e.message, 'error'); }
@@ -3507,36 +3622,32 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         {section === 'round' && (
           <>
             <div className="admin-section-title">Round management</div>
+            <label className="form-label">Admin access</label>
+            <input className="form-input" type="password" value={roundAdminToken}
+              onChange={e => setRoundAdminToken(e.target.value)}
+              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
+            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; this browser will remember your admin session.'}</div>
             <div className="round-workflow-note" style={{marginBottom:14}}>
               Set up the next club round here, then manage the active round below. Test brackets are kept at the bottom of this page.
             </div>
-            <div className="admin-subsection-title">New round setup</div>
+            <details key={roundWorkflow?.round?.id || 'new-round'} open={!roundWorkflow?.round}>
+            <summary className="admin-subsection-title" style={{cursor:'pointer'}}>New round setup</summary>
             <div className="round-workflow-note" style={{marginBottom:14}}>
               This draft is local to this browser until you create the real round. Bracket mode is chosen after the category wheel.
             </div>
             <label className="form-label">Round label</label>
             <input className="form-input" value={roundMonth} onChange={e => setRoundMonth(e.target.value)} placeholder="September 2026" />
-            <label className="form-label">Bracket mode</label>
-            <select className="form-input" value={roundMode} onChange={e => setRoundMode(e.target.value)}>
-              <option value="">Choose after category wheel</option>
-              <option value="paired">Paired — permanent two-movie teams</option>
-              <option value="scrambled">Scrambled — individual movies</option>
-            </select>
             <label className="form-label">Default phase duration</label>
             <select className="form-input" value={roundDuration} onChange={e => setRoundDuration(e.target.value)}>
-              <option value="24">24 hours</option>
+              <option value="24">Default — next day at 9 AM Pacific</option>
               <option value="48">48 hours</option>
               <option value="72">72 hours</option>
             </select>
             <div className="round-workflow-note" style={{marginTop:12}}>
               Opens at 9:00 AM Pacific · minimum 3 responses · phases: category → spin → movies → bracket
             </div>
-            <button className="btn-primary" onClick={saveRoundDraft}>Save Staging Draft</button>
+            <button className="btn-primary" onClick={saveRoundDraft}>Save Draft</button>
             <button className="btn-secondary" onClick={clearRoundDraft}>Clear Draft</button>
-            <button className="btn-secondary" onClick={() => {
-              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
-              showMsg('Preview Round started in this browser only.');
-            }}>▶ Preview Submission Experience</button>
             <div className="round-workflow-note" style={{marginTop:14}}>
               When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
             </div>
@@ -3545,13 +3656,26 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
               {stageOpening ? 'Creating…' : 'Create Actual Round'}
             </button>
 
+            <div className="admin-subsection-title">Start at movie submissions</div>
+            <div className="round-workflow-note" style={{marginBottom:10}}>
+              Shortcut for a round that already has a category. This records the supplied category, selects the mode, and opens movie submissions immediately.
+            </div>
+            <label className="form-label">Category</label>
+            <input className="form-input" value={shortcutCategory} onChange={e => setShortcutCategory(e.target.value)} placeholder="e.g. courtroom dramas" />
+            <label className="form-label">Bracket mode</label>
+            <select className="form-input" value={shortcutMode} onChange={e => setShortcutMode(e.target.value)}>
+              <option value="">Choose a mode…</option>
+              <option value="paired">Paired — permanent two-movie teams</option>
+              <option value="scrambled">Scrambled — individual movies</option>
+            </select>
+            <button className="btn-secondary" onClick={startMovieStageRound}
+              disabled={!roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id || stageOpening}>
+              {stageOpening ? 'Starting…' : 'Start movie submission round'}
+            </button>
+            </details>
+
             <hr className="section-divider" />
             <div className="admin-subsection-title">Active round</div>
-            <label className="form-label">Round admin token</label>
-            <input className="form-input" type="password" value={roundAdminToken}
-              onChange={e => setRoundAdminToken(e.target.value)}
-              placeholder={roundAdminAuthenticated ? 'Secure admin session active' : 'Paste once to start your admin session'} autoComplete="off" />
-            <div className="round-workflow-note">{roundAdminAuthenticated ? 'Secure admin session active for this browser.' : 'Paste the token once; the site will keep a secure browser session for future visits.'}</div>
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
@@ -3567,7 +3691,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     Archive current round
                   </button>
                 )}
-                {roundWorkflow.phases?.some(p => roundPhaseIsOpen(p) && p.phase_type === 'CATEGORY_SPIN') && (
+                {categorySpinReadyForMovieStage && (
                   <>
                     <label className="form-label">Choose movie bracket mode</label>
                     <select className="form-input" value={stageMode} onChange={e => setStageMode(e.target.value)}>
@@ -3600,12 +3724,14 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     {stageOpening ? 'Starting…' : 'Start bracket now'}
                   </button>
                 )}
+                <details>
+                <summary className="admin-subsection-title" style={{cursor:'pointer'}}>Reopen and recovery tools</summary>
                 {!roundWorkflow.preview && roundWorkflow.phases?.some(p => p.status === 'CLOSED') && (
                   <>
                     <label className="form-label">Reopen a closed phase</label>
                     <select className="form-input" value={reopenPhaseId} onChange={e => setReopenPhaseId(e.target.value)}>
                       <option value="">Choose a phase…</option>
-                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED').map(phase => (
+                      {roundWorkflow.phases.filter(p => p.status === 'CLOSED' && p.phase_type !== 'BRACKET').map(phase => (
                         <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_', ' ')}</option>
                       ))}
                     </select>
@@ -3642,23 +3768,75 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     Undo latest wheel/bracket result
                   </button>
                 )}
+                </details>
               </>
             ) : (
-              <div className="round-workflow-note">No active database round. Your saved setup is still only a staging draft.</div>
+              <div className="round-workflow-note">No active club round. Create one using the setup above.</div>
             )}
 
             <hr className="section-divider" />
+            <details>
+              <summary className="admin-subsection-title" style={{cursor:'pointer'}}>Reopen a completed round</summary>
+              <select className="form-input" value={completedRoundId} onChange={event => {
+                setCompletedRoundId(event.target.value); setCompletedPhaseId('');
+              }}>
+                <option value="">Choose a completed round…</option>
+                {(roundHistory || []).filter(round => round.status === 'COMPLETE').map(round => (
+                  <option key={round.id} value={round.id}>{round.month_key}</option>
+                ))}
+              </select>
+              <select className="form-input" value={completedPhaseId} onChange={event => setCompletedPhaseId(event.target.value)}>
+                <option value="">Choose a phase…</option>
+                {(completedRound?.phases || []).filter(phase => phase.phase_type !== 'BRACKET').map(phase => (
+                  <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_',' ')}</option>
+                ))}
+                {[...new Set((completedRound?.matchups || [])
+                  .filter(matchup => matchup.status !== 'CANCELLED')
+                  .map(matchup => matchup.bracket_round_number))].sort((a,b) => a-b).map(number => (
+                  <option key={`bracket:${number}`} value={`bracket:${number}`}>BRACKET — voting round {number}</option>
+                ))}
+              </select>
+              <button className="btn-secondary" onClick={reopenCompletedPhase}
+                disabled={!completedPhaseId || !adminReady || !currentUser?.id || stageOpening || Boolean(roundWorkflow?.round && !roundWorkflow.preview)}>
+                Reopen selected phase
+              </button>
+              {roundWorkflow?.round && !roundWorkflow.preview && <div className="round-workflow-note">Finish or archive the current round before reopening an older one.</div>}
+            </details>
             <div className="admin-subsection-title">Test bracket</div>
             <div className="round-workflow-note" style={{marginBottom:10}}>
               The legacy bracket builder is for previews and testing only. It does not create a club round.
             </div>
             <button className="btn-secondary" onClick={() => setSection('bracket')}>Open test bracket builder</button>
+            <button className="btn-secondary" disabled={Boolean(roundWorkflow?.round && !roundWorkflow.preview)} onClick={() => {
+              if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(makeRoundPreview(roundMonth));
+              showMsg('Preview started in this browser only.');
+            }}>Preview submission experience</button>
+
+            {(roundHistory || []).some(round => round.archived_at) && (
+              <>
+                <div className="admin-subsection-title" style={{color:'var(--red)'}}>Danger zone</div>
+                <div className="round-workflow-note" style={{marginBottom:10}}>
+                  Permanent deletion is available only for rounds already archived above. It removes all round data and cannot be undone.
+                </div>
+                <select className="form-input" value={deleteRoundId} onChange={e => setDeleteRoundId(e.target.value)}>
+                  <option value="">Choose an archived round…</option>
+                  {(roundHistory || []).filter(round => round.archived_at).map(round => (
+                    <option key={round.id} value={round.id}>{round.month_key}</option>
+                  ))}
+                </select>
+                <button className="btn-secondary admin-archive-btn" onClick={deleteArchivedRound}
+                  disabled={!deleteRoundId || !adminReady || !currentUser?.id || stageOpening}>
+                  Permanently delete archived round
+                </button>
+              </>
+            )}
           </>
         )}
 
         {section === 'bracket' && (
           <>
-            <div className="admin-section-title">Bracket</div>
+            <div className="admin-section-title">Local test bracket</div>
+            <div className="round-workflow-note">This is a disposable preview, not the club voting workflow. Nothing is saved to the shared database. Closing this panel clears the test. For real voting, use Round → Start at movie submissions.</div>
             {(!bracket || !bracket.rounds) ? (
               <>
                 {!showAdminBracketSetup ? (
@@ -3670,7 +3848,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     onDone={async (matchups) => {
                       const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
                       try {
-                        await dbSaveBracket(newBracket);
                         setBracket(newBracket);
                         setShowAdminBracketSetup(false);
                         showMsg('Bracket created!');
@@ -3730,7 +3907,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 )}
                 <button className="btn-secondary" style={{marginTop:8}} onClick={async () => {
                   if (!window.confirm('Delete this bracket and start over?')) return;
-                  await dbSaveBracket(null);
                   setBracket(null);
                   showMsg('Bracket deleted');
                 }}>

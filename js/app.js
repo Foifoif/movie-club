@@ -235,6 +235,8 @@ function App() {
           currentEvent={currentEvent} setCurrentEvent={setCurrentEvent}
           roundWorkflow={roundWorkflow}
           onRoundWorkflowUpdate={setRoundWorkflow}
+          roundHistory={roundHistory}
+          onRoundHistoryUpdate={setRoundHistory}
         />
       )}
 

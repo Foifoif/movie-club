@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Round admin — isolated fixture</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css"><link rel="stylesheet" href="../css/pages.css">
+</head><body><div id="root"></div>
+<script>
+// No config.js, db.js, Supabase client, credentials, or production mutations.
+const {useState,useEffect,useRef,useMemo}=React;
+const UserContext=React.createContext({currentUser:{id:1,name:'Test admin'}});
+const dbAdminSessionStatus=async()=>({authenticated:true});
+const dbAdminRoundAction=async()=>{throw new Error('Preview only: database writes are disabled');};
+</script>
+<script type="text/babel" src="../js/pages.js"></script>
+<script type="text/babel">
+const fixture={round:{id:1,month_key:'QA sample round',mode:'scrambled',default_duration_hours:48},
+ phases:[{id:1,phase_type:'CATEGORY_SUBMISSIONS',status:'CLOSED'},
+ {id:2,phase_type:'CATEGORY_SPIN',status:'CLOSED'},
+ {id:3,phase_type:'MOVIE_SUBMISSIONS',status:'OPEN',opens_at:'2020-01-01T09:00:00Z',closes_at:'2030-01-01T09:00:00Z'}],
+ matchups:[],entries:[],events:[]};
+const completedFixture={id:2,month_key:'Completed QA round',status:'COMPLETE',
+ phases:fixture.phases.map(phase=>({...phase,id:phase.id+10,status:'CLOSED'})),
+ matchups:[{bracket_round_number:1,status:'CLOSED'},{bracket_round_number:2,status:'CLOSED'},
+ {bracket_round_number:3,status:'CANCELLED'}],events:[],entries:[]};
+const historyMode=new URLSearchParams(location.search).has('completed');
+ReactDOM.createRoot(document.getElementById('root')).render(
+ <AdminPanel movies={[]} members={['Test admin']} alltime={[]} ratings={{}} polls={[]}
+ roundHistory={[completedFixture]} roundWorkflow={historyMode ? null : fixture} onClose={()=>{}} />);
+</script></body></html>
