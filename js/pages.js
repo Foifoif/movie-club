@@ -2673,7 +2673,9 @@ function WatchListPage({ members, alltime, ratings, embedded }) {
 }
 
 // ─── ADMIN PANEL ─────────────────────────────────────────────────────────────
-function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, setBracket, alltime, setAlltime, ratings, setRatings, polls, setPolls, onBracketHistoryAdd, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate, roundHistory, onRoundHistoryUpdate }) {
+function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, setAlltime, ratings, setRatings, polls, setPolls, currentEvent, setCurrentEvent, roundWorkflow, onRoundWorkflowUpdate, roundHistory, onRoundHistoryUpdate }) {
+  // Admin test brackets are disposable component state, never the shared bracket.
+  const [bracket, setBracket] = useState(null);
   const { currentUser } = React.useContext(UserContext);
   const [section, setSection] = useState('round');
   const [msg, setMsg] = useState(null);
@@ -3184,10 +3186,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
         hiddenFromCurrent: false,
       };
       try {
-        await dbSaveBracket(final);
-        const record = await dbSaveBracketHistory(final);
         setBracket(final);
-        if (onBracketHistoryAdd && record) onBracketHistoryAdd({ id: record.id, data: final, finished_at: record.finished_at });
         showMsg(`🏆 ${winnerObjs[0].title} wins!`);
       } catch(e) {
         showMsg('Error: ' + e.message, 'error');
@@ -3212,7 +3211,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
     const updated = { ...bracket, rounds: [...bracket.rounds, nextMatchups], currentRound: bracket.currentRound + 1 };
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       showMsg('Advanced to next round!');
     } catch(e) {
@@ -3228,7 +3226,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
       b: edit.b === 'BYE' ? 'BYE' : (edit.b.trim() || bracket.rounds[0][i].b),
     }));
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       setEditingRound1(false);
       showMsg('Bracket updated!');
@@ -3255,7 +3252,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
     }
     const updated = { ...bracket, rounds: [newMatchups, ...bracket.rounds.slice(1)] };
     try {
-      await dbSaveBracket(updated);
       setBracket(updated);
       showMsg('Bracket shuffled!');
     } catch(e) { showMsg('Error: ' + e.message, 'error'); }
@@ -3839,7 +3835,8 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
         {section === 'bracket' && (
           <>
-            <div className="admin-section-title">Bracket</div>
+            <div className="admin-section-title">Local test bracket</div>
+            <div className="round-workflow-note">This is a disposable preview, not the club voting workflow. Nothing is saved to the shared database. Closing this panel clears the test. For real voting, use Round → Start at movie submissions.</div>
             {(!bracket || !bracket.rounds) ? (
               <>
                 {!showAdminBracketSetup ? (
@@ -3851,7 +3848,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                     onDone={async (matchups) => {
                       const newBracket = { rounds: [matchups], currentRound: 0, finished: false, winner: null };
                       try {
-                        await dbSaveBracket(newBracket);
                         setBracket(newBracket);
                         setShowAdminBracketSetup(false);
                         showMsg('Bracket created!');
@@ -3911,7 +3907,6 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 )}
                 <button className="btn-secondary" style={{marginTop:8}} onClick={async () => {
                   if (!window.confirm('Delete this bracket and start over?')) return;
-                  await dbSaveBracket(null);
                   setBracket(null);
                   showMsg('Bracket deleted');
                 }}>

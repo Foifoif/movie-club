@@ -38,6 +38,8 @@ PostgreSQL instance; it does not connect to Supabase.
   its submission/spin phases and non-cancelled bracket voting rounds; selecting
   a bracket round enables recovery. Cancelled rounds are omitted. No live writes.
 - History child-query failures are surfaced instead of silently hiding matchups.
+- Admin test-bracket state is local to the panel, with shared save/history calls
+  removed. A source-boundary regression check guards against their return.
 
 Run database scenarios with `NODE_PATH` pointing at an installation of
 `@electric-sql/pglite`: `node test/round-database.cjs`.
