@@ -93,7 +93,7 @@ async function dbLoadRoundWorkflow() {
 
   const [{ data: phases }, { data: categorySubmissions }, { data: categorySpins },
     { data: movieSubmissions }, { data: entries }, { data: matchups }, { data: votes },
-    { data: notifications }] = await Promise.all([
+    { data: notifications }, { data: events }] = await Promise.all([
     sb.from('round_phases').select('*').eq('round_id', round.id).order('id'),
     sb.from('category_submissions').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SUBMISSIONS')),
     sb.from('category_spins').select('*').in('phase_id', await phaseIdsForRound(round.id, 'CATEGORY_SPIN')),
@@ -102,8 +102,9 @@ async function dbLoadRoundWorkflow() {
     sb.from('bracket_matchups').select('*').eq('round_id', round.id).order('bracket_round_number').order('id'),
     sb.from('bracket_votes').select('*').in('matchup_id', await matchupIdsForRound(round.id)),
     sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
+    sb.from('round_events').select('*').eq('round_id', round.id).order('created_at', { ascending: true }),
   ]);
-  return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [] };
+  return { round, phases: phases || [], categorySubmissions: categorySubmissions || [], categorySpins: categorySpins || [], movieSubmissions: movieSubmissions || [], entries: entries || [], matchups: matchups || [], votes: votes || [], notifications: notifications || [], events: events || [] };
 }
 
 async function dbLoadRoundHistory() {

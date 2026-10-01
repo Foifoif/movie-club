@@ -24,3 +24,26 @@ test('scrambled final is finalized without a vote', () => {
   assert.match(ui, /Final two winners/);
   assert.match(ui, /disabled=\{saving \|\| !currentUser\?\.id \|\| scrambledFinal\}/);
 });
+
+test('round admin hardening uses the existing round model', () => {
+  const migration = read('supabase/migrations/20261001_round_admin_hardening.sql');
+  const ui = read('js/pages.js');
+  const worker = read('cloudflare/round-worker/src/index.js');
+  assert.match(migration, /p_default_duration_hours integer default 24/);
+  assert.match(migration, /p_mode is not null and p_mode not in/);
+  assert.match(migration, /mc_create_round_at_movie_stage/);
+  assert.match(migration, /CATEGORY_WINNER_SELECTED/);
+  assert.match(migration, /Choose a bracket mode and open the movie stage/);
+  assert.match(migration, /mc_round_duration/);
+  assert.match(migration, /mc_build_bracket_immediate/);
+  assert.match(migration, /desired_open := coalesce\(desired_open, now\(\)\)/);
+  assert.match(migration, /Only an archived round can be permanently deleted/);
+  assert.match(ui, /Start movie submission round/);
+  assert.match(ui, /categorySpinReadyForMovieStage/);
+  assert.match(ui, /const next = await dbLoadRoundWorkflow\(\);/);
+  assert.match(ui, /p_default_duration_hours: Number\(roundDuration\)/);
+  assert.match(ui, /mc_delete_round/);
+  assert.match(worker, /'mc_delete_round'/);
+  assert.match(worker, /'mc_create_round_at_movie_stage'/);
+  assert.doesNotMatch(migration, /create table/i);
+});

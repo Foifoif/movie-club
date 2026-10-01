@@ -1,5 +1,6 @@
 const ALLOWED_ACTIONS = new Set([
   'mc_create_round',
+  'mc_create_round_at_movie_stage',
   'mc_advance_phase',
   'mc_reopen_phase',
   'mc_open_movie_stage',
@@ -12,6 +13,7 @@ const ALLOWED_ACTIONS = new Set([
   'mc_process_due_rounds',
   'mc_undo_last_round_result',
   'mc_archive_round',
+  'mc_delete_round',
 ]);
 
 const DEFAULT_SUPABASE_URL = 'https://schtizxdezxteulbvynp.supabase.co';
