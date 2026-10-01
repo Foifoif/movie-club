@@ -44,6 +44,8 @@ PostgreSQL instance; it does not connect to Supabase.
 Run database scenarios with `NODE_PATH` pointing at an installation of
 `@electric-sql/pglite`: `node test/round-database.cjs`.
 Run JavaScript tests with `node --test test/*.test.js`.
+The `Round regression` GitHub workflow runs both suites on pull requests and
+main pushes without Supabase credentials or live database access.
 
 ## Remaining verification and implementation
 

@@ -1,0 +1,27 @@
+name: Round regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  round-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript regression tests
+        run: node --test test/*.test.js
+      - name: Install isolated PostgreSQL test engine
+        run: npm install --prefix "$RUNNER_TEMP/round-test-deps" --no-save --ignore-scripts @electric-sql/pglite@0.5.8
+      - name: Round lifecycle and Worker-to-database tests
+        env:
+          NODE_PATH: ${{ runner.temp }}/round-test-deps/node_modules
+        run: node test/round-database.cjs
