@@ -4,6 +4,27 @@ const { PGlite } = require('@electric-sql/pglite');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
+
+// Execute the actual Worker against SQL using PostgREST-style named arguments.
+// This checks the request/signature boundary, not a deployed PostgREST server.
+function databaseWorker(db) {
+  const context = vm.createContext({Response, Request, URL, fetch:async (url, options) => {
+    const action = new URL(url).pathname.split('/').pop();
+    const args = JSON.parse(options.body);
+    assert.match(action,/^mc_[a-z_]+$/);
+    const names = Object.keys(args);
+    names.forEach(name=>assert.match(name,/^p_[a-z_]+$/));
+    try {
+      const result = await db.query(`select * from ${action}(${names.map((name,i)=>`${name} => $${i+1}`).join(',')})`,Object.values(args));
+      return new Response(JSON.stringify(result.rows),{status:200});
+    } catch(error) {
+      return new Response(JSON.stringify({message:error.message}),{status:400});
+    }
+  }});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../cloudflare/round-worker/src/index.js'),'utf8').replace('export default {','globalThis.worker = {'),context);
+  return context.worker;
+}
 
 (async () => {
   const db = new PGlite();
@@ -38,6 +59,28 @@ const assert = require('node:assert/strict');
       assert.equal(permission.admin,true,permission.function);
     }
     console.log('PASS: migration reruns and admin functions reject browser roles');
+    const api = databaseWorker(db);
+    const apiEnv = {ROUND_ADMIN_TOKEN:'fixture-token',SUPABASE_SERVICE_ROLE_KEY:'fixture-service'};
+    async function admin(action,args,cookie) {
+      return api.fetch(new Request('https://fixture.test/api/round-admin',{
+        method:'POST',headers:{'content-type':'application/json',...(cookie ? {cookie} : {'x-round-admin-token':'fixture-token'})},
+        body:JSON.stringify({action,args}),
+      }),apiEnv);
+    }
+    const created = await admin('mc_create_round_at_movie_stage',{p_month_key:'Worker integration',p_mode:'scrambled',p_category:'Comedy',p_created_by:1,p_default_duration_hours:24});
+    assert.equal(created.status,200,JSON.stringify(await created.clone().json()));
+    const apiRound = (await created.json()).data[0];
+    const session = created.headers.get('set-cookie').split(';')[0];
+    const {rows:[apiPhase]} = await db.query("select id from round_phases where round_id=$1 and phase_type='MOVIE_SUBMISSIONS'",[apiRound.id]);
+    const failedAdvance = await admin('mc_advance_phase',{p_phase_id:apiPhase.id,p_actor_member_id:1,p_reason:'admin'},session);
+    assert.equal(failedAdvance.status,400,'empty submissions must not advance');
+    const {rows:[apiUnchanged]} = await db.query('select status from round_phases where id=$1',[apiPhase.id]);
+    assert.equal(apiUnchanged.status,'OPEN','failed Worker request rolls back phase closure');
+    const archived = await admin('mc_archive_round',{p_round_id:apiRound.id,p_actor_member_id:1},session);
+    assert.equal(archived.status,200,JSON.stringify(await archived.clone().json()));
+    const deleted = await admin('mc_delete_round',{p_round_id:apiRound.id,p_actor_member_id:1},session);
+    assert.equal(deleted.status,200,JSON.stringify(await deleted.clone().json()));
+    console.log('PASS: Worker → SQL named arguments, session reuse, rollback, archive and delete');
     const { rows: [round] } = await db.query("select * from mc_create_round('Test',null,1,now(),48)");
     const { rows: [legacy] } = await db.query("select * from mc_create_round('Legacy call',null,1,now())");
     assert.equal(legacy.mode,null);

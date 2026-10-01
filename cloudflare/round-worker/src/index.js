@@ -33,7 +33,8 @@ function cookieValue(cookieHeader, name) {
     .split(';')
     .map(part => part.trim())
     .find(part => part.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : '';
+  try { return match ? decodeURIComponent(match.slice(name.length + 1)) : ''; }
+  catch { return ''; }
 }
 
 function corsHeaders(request) {
@@ -49,7 +50,7 @@ function corsHeaders(request) {
 }
 
 function json(request, status, body, extraHeaders = {}) {
-  return new Response(JSON.stringify(body), {
+  return new Response(status === 204 ? null : JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
@@ -91,9 +92,12 @@ async function handleAdmin(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return json(request, 400, { error: 'Invalid JSON' }); }
-  if (!ALLOWED_ACTIONS.has(body.action)) return json(request, 400, { error: 'Action not allowed' });
+  if (!body || !ALLOWED_ACTIONS.has(body.action)) return json(request, 400, { error: 'Action not allowed' });
 
-  const { response, payload } = await callSupabase(env, body.action, body.args || {});
+  let result;
+  try { result = await callSupabase(env, body.action, body.args || {}); }
+  catch { return json(request, 502, { error: 'Database connection failed. Refresh the round status before retrying; the action may have completed.' }); }
+  const { response, payload } = result;
   const headers = {};
   if (response.ok) {
     headers['set-cookie'] = `${ADMIN_COOKIE}=${encodeURIComponent(expectedToken)}; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax`;

@@ -24,6 +24,14 @@ PostgreSQL instance; it does not connect to Supabase.
 - Automatic bracket progression completes in both modes.
 - Old/new creation signatures work; migration can rerun; checked admin functions deny browser roles.
 - Worker scheduled handler invokes the processor and surfaces database errors (mocked network).
+- Worker admin authentication, secure session reuse, invalid requests, preflight,
+  database errors, and uncertain network failures are covered by automated tests.
+- The actual Worker is connected to isolated PostgreSQL through a named-argument
+  RPC adapter: movie-stage creation, failed advancement rollback, archive, and
+  deletion pass. This adapter is not a real PostgREST server, so deployed schema
+  cache/signature validation still remains necessary.
+- Default next-day 9 AM Pacific deadlines are checked across the daylight-saving
+  boundary; explicit 48-hour configuration is checked independently.
 - Isolated admin fixture renders in Chrome; setup/recovery sections expand. At 390×844,
   the modal scrolls vertically and document width equals viewport width (390 pixels).
 
@@ -33,9 +41,8 @@ Run JavaScript tests with `node --test test/*.test.js`.
 
 ## Remaining verification and implementation
 
-- Integrated admin action verification against a disposable backend, beyond the read-only fixture.
+- Real PostgREST/deployed admin action verification (local Worker-to-SQL adapter passes).
 - Completed-round selection and reset-history visual verification.
-- Verify timer and manual deadline policy against the agreed Pacific schedule.
 - Apply migration, deploy Worker and frontend in compatible order, then smoke-test deployed behavior.
 
 The goal is not complete while these items remain.
