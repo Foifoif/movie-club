@@ -17,4 +17,5 @@ test('failed matchup query does not silently produce an empty bracket', async ()
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/db.js'), 'utf8'), context);
   await assert.rejects(context.dbLoadRoundWorkflow(), /Could not load complete round data: connection lost/);
+  await assert.rejects(context.dbLoadRoundHistory(), /Could not load complete round history: connection lost/);
 });

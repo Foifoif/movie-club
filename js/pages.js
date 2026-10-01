@@ -2690,10 +2690,17 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
 
   async function reopenCompletedPhase() {
     if (!completedRound || !completedPhaseId || !adminReady || !currentUser?.id) return;
-    if (!window.confirm(`Reopen a phase in “${completedRound.month_key}”? Later stages will reset, with their results saved in history.`)) return;
+    const bracketNumber = completedPhaseId.startsWith('bracket:') ? Number(completedPhaseId.split(':')[1]) : null;
+    const warning = bracketNumber
+      ? `Reopen bracket Round ${bracketNumber} in “${completedRound.month_key}”? Votes in this voting round will be cleared and downstream matchups cancelled. Movie submissions stay intact.`
+      : `Reopen a phase in “${completedRound.month_key}”? Later stages will reset, with their results saved in history.`;
+    if (!window.confirm(warning)) return;
     setStageOpening(true);
     try {
-      await dbAdminRoundAction('mc_reopen_phase', {
+      await dbAdminRoundAction(bracketNumber ? 'mc_reopen_bracket_round' : 'mc_reopen_phase', bracketNumber ? {
+        p_round_id: completedRound.id, p_bracket_round_number: bracketNumber,
+        p_actor_member_id: currentUser.id,
+      } : {
         p_phase_id: Number(completedPhaseId), p_actor_member_id: currentUser.id,
         p_reason: 'admin reopened completed round',
       }, roundAdminToken);
@@ -3786,6 +3793,11 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, bracket, 
                 <option value="">Choose a phase…</option>
                 {(completedRound?.phases || []).filter(phase => phase.phase_type !== 'BRACKET').map(phase => (
                   <option key={phase.id} value={phase.id}>{phase.phase_type.replaceAll('_',' ')}</option>
+                ))}
+                {[...new Set((completedRound?.matchups || [])
+                  .filter(matchup => matchup.status !== 'CANCELLED')
+                  .map(matchup => matchup.bracket_round_number))].sort((a,b) => a-b).map(number => (
+                  <option key={`bracket:${number}`} value={`bracket:${number}`}>BRACKET — voting round {number}</option>
                 ))}
               </select>
               <button className="btn-secondary" onClick={reopenCompletedPhase}

@@ -125,13 +125,16 @@ async function dbLoadRoundHistory() {
   if (phasesError) throw phasesError;
   if (eventsError) throw eventsError;
   const phaseIds = (phases || []).map(phase => phase.id);
-  const [{ data: categorySubmissions }, { data: categorySpins }, { data: movieSubmissions }, { data: entries }, { data: matchups }] = await Promise.all([
+  const historyResults = await Promise.all([
     sb.from('category_submissions').select('*').in('phase_id', phaseIds),
     sb.from('category_spins').select('*').in('phase_id', phaseIds),
     sb.from('movie_submissions').select('*').in('phase_id', phaseIds),
     sb.from('bracket_entries').select('*').in('round_id', ids).order('seed'),
     sb.from('bracket_matchups').select('*').in('round_id', ids).order('bracket_round_number').order('id'),
   ]);
+  const historyError = historyResults.find(result => result.error)?.error;
+  if (historyError) throw new Error('Could not load complete round history: ' + historyError.message);
+  const [{ data: categorySubmissions }, { data: categorySpins }, { data: movieSubmissions }, { data: entries }, { data: matchups }] = historyResults;
   return rounds.map(round => ({
     ...round,
     phases: (phases || []).filter(phase => phase.round_id === round.id),

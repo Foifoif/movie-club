@@ -34,6 +34,10 @@ PostgreSQL instance; it does not connect to Supabase.
   boundary; explicit 48-hour configuration is checked independently.
 - Isolated admin fixture renders in Chrome; setup/recovery sections expand. At 390×844,
   the modal scrolls vertically and document width equals viewport width (390 pixels).
+- Completed-round fixture verified in Chrome: selecting a completed round exposes
+  its submission/spin phases and non-cancelled bracket voting rounds; selecting
+  a bracket round enables recovery. Cancelled rounds are omitted. No live writes.
+- History child-query failures are surfaced instead of silently hiding matchups.
 
 Run database scenarios with `NODE_PATH` pointing at an installation of
 `@electric-sql/pglite`: `node test/round-database.cjs`.
@@ -42,7 +46,7 @@ Run JavaScript tests with `node --test test/*.test.js`.
 ## Remaining verification and implementation
 
 - Real PostgREST/deployed admin action verification (local Worker-to-SQL adapter passes).
-- Completed-round selection and reset-history visual verification.
+- Reset-history visual verification.
 - Apply migration, deploy Worker and frontend in compatible order, then smoke-test deployed behavior.
 
 The goal is not complete while these items remain.

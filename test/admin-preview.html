@@ -21,7 +21,12 @@ const fixture={round:{id:1,month_key:'QA sample round',mode:'scrambled',default_
  {id:2,phase_type:'CATEGORY_SPIN',status:'CLOSED'},
  {id:3,phase_type:'MOVIE_SUBMISSIONS',status:'OPEN',opens_at:'2020-01-01T09:00:00Z',closes_at:'2030-01-01T09:00:00Z'}],
  matchups:[],entries:[],events:[]};
+const completedFixture={id:2,month_key:'Completed QA round',status:'COMPLETE',
+ phases:fixture.phases.map(phase=>({...phase,id:phase.id+10,status:'CLOSED'})),
+ matchups:[{bracket_round_number:1,status:'CLOSED'},{bracket_round_number:2,status:'CLOSED'},
+ {bracket_round_number:3,status:'CANCELLED'}],events:[],entries:[]};
+const historyMode=new URLSearchParams(location.search).has('completed');
 ReactDOM.createRoot(document.getElementById('root')).render(
  <AdminPanel movies={[]} members={['Test admin']} alltime={[]} ratings={{}} polls={[]}
- roundHistory={[]} roundWorkflow={fixture} onClose={()=>{}} />);
+ roundHistory={[completedFixture]} roundWorkflow={historyMode ? null : fixture} onClose={()=>{}} />);
 </script></body></html>
