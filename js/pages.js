@@ -261,7 +261,7 @@ function ThisMonthPage({ currentEvent, movies, ratings, setRatings, members, adm
 // ─── PAST SCREENINGS ─────────────────────────────────────────────────────────
 const NOW_MONTH = new Date().toLocaleString('en-US', { month:'long' }) + ' ' + new Date().getFullYear();
 
-function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed, filter }) {
+function PastScreenings({ alltime, movies = [], ratings, setRatings, setAlltime, members, adminAuthed, filter }) {
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
@@ -333,7 +333,7 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   return (
     <>
       {showAddForm
-        ? <AddHistoryMovieForm onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
+        ? <AddHistoryMovieForm existingMovies={[...alltime, ...movies]} onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
         : <button className="add-history-btn" onClick={() => setShowAddForm(true)}>＋ Add a movie to history</button>
       }
 
@@ -544,7 +544,7 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
           <button className={`type-filter-btn ${historyFilter==='impromptu'?'active-impromptu':''}`} onClick={()=>setHistoryFilter('impromptu')}>Impromptu</button>
         </div>
         <TriviaOfTheWeek />
-        <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
+        <PastScreenings alltime={alltime} movies={movies} ratings={ratings} setRatings={setRatings}
           setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} filter={historyFilter} />
       </div>
     );
@@ -2252,7 +2252,9 @@ function BracketReadOnlyPage({ bracket, onBack }) {
 // ─── POLL PAGE ────────────────────────────────────────────────────────────────
 function PastRoundCard({ round }) {
   const [expanded, setExpanded] = useState(false);
-  const events = round.events || [];
+  // Keep the final category summary, but not the internal action history.
+  const categoryResult = [...(round.events || [])].reverse().find(event =>
+    ['CATEGORY_WINNER_SELECTED', 'CATEGORY_SELECTION_RESET', 'CATEGORY_SPIN_UNDONE'].includes(event.event_type));
   return (
     <article className="past-poll-card">
       <button className="past-poll-header" onClick={() => setExpanded(value => !value)}>
@@ -2264,7 +2266,13 @@ function PastRoundCard({ round }) {
       </button>
       {expanded && (
         <div className="past-poll-body">
-          <div className="round-workflow-note">{round.archived_at ? 'Archived' : round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'} · {events.length} recorded events</div>
+          <div className="round-workflow-note">{round.archived_at ? 'Archived' : round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'}</div>
+          {categoryResult?.event_type === 'CATEGORY_WINNER_SELECTED' && (
+            <div className="round-workflow-note">
+              Category: <strong>{categoryResult.payload?.category}</strong>
+              {categoryResult.payload?.tie && <span> · Tie resolved randomly between {(categoryResult.payload.tied_categories || []).join(', ')}</span>}
+            </div>
+          )}
           {round.categorySubmissions?.length > 0 && (
             <>
               <div className="round-history-heading">Category submissions</div>
@@ -2292,44 +2300,6 @@ function PastRoundCard({ round }) {
           {round.entries?.length > 0 && (
             <div className="round-workflow-note">Bracket entries: {round.entries.length} · Matchups: {round.matchups?.length || 0}</div>
           )}
-          <div className="round-history-heading">Activity log</div>
-          {events.map(event => (
-            <div key={event.id}>
-            <div className="round-category-row">
-              <span>{event.event_type.replaceAll('_', ' ')}</span>
-              <small>{new Date(event.created_at).toLocaleString()}</small>
-            </div>
-            {event.event_type === 'CATEGORY_WINNER_SELECTED' && (
-              <div className="round-workflow-note">
-                Category: <strong>{event.payload?.category}</strong>
-                {event.payload?.tie && <span> · Tie resolved randomly between {(event.payload.tied_categories || []).join(', ')}</span>}
-              </div>
-            )}
-            {['CATEGORY_SELECTION_RESET', 'BRACKET_RESET_FOR_SUBMISSIONS'].includes(event.event_type) && (
-              <details style={{margin:'8px 0 16px'}}>
-                <summary style={{cursor:'pointer'}}>View saved results before reset</summary>
-                {(event.payload?.spins || []).map((spin, index) => (
-                  <div className="round-category-row" key={`spin-${index}`}><span>Member {spin.member_id}</span><strong>{spin.result_category}</strong></div>
-                ))}
-                {(event.payload?.movies || []).map((movie, index) => (
-                  <div className="round-category-row" key={`movie-${index}`}><span>Member {movie.member_id}</span><strong>{movie.title}</strong></div>
-                ))}
-                {(event.payload?.matchups || []).map(matchup => {
-                  const entries = event.payload.entries || [];
-                  const label = id => {
-                    const entry = entries.find(item => String(item.id) === String(id));
-                    return entry ? [entry.movie_a_title, entry.movie_b_title].filter(Boolean).join(' + ') : 'Bye';
-                  };
-                  const votes = (event.payload.votes || []).filter(vote => String(vote.matchup_id) === String(matchup.id));
-                  return <div className="round-workflow-note" key={matchup.id}>
-                    <strong>Round {matchup.bracket_round_number}: {label(matchup.entry_a_id)} vs {label(matchup.entry_b_id)}</strong>
-                    <div>{votes.length} votes · {matchup.winner_entry_id ? `Winner: ${label(matchup.winner_entry_id)}` : matchup.status}</div>
-                  </div>;
-                })}
-              </details>
-            )}
-            </div>
-          ))}
         </div>
       )}
     </article>

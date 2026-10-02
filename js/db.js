@@ -446,7 +446,33 @@ async function dbRecalcAvg(movieId) {
   return rounded;
 }
 
+function sameMovieIdentity(a, b) {
+  const aId = a.tmdbId || a.tmdb_id;
+  const bId = b.tmdbId || b.tmdb_id;
+  if (aId && bId) return String(aId) === String(bId);
+  const titleKey = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return !!titleKey(a.title) && titleKey(a.title) === titleKey(b.title)
+    && String(a.year || '') === String(b.year || '');
+}
+
+function duplicateMovieError() {
+  const error = new Error('This movie is already in Movies. Find its existing entry to add or edit your rating.');
+  error.code = 'DUPLICATE_MOVIE';
+  return error;
+}
+
+async function dbCheckMovieDuplicate(movie) {
+  // Recheck shared data at save time, not just the possibly stale browser list.
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await sb.from('movies').select('id,title,year,tmdb_id').order('id').range(offset, offset + 999);
+    if (error) throw error;
+    if ((data || []).some(existing => sameMovieIdentity(existing, movie))) throw duplicateMovieError();
+    if ((data || []).length < 1000) return;
+  }
+}
+
 async function dbAddHistoryMovie({ title, year, description, poster, movieType, sessionTheme, tmdbId, trailerUrl }) {
+  await dbCheckMovieDuplicate({ title, year, tmdbId });
   const now = new Date();
   const shownMonth = now.toLocaleString('default', { month: 'long', year: 'numeric' });
   // Use accent color to encode type — no extra DB column needed:
@@ -463,7 +489,7 @@ async function dbAddHistoryMovie({ title, year, description, poster, movieType, 
   };
   row.shown_month = shownMonth;
   const { data, error } = await sb.from('movies').insert(row).select().single();
-  if (error) throw error;
+  if (error) throw error.code === '23505' ? duplicateMovieError() : error;
   return { ...data, shownMonth, movieType };
 }
 

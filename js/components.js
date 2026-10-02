@@ -649,16 +649,21 @@ function MovieSearch({ value, onChange, onSelect, placeholder, multi }) {
 }
 
 // ─── ADD HISTORY MOVIE FORM ───────────────────────────────────────────────────
-function AddHistoryMovieForm({ onAdd, onCancel }) {
+function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [movieType, setMovieType] = useState('impromptu');
   const [sessionTheme, setSessionTheme] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const savingRef = useRef(false);
+  const duplicate = selected && existingMovies.some(movie => sameMovieIdentity(movie, selected));
 
   async function handleSubmit() {
+    if (savingRef.current) return;
     if (!selected) { setErr('Search for and select a movie first.'); return; }
+    if (duplicate) { setErr(duplicateMovieError().message); return; }
+    savingRef.current = true;
     setSaving(true); setErr('');
     try {
       const row = await dbAddHistoryMovie({
@@ -676,16 +681,16 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
         tmdbId: row.tmdb_id || null,
         trailerUrl: row.trailer_url || null,
       });
-    } catch(e) { setErr('Failed to add: ' + e.message); }
-    setSaving(false);
+    } catch(e) { setErr(e.code === 'DUPLICATE_MOVIE' ? e.message : 'Failed to add: ' + e.message); }
+    finally { savingRef.current = false; setSaving(false); }
   }
 
   return (
     <div className="add-history-form">
       <div className="add-history-form-title">Add a Movie to History</div>
       <label className="form-label" style={{color:'var(--ink)'}}>Search</label>
-      <MovieSearch value={search} onChange={setSearch}
-        onSelect={d => { setSelected(d); setSearch(d.title); }}
+      <MovieSearch value={search} onChange={value => { setSearch(value); setSelected(null); setErr(''); }}
+        onSelect={d => { setSelected(d); setSearch(d.title); setErr(''); }}
         placeholder="Search TMDB..." />
       {selected && (
         <div className="add-movie-preview">
@@ -714,10 +719,10 @@ function AddHistoryMovieForm({ onAdd, onCancel }) {
             placeholder="e.g. Difficult Moms, Heist, Gaslighting…" />
         </>
       )}
-      {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{err}</div>}
+      {(duplicate || err) && <div role="alert" style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{duplicate ? duplicateMovieError().message : err}</div>}
       <div style={{display:'flex',gap:8,marginTop:12}}>
         <button className="home-save-btn" onClick={handleSubmit}
-          disabled={!selected || saving} style={{flex:1,padding:'8px'}}>
+          disabled={!selected || saving || !!duplicate} style={{flex:1,padding:'8px'}}>
           {saving ? '...' : '+ Add to History'}
         </button>
         <button className="home-cancel-btn" onClick={onCancel}>Cancel</button>
