@@ -25,3 +25,7 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/round-test-deps/node_modules
         run: node test/round-database.cjs
+      - name: Movie identity database constraints
+        env:
+          NODE_PATH: ${{ runner.temp }}/round-test-deps/node_modules
+        run: node test/movie-duplicates-database.cjs

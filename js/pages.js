@@ -261,7 +261,7 @@ function ThisMonthPage({ currentEvent, movies, ratings, setRatings, members, adm
 // ─── PAST SCREENINGS ─────────────────────────────────────────────────────────
 const NOW_MONTH = new Date().toLocaleString('en-US', { month:'long' }) + ' ' + new Date().getFullYear();
 
-function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adminAuthed, filter }) {
+function PastScreenings({ alltime, movies = [], ratings, setRatings, setAlltime, members, adminAuthed, filter }) {
   const [localRatings, setLocalRatings] = useState(ratings || {});
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
@@ -333,7 +333,7 @@ function PastScreenings({ alltime, ratings, setRatings, setAlltime, members, adm
   return (
     <>
       {showAddForm
-        ? <AddHistoryMovieForm onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
+        ? <AddHistoryMovieForm existingMovies={[...alltime, ...movies]} onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
         : <button className="add-history-btn" onClick={() => setShowAddForm(true)}>＋ Add a movie to history</button>
       }
 
@@ -544,7 +544,7 @@ function RatingsPage({ movies, ratings, setRatings, alltime, setAlltime, members
           <button className={`type-filter-btn ${historyFilter==='impromptu'?'active-impromptu':''}`} onClick={()=>setHistoryFilter('impromptu')}>Impromptu</button>
         </div>
         <TriviaOfTheWeek />
-        <PastScreenings alltime={alltime} ratings={ratings} setRatings={setRatings}
+        <PastScreenings alltime={alltime} movies={movies} ratings={ratings} setRatings={setRatings}
           setAlltime={setAlltime} members={members} adminAuthed={adminAuthed} filter={historyFilter} />
       </div>
     );
