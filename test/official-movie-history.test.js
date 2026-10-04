@@ -28,4 +28,16 @@ test('published current films survive reload without moving the lineup or shifti
  rows[0].archived=true;result=await context.loadAll();
  assert.equal(result.alltimeMovies.find(m=>m.id===3).month,'Legacy 0');
  assert.equal(result.alltimeMovies.find(m=>m.id===1).month,'October 2026');
+ // Edits must survive reload, including movies with imported metadata.
+ rows[0].session_theme='Dolly Month: New theme';
+ rows[2].session_theme='Edited session';
+ rows[2].rating_scale='Edited rating label';
+ result=await context.loadAll();
+ assert.equal(result.alltimeMovies.find(m=>m.id===1).sessionTheme,'Dolly Month: New theme');
+ assert.equal(result.alltimeMovies.find(m=>m.id===3).sessionTheme,'Edited session');
+ assert.equal(result.alltimeMovies.find(m=>m.id===3).theme,'Edited rating label');
+ rows[2].rating_scale=''; rows[2].session_theme=null;
+ result=await context.loadAll();
+ assert.equal(result.alltimeMovies.find(m=>m.id===3).theme,'');
+ assert.equal(result.alltimeMovies.find(m=>m.id===3).sessionTheme,'');
 });
