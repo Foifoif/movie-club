@@ -288,7 +288,7 @@ function PastScreenings({ alltime, movies = [], ratings, setRatings, setAlltime,
   });
 
   function handleMovieAdded(movie) {
-    if (setAlltime) setAlltime(prev => [...prev, movie]);
+    if (setAlltime) setAlltime(prev => [...prev.filter(existing => existing.id !== movie.id), movie]);
     setShowAddForm(false);
   }
 
@@ -333,7 +333,7 @@ function PastScreenings({ alltime, movies = [], ratings, setRatings, setAlltime,
   return (
     <>
       {showAddForm
-        ? <AddHistoryMovieForm existingMovies={[...alltime, ...movies]} onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
+        ? <AddHistoryMovieForm existingMovies={alltime} currentMovies={movies} onAdd={handleMovieAdded} onCancel={() => setShowAddForm(false)} />
         : <button className="add-history-btn" onClick={() => setShowAddForm(true)}>＋ Add a movie to history</button>
       }
 

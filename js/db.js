@@ -29,12 +29,13 @@ async function loadAll() {
 
   const allMovies = moviesRes.data || [];
   const currentMovies = allMovies.filter(m => !m.archived).map(rowToMovie);
-  // Attach theme/month by insertion order (sorted by id asc = same order as load_data.py)
+  // The original import occupies IDs 3–42. Publishing/archiving current films
+  // must not shift metadata onto a different film.
   const alltimeOrdered = allMovies
-    .filter(m => m.archived)
+    .filter(m => m.archived || m.shown_month)
     .sort((a, b) => a.id - b.id)
-    .map((row, i) => {
-      const meta = HISTORY_META[i];
+    .map(row => {
+      const meta = HISTORY_META[Number(row.id) - 3];
       return {
         id: row.id,
         title: row.title,
@@ -47,7 +48,7 @@ async function loadAll() {
         // For HISTORY_META movies: theme = the per-movie theme label
         // For new movies: use ratingScale as the label
         theme: meta?.theme || row.rating_scale || '',
-        month: meta?.month || row.shown_month || '',
+        month: row.shown_month || meta?.month || '',
         // sessionTheme only populated for new (non-HISTORY_META) movies
         sessionTheme: meta ? '' : (row.session_theme || ''),
         movieType: row.movie_type || (row.accent === '#f5c518' ? 'impromptu' : 'official'),
@@ -178,6 +179,11 @@ async function dbSaveMovies(existingMovies, newMovieData) {
       archived: false,
     };
     const existing = existingMovies[i];
+    const publishedExisting = existing?.id && !sameMovieIdentity(existing, m)
+      ? await dbFindExistingMovie(existing) : null;
+    if (publishedExisting?.shown_month) {
+      throw new Error('Archive the current movies before replacing a movie already published in Movies. This keeps its ratings and history intact.');
+    }
     if (existing && existing.id) {
       const { data, error } = await sb.from('movies').update(row).eq('id', existing.id).select().single();
       if (error) throw error;
@@ -461,20 +467,34 @@ function duplicateMovieError() {
   return error;
 }
 
-async function dbCheckMovieDuplicate(movie) {
+async function dbFindExistingMovie(movie) {
   // Recheck shared data at save time, not just the possibly stale browser list.
   for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await sb.from('movies').select('id,title,year,tmdb_id').order('id').range(offset, offset + 999);
+    const { data, error } = await sb.from('movies').select('id,title,year,tmdb_id,archived,shown_month').order('id').range(offset, offset + 999);
     if (error) throw error;
-    if ((data || []).some(existing => sameMovieIdentity(existing, movie))) throw duplicateMovieError();
-    if ((data || []).length < 1000) return;
+    const existing = (data || []).find(existing => sameMovieIdentity(existing, movie));
+    if (existing) return existing;
+    if ((data || []).length < 1000) return null;
   }
 }
 
 async function dbAddHistoryMovie({ title, year, description, poster, movieType, sessionTheme, tmdbId, trailerUrl }) {
-  await dbCheckMovieDuplicate({ title, year, tmdbId });
+  const existing = await dbFindExistingMovie({ title, year, tmdbId });
   const now = new Date();
   const shownMonth = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  if (existing) {
+    if (existing.archived !== false || existing.shown_month) throw duplicateMovieError();
+    if (movieType !== 'official') throw new Error('This film is a current Movie Night selection. Choose Official to show its existing entry in Movies.');
+    // Publish the existing identity instead of duplicating it or removing it
+    // from the current lineup. Never reset ratings, averages or film metadata.
+    const updates = { shown_month: shownMonth };
+    if (sessionTheme?.trim()) updates.session_theme = sessionTheme.trim();
+    const { data, error } = await sb.from('movies').update(updates).eq('id', existing.id)
+      .eq('archived', false).is('shown_month', null).select().maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('This movie changed while you were adding it. Refresh Movies to see its current entry.');
+    return { ...data, shownMonth: data.shown_month, movieType: 'official' };
+  }
   // Use accent color to encode type — no extra DB column needed:
   //   '#f5c518' (gold)  = impromptu
   //   '#8ec5e6' (blue)  = official
