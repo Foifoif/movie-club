@@ -50,3 +50,19 @@ test('legacy fallback includes bye winner, ignores cancelled rounds, and never i
  assert.equal(c.roundWinningEntries(w).length,2,'legacy final vote cannot eliminate the second scrambled winner');
  w.entries.pop();assert.equal(c.roundWinningEntries(w).length,0);
 });
+
+test('admin close confirmation gates the existing RPC and refreshes both Live and Past',async()=>{
+ const pages=fs.readFileSync(path.join(__dirname,'../js/pages.js'),'utf8');
+ const handler=pages.slice(pages.indexOf('  async function archiveCurrentRound()'),pages.indexOf('  async function deleteArchivedRound()'));
+ const calls=[];let approved=false,live,history;
+ const c=vm.createContext({roundWorkflow:{round:{id:2,status:'COMPLETE'}},adminReady:true,currentUser:{id:1},roundAdminToken:'fixture',
+  window:{confirm(message){assert.match(message,/preserved/);return approved;}},setStageOpening(){},
+  async dbAdminRoundAction(...args){calls.push(args);},async dbLoadRoundWorkflow(){return null;},async dbLoadRoundHistory(){return [{id:2,status:'COMPLETE',archived_at:'now'}];},
+  onRoundWorkflowUpdate(value){live=value;},onRoundHistoryUpdate(value){history=value;},showMsg(){},
+ });
+ vm.runInContext(handler,c);
+ await c.archiveCurrentRound();assert.equal(calls.length,0);assert.equal(live,undefined);
+ approved=true;await c.archiveCurrentRound();
+ assert.equal(calls.length,1);assert.equal(calls[0][0],'mc_archive_round');assert.equal(calls[0][1].p_round_id,2);
+ assert.equal(live,null);assert.equal(history[0].status,'COMPLETE');assert.equal(history[0].archived_at,'now');
+});
