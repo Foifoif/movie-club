@@ -742,14 +742,15 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
   const [title, setTitle] = useState(movie.title || '');
   const [year, setYear] = useState(movie.year || '');
   const [ratingScale, setRatingScale] = useState(movie.ratingScale || movie.theme || '');
+  const [sessionTheme, setSessionTheme] = useState(movie.sessionTheme || '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   async function handleSave() {
     setSaving(true); setErr('');
     try {
-      await dbUpdateHistoryMovie(movie.id, { poster: poster || null, title, year: year || null, rating_scale: ratingScale || null });
-      onSave({ poster: poster || null, title, year: year || null, ratingScale: ratingScale || '', theme: ratingScale || '' });
+      await dbUpdateHistoryMovie(movie.id, { poster: poster || null, title, year: year || null, rating_scale: ratingScale.trim(), session_theme: sessionTheme.trim() || null });
+      onSave({ poster: poster || null, title, year: year || null, ratingScale: ratingScale.trim(), theme: ratingScale.trim(), sessionTheme: sessionTheme.trim() });
     } catch(e) { setErr('Save failed: ' + e.message); }
     setSaving(false);
   }
@@ -775,8 +776,11 @@ function EditHistoryMovieForm({ movie, onSave, onCancel }) {
           <span style={{fontSize:'0.75rem',color:'#888',wordBreak:'break-all'}}>{title} {year && `(${year})`}</span>
         </div>
       )}
-      <label className="form-label" style={{color:'var(--ink)', marginTop:6}}>Theme label (e.g. "Eddie", "Pimp Suits")</label>
-      <input className="form-input" value={ratingScale} onChange={e => setRatingScale(e.target.value)}
+      <label className="form-label" htmlFor={`movie-session-theme-${movie.id}`} style={{color:'var(--ink)', marginTop:6}}>Session theme (shown on the movie card)</label>
+      <input id={`movie-session-theme-${movie.id}`} className="form-input" value={sessionTheme} onChange={e => setSessionTheme(e.target.value)}
+        placeholder="e.g. Dolly Month: Whorehomes" style={{marginBottom:8}} />
+      <label className="form-label" htmlFor={`movie-rating-label-${movie.id}`} style={{color:'var(--ink)', marginTop:6}}>Rating label (used when session theme is blank)</label>
+      <input id={`movie-rating-label-${movie.id}`} className="form-input" value={ratingScale} onChange={e => setRatingScale(e.target.value)}
         placeholder="Optional theme label..." style={{marginBottom:8}} />
       {err && <div style={{color:'var(--red)',fontSize:'0.8rem',marginBottom:8}}>{err}</div>}
       <div style={{display:'flex',gap:8}}>

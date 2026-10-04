@@ -45,12 +45,10 @@ async function loadAll() {
         poster: row.poster || null,
         tmdbId: row.tmdb_id || null,
         trailerUrl: row.trailer_url || null,
-        // For HISTORY_META movies: theme = the per-movie theme label
-        // For new movies: use ratingScale as the label
-        theme: meta?.theme || row.rating_scale || '',
+        // Saved edits (including an intentionally blank label) override import metadata.
+        theme: row.rating_scale ?? meta?.theme ?? '',
         month: row.shown_month || meta?.month || '',
-        // sessionTheme only populated for new (non-HISTORY_META) movies
-        sessionTheme: meta ? '' : (row.session_theme || ''),
+        sessionTheme: row.session_theme || '',
         movieType: row.movie_type || (row.accent === '#f5c518' ? 'impromptu' : 'official'),
       };
     });
