@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Winners lifecycle — isolated fixture</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css"><link rel="stylesheet" href="../css/pages.css">
+</head><body><div id="root"></div>
+<script>
+const {useState,useEffect,useRef,useMemo}=React;
+const UserContext=React.createContext({currentUser:{id:1,name:'QA admin'}});
+// No config.js or Supabase client. All persistence below is in-memory only.
+</script>
+<script src="../js/db.js"></script>
+<script type="text/babel" src="../js/pages.js"></script>
+<script type="text/babel">
+let stored;
+// Deterministic confirmation seam for browser automation; production keeps its
+// native confirmation. Unchecked lets us test cancelling without a write.
+window.confirm=message=>{
+ document.getElementById('fixture-confirmation').textContent=message;
+ return document.getElementById('fixture-approve').checked;
+};
+const fixtures={
+ scrambled:{round:{id:901,status:'COMPLETE',mode:'scrambled',month_key:'Scrambled QA',default_duration_hours:24},
+  phases:[],matchups:[],entries:[{id:1,movie_a_title:'A Girl Walks Home Alone at Night'},{id:2,movie_a_title:'Misery'}],
+  events:[{event_type:'ROUND_COMPLETED',payload:{final_entry_ids:[1,2]}}]},
+ paired:{round:{id:902,status:'COMPLETE',mode:'paired',month_key:'Paired QA',default_duration_hours:24},
+  phases:[],matchups:[],entries:[{id:3,entry_type:'PAIR',movie_a_title:'Movie A',movie_b_title:'Movie B'}],
+  events:[{event_type:'ROUND_COMPLETED',payload:{winner_entry_id:3}}]},
+};
+dbAdminSessionStatus=async()=>({authenticated:true});
+dbAdminRoundAction=async(action,args)=>{
+ if(action!=='mc_archive_round'||args.p_round_id!==stored.round.id)throw Error('Fixture action blocked');
+ stored={...stored,round:{...stored.round,archived_at:new Date().toISOString()}};
+};
+dbLoadRoundWorkflow=async()=>stored.round.archived_at?null:stored;
+dbLoadRoundHistory=async()=>stored.round.archived_at?[{...stored.round,...Object.fromEntries(Object.entries(stored).filter(([key])=>key!=='round'))}]:[];
+function Fixture(){
+ const [workflow,setWorkflow]=useState(fixtures.scrambled);
+ const [history,setHistory]=useState([]);
+ const [admin,setAdmin]=useState(false);
+ function choose(mode){stored=structuredClone(fixtures[mode]);setWorkflow(stored);setHistory([]);}
+ useEffect(()=>{stored=structuredClone(fixtures.scrambled);},[]);
+ return <main className="main">
+  <h1>Isolated winners test — no shared data</h1>
+  <button onClick={()=>choose('scrambled')}>Scrambled sample</button>
+  <button onClick={()=>choose('paired')}>Paired sample</button>
+  <button onClick={()=>setAdmin(true)}>Open fixture admin</button>
+  <label><input id="fixture-approve" type="checkbox"/>Approve fixture confirmation</label>
+  <p id="fixture-confirmation" role="status"></p>
+  <h2>Live</h2><RoundWinnersPanel workflow={workflow}/>
+  {!workflow&&<p>No current round</p>}
+  <h2>Past</h2>{history.map(round=><PastRoundCard key={round.id} round={round}/>)}
+  {admin&&<AdminPanel movies={[]} members={['QA admin']} alltime={[]} ratings={{}} polls={[]}
+   roundHistory={history} roundWorkflow={workflow} onRoundWorkflowUpdate={setWorkflow}
+   onRoundHistoryUpdate={setHistory} onClose={()=>setAdmin(false)}/>}
+ </main>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Fixture/>);
+</script></body></html>

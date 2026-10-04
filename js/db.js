@@ -83,11 +83,45 @@ async function loadAll() {
   return { currentMovies, ratingsData, bracketData, membersData, memberObjectsData, alltimeMovies, pollsData, bracketHistoryData, currentMonthlyEvent, roundWorkflowData, roundHistoryData };
 }
 
-async function dbLoadRoundWorkflow() {
+// Completed voting stays current until the admin closes the results display.
+// Only the newest round can be revived as a winner display; closing it must
+// never cause an older, unarchived completed round to reappear.
+async function dbLoadCurrentRound() {
   const { data: rounds, error: roundsError } = await sb.from('rounds')
     .select('*').in('status', ['DRAFT', 'ACTIVE']).order('created_at', { ascending: false }).limit(1);
   if (roundsError) throw roundsError;
-  const round = rounds?.[0];
+  if (rounds?.[0]) return rounds[0];
+  const { data: latest, error } = await sb.from('rounds').select('*')
+    .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(1);
+  if (error) throw error;
+  const round = latest?.[0];
+  return round?.status === 'COMPLETE' && !round.archived_at ? round : null;
+}
+
+function roundWinningEntries(workflow) {
+  if (workflow?.round?.status !== 'COMPLETE') return [];
+  const result = [...(workflow.events || [])].reverse().find(event => event.event_type === 'ROUND_COMPLETED');
+  let ids = workflow.round.mode === 'paired'
+    ? [result?.payload?.winner_entry_id].filter(Boolean)
+    : (result?.payload?.final_entry_ids || []);
+  // Some older completions only recorded the result on closed matchups.
+  if (!ids.length) {
+    const matchups = (workflow.matchups || []).filter(matchup => matchup.status === 'CLOSED');
+    const lastRound = Math.max(0, ...matchups.map(matchup => matchup.bracket_round_number));
+    const finals = matchups.filter(matchup => matchup.bracket_round_number === lastRound);
+    ids = finals.flatMap(matchup => matchup.result_entry_ids?.length ? matchup.result_entry_ids : [matchup.winner_entry_id].filter(Boolean));
+    if (workflow.round.mode === 'scrambled' && finals.length === 1 && finals[0].entry_a_id && finals[0].entry_b_id) {
+      ids = [finals[0].entry_a_id, finals[0].entry_b_id];
+    }
+  }
+  const uniqueIds = [...new Set(ids.map(String))];
+  if (uniqueIds.length !== (workflow.round.mode === 'paired' ? 1 : 2)) return [];
+  const entries = uniqueIds.map(id => (workflow.entries || []).find(entry => String(entry.id) === id));
+  return entries.every(Boolean) ? entries : [];
+}
+
+async function dbLoadRoundWorkflow() {
+  const round = await dbLoadCurrentRound();
   if (!round) return null;
 
   const results = await Promise.all([
@@ -99,7 +133,7 @@ async function dbLoadRoundWorkflow() {
     sb.from('bracket_matchups').select('*').eq('round_id', round.id).order('bracket_round_number').order('id'),
     sb.from('bracket_votes').select('*').in('matchup_id', await matchupIdsForRound(round.id)),
     sb.from('home_notifications').select('*').eq('round_id', round.id).order('created_at', { ascending: false }),
-    sb.from('round_events').select('*').eq('round_id', round.id).order('created_at', { ascending: true }),
+    sb.from('round_events').select('*').eq('round_id', round.id).order('created_at', { ascending: true }).order('id'),
   ]);
   const failed = results.find(result => result.error);
   if (failed) throw new Error('Could not load complete round data: ' + failed.error.message);
@@ -110,6 +144,7 @@ async function dbLoadRoundWorkflow() {
 }
 
 async function dbLoadRoundHistory() {
+  const currentRound = await dbLoadCurrentRound();
   const { data: rounds, error: roundsError } = await sb.from('rounds')
     .select('*').in('status', ['COMPLETE', 'CANCELLED'])
     .order('completed_at', { ascending: false, nullsFirst: false })
@@ -119,7 +154,7 @@ async function dbLoadRoundHistory() {
   const ids = rounds.map(round => round.id);
   const [{ data: phases, error: phasesError }, { data: events, error: eventsError }] = await Promise.all([
     sb.from('round_phases').select('*').in('round_id', ids).order('id'),
-    sb.from('round_events').select('*').in('round_id', ids).order('created_at', { ascending: true }),
+    sb.from('round_events').select('*').in('round_id', ids).order('created_at', { ascending: true }).order('id'),
   ]);
   if (phasesError) throw phasesError;
   if (eventsError) throw eventsError;
@@ -134,7 +169,7 @@ async function dbLoadRoundHistory() {
   const historyError = historyResults.find(result => result.error)?.error;
   if (historyError) throw new Error('Could not load complete round history: ' + historyError.message);
   const [{ data: categorySubmissions }, { data: categorySpins }, { data: movieSubmissions }, { data: entries }, { data: matchups }] = historyResults;
-  return rounds.map(round => ({
+  return rounds.filter(round => round.id !== currentRound?.id).map(round => ({
     ...round,
     phases: (phases || []).filter(phase => phase.round_id === round.id),
     events: (events || []).filter(event => event.round_id === round.id),

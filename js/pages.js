@@ -81,6 +81,12 @@ function CurrentBracketBanner({ bracket, onBracketClick, adminAuthed, onHide }) 
 }
 
 function RoundHomeNotification({ workflow, onClick }) {
+  if (workflow?.round?.status === 'COMPLETE' && !workflow.round.archived_at) return (
+    <a className="poll-card" href="/rate" onClick={e => { e.preventDefault(); if (onClick) onClick(); }}>
+      <div className="poll-card-label">The winners are in</div>
+      <div className="poll-card-question">See the winning movies for {workflow.round.month_key} →</div>
+    </a>
+  );
   const phase = workflow?.phases?.find(roundPhaseIsOpen);
   if (!workflow?.round || !phase) return null;
   const saved = (workflow.notifications || []).find(n => !n.expires_at || new Date(n.expires_at) > new Date());
@@ -1534,10 +1540,36 @@ function RoundWorkflowPanel({ workflow, onUpdate }) {
   );
 }
 
+function RoundWinnersPanel({ workflow, past = false }) {
+  if (workflow?.round?.status !== 'COMPLETE' || (!past && workflow.round.archived_at)) return null;
+  const winners = roundWinningEntries(workflow);
+  const category = winningRoundCategory(workflow);
+  const movies = winners.flatMap(entry => [
+    { id: `${entry.id}-a`, title: entry.movie_a_title, poster: entry.movie_a_poster },
+    ...(entry.entry_type === 'PAIR' ? [{ id: `${entry.id}-b`, title: entry.movie_b_title, poster: entry.movie_b_poster }] : []),
+  ]);
+  return (
+    <section className="round-workflow-panel round-winners-panel" aria-label="Round winners">
+      <div className="rate-kicker">Winners · {workflow.round.month_key}</div>
+      <h2 className="round-workflow-title">{workflow.round.mode === 'paired' ? 'The winning pair' : 'Our two winning movies'}</h2>
+      {category?.category && <div className="round-winning-category">The category is… <strong>{category.category}</strong></div>}
+      <div className="round-winners-grid">
+        {movies.map(movie => <article className="round-winner-movie" key={movie.id}>
+          {movie.poster && <img src={movie.poster} alt={`${movie.title} poster`} onError={event => { event.currentTarget.hidden = true; }} />}
+          <strong>{movie.title}</strong>
+        </article>)}
+      </div>
+      {!movies.length && <div className="round-workflow-error">The bracket is complete, but its saved winners could not be loaded. An admin can review the results before closing the round.</div>}
+      {!past && <div className="round-workflow-note">Voting is finished. These winners stay here until an admin closes the round.</div>}
+    </section>
+  );
+}
+
 function RoundBracketPanel({ workflow, onUpdate }) {
   const { currentUser } = React.useContext(UserContext);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
   if (!workflow) return null;
   const activePhase = workflow.phases.find(roundPhaseIsOpen);
   if (!activePhase || activePhase.phase_type !== 'BRACKET') return null;
@@ -1555,7 +1587,6 @@ function RoundBracketPanel({ workflow, onUpdate }) {
     && currentRoundMatchups.length === 1 && matchups[0].entry_a_id && matchups[0].entry_b_id;
   const entries = Object.fromEntries(workflow.entries.map(entry => [entry.id, entry]));
   const roundCategory = winningRoundCategory(workflow);
-  const [hoveredMatchupId, setHoveredMatchupId] = useState(null);
 
   function entryLabel(entry) {
     if (!entry) return 'BYE';
@@ -2266,7 +2297,8 @@ function PastRoundCard({ round }) {
       </button>
       {expanded && (
         <div className="past-poll-body">
-          <div className="round-workflow-note">{round.archived_at ? 'Archived' : round.status === 'COMPLETE' ? 'Completed' : 'Cancelled'}</div>
+          <div className="round-workflow-note">{round.status === 'COMPLETE' ? 'Completed' : round.archived_at ? 'Archived' : 'Cancelled'}</div>
+          <RoundWinnersPanel workflow={{ round, entries: round.entries, matchups: round.matchups, events: round.events, categorySpins: round.categorySpins }} past />
           {categoryResult?.event_type === 'CATEGORY_WINNER_SELECTED' && (
             <div className="round-workflow-note">
               Category: <strong>{categoryResult.payload?.category}</strong>
@@ -2347,6 +2379,7 @@ function PollPage({ polls, bracket, bracketHistory, roundHistory, members, allti
         <>
           <RoundWorkflowPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
           <RoundBracketPanel workflow={roundWorkflow} onUpdate={onRoundWorkflowUpdate} />
+          <RoundWinnersPanel workflow={roundWorkflow} />
 
           {activeBracket ? (
             <BracketVoteView bracket={activeBracket} members={members} onVoteUpdate={onBracketUpdate} />
@@ -2358,7 +2391,7 @@ function PollPage({ polls, bracket, bracketHistory, roundHistory, members, allti
               }} />
           ) : null}
           <MonthlyRateCards alltime={alltime} ratings={ratings} setRatings={setRatings} />
-          {!activeBracket && !activePoll && !roundWorkflow?.phases?.some(roundPhaseIsOpen) && (
+          {!activeBracket && !activePoll && roundWorkflow?.round?.status !== 'COMPLETE' && !roundWorkflow?.phases?.some(roundPhaseIsOpen) && (
             <div className="empty-state"><div>No active action yet.</div></div>
           )}
         </>
@@ -2731,6 +2764,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
   }
 
   async function createActualRound() {
+    if (roundWorkflow?.round && !roundWorkflow.preview) { showMsg('Close the current round before creating another.', 'error'); return; }
     if (!roundMonth.trim() || !adminReady || !currentUser?.id) return;
     if (!window.confirm('Create this club round? Category submissions will open tomorrow at 9 AM Pacific.')) return;
     setStageOpening(true);
@@ -2755,6 +2789,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
   const [shortcutCategory, setShortcutCategory] = useState('');
 
   async function startMovieStageRound() {
+    if (roundWorkflow?.round && !roundWorkflow.preview) { showMsg('Close the current round before creating another.', 'error'); return; }
     if (!roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id) return;
     if (!window.confirm('Create a real round and open it directly for movie submissions? The supplied category will be recorded as the selected category.')) return;
     setStageOpening(true);
@@ -2929,7 +2964,9 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
   async function archiveCurrentRound() {
     if (!roundWorkflow?.round || roundWorkflow.preview || !adminReady || !currentUser?.id) return;
     const confirmed = window.confirm(
-      'Are you really sure you want to archive this round? It will close the current round and move it to Past. All information already submitted will be preserved.'
+      roundWorkflow.round.status === 'COMPLETE'
+        ? 'Close this round and move its winners to Past? All winners, votes and submissions will be preserved.'
+        : 'Are you really sure you want to archive this round? It will close the current round and move it to Past. All information already submitted will be preserved.'
     );
     if (!confirmed) return;
     setStageOpening(true);
@@ -2941,7 +2978,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
       const next = await dbLoadRoundWorkflow();
       if (onRoundWorkflowUpdate) onRoundWorkflowUpdate(next);
       if (onRoundHistoryUpdate) onRoundHistoryUpdate(await dbLoadRoundHistory());
-      showMsg('Round archived and moved to Past.');
+      showMsg('Round closed and moved to Past.');
     } catch (e) {
       showMsg('Could not archive the round: ' + e.message, 'error');
     }
@@ -3622,7 +3659,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
               When you are ready for the club, enter the admin token above and create the real round. This is separate from the local preview.
             </div>
             <button className="btn-primary" onClick={createActualRound}
-              disabled={!roundMonth.trim() || !adminReady || !currentUser?.id || stageOpening}>
+              disabled={Boolean(roundWorkflow?.round && !roundWorkflow.preview) || !roundMonth.trim() || !adminReady || !currentUser?.id || stageOpening}>
               {stageOpening ? 'Creating…' : 'Create Actual Round'}
             </button>
 
@@ -3639,28 +3676,29 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
               <option value="scrambled">Scrambled — individual movies</option>
             </select>
             <button className="btn-secondary" onClick={startMovieStageRound}
-              disabled={!roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id || stageOpening}>
+              disabled={Boolean(roundWorkflow?.round && !roundWorkflow.preview) || !roundMonth.trim() || !shortcutMode || !shortcutCategory.trim() || !adminReady || !currentUser?.id || stageOpening}>
               {stageOpening ? 'Starting…' : 'Start movie submission round'}
             </button>
             </details>
 
             <hr className="section-divider" />
-            <div className="admin-subsection-title">Active round</div>
+            <div className="admin-subsection-title">Current round</div>
             {roundWorkflow?.round ? (
               <>
                 <div className="round-workflow-note">
                   <strong>{roundWorkflow.round.month_key}</strong> · {roundWorkflow.preview ? 'Local preview' : (roundWorkflow.round.mode || 'Mode not selected')}
                 </div>
                 <div className="round-workflow-note">
-                  Current phase: {roundWorkflow.phases?.find(roundPhaseIsOpen)?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
+                  Current phase: {roundWorkflow.round.status === 'COMPLETE' ? 'WINNERS — ready to close' : roundWorkflow.phases?.find(roundPhaseIsOpen)?.phase_type?.replaceAll('_', ' ') || 'Waiting'}
                   {roundWorkflow.phases?.find(roundPhaseIsOpen)?.closes_at && ` · closes ${new Date(roundWorkflow.phases.find(roundPhaseIsOpen).closes_at).toLocaleString()}`}
                 </div>
                 {!roundWorkflow.preview && (
                   <button className="btn-secondary admin-archive-btn" onClick={archiveCurrentRound}
                     disabled={!adminReady || !currentUser?.id || stageOpening}>
-                    Archive current round
+                    {roundWorkflow.round.status === 'COMPLETE' ? 'Close round & move to Past' : 'Archive current round'}
                   </button>
                 )}
+                <RoundWinnersPanel workflow={roundWorkflow} />
                 {categorySpinReadyForMovieStage && (
                   <>
                     <label className="form-label">Choose movie bracket mode</label>
@@ -3782,7 +3820,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
               showMsg('Preview started in this browser only.');
             }}>Preview submission experience</button>
 
-            {(roundHistory || []).some(round => round.archived_at) && (
+            {(roundHistory || []).some(round => round.archived_at && round.status === 'CANCELLED') && (
               <>
                 <div className="admin-subsection-title" style={{color:'var(--red)'}}>Danger zone</div>
                 <div className="round-workflow-note" style={{marginBottom:10}}>
@@ -3790,7 +3828,7 @@ function AdminPanel({ onClose, movies, setMovies, members, setMembers, alltime, 
                 </div>
                 <select className="form-input" value={deleteRoundId} onChange={e => setDeleteRoundId(e.target.value)}>
                   <option value="">Choose an archived round…</option>
-                  {(roundHistory || []).filter(round => round.archived_at).map(round => (
+                  {(roundHistory || []).filter(round => round.archived_at && round.status === 'CANCELLED').map(round => (
                     <option key={round.id} value={round.id}>{round.month_key}</option>
                   ))}
                 </select>
