@@ -54,6 +54,9 @@ function databaseWorker(db) {
       mc_resolve_matchup_immediate(bigint,bigint,text), mc_archive_round(bigint,bigint)
       to anon, authenticated;`);
     await db.exec(fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261001_round_admin_hardening.sql'), 'utf8'));
+    const closeMigration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261004_round_winners_close.sql'), 'utf8');
+    await db.exec(closeMigration);
+    await db.exec(closeMigration);
     const { rows: permissions } = await db.query(`select p.oid::regprocedure::text as function,
       has_function_privilege('anon',p.oid,'EXECUTE') as anonymous,
       has_function_privilege('authenticated',p.oid,'EXECUTE') as member,
@@ -144,7 +147,21 @@ function databaseWorker(db) {
       if (mode === 'scrambled') assert.equal(completion.payload.final_entry_ids.length, 2);
       else assert.ok(completion.payload.winner_entry_id);
       console.log(`PASS: ${mode} submissions → bracket votes → correct winner count`);
+      // Close-out is separate from completion, preserves all data and can be retried.
+      const {rows: beforeClose}=await db.query('select * from bracket_matchups where round_id=$1 order by id',[fixture.id]);
+      const {rows: votesBeforeClose}=await db.query('select * from bracket_votes where matchup_id in (select id from bracket_matchups where round_id=$1) order by id',[fixture.id]);
+      const closeResponse=await admin('mc_archive_round',{p_round_id:fixture.id,p_actor_member_id:1});
+      assert.equal(closeResponse.status,200,JSON.stringify(await closeResponse.clone().json()));
+      const {rows:[closed]}=await db.query('select * from rounds where id=$1',[fixture.id]);
+      assert.equal(closed.status,'COMPLETE'); assert.ok(closed.archived_at); assert.equal(closed.cancelled_at,null);
+      assert.deepEqual((await db.query('select * from bracket_matchups where round_id=$1 order by id',[fixture.id])).rows,beforeClose);
+      assert.deepEqual((await db.query('select * from bracket_votes where matchup_id in (select id from bracket_matchups where round_id=$1) order by id',[fixture.id])).rows,votesBeforeClose);
+      await db.query('select mc_archive_round($1,1)',[fixture.id]);
+      assert.equal((await db.query("select count(*)::int as n from round_events where round_id=$1 and event_type='ROUND_CLOSED'",[fixture.id])).rows[0].n,1);
       await db.query('select mc_reopen_bracket_round($1,1,1)', [fixture.id]);
+      const {rows:[reactivated]}=await db.query('select status,archived_at,archived_by from rounds where id=$1',[fixture.id]);
+      assert.equal(reactivated.status,'ACTIVE');assert.equal(reactivated.archived_at,null);assert.equal(reactivated.archived_by,null);
+      console.log(`PASS: ${mode} close-out preserves results and votes, is idempotent, and permits reopen`);
       // Retained cancelled history must not determine the current voting round.
       await db.query("update bracket_matchups set bracket_round_number=bracket_round_number+20 where round_id=$1 and status='CANCELLED'",[fixture.id]);
       const { rows: reopened } = await db.query("select * from bracket_matchups where round_id=$1 and bracket_round_number=1 and status='OPEN' order by id", [fixture.id]);
