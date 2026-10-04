@@ -649,7 +649,7 @@ function MovieSearch({ value, onChange, onSelect, placeholder, multi }) {
 }
 
 // ─── ADD HISTORY MOVIE FORM ───────────────────────────────────────────────────
-function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
+function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [], currentMovies = [] }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [movieType, setMovieType] = useState('impromptu');
@@ -658,11 +658,14 @@ function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
   const [err, setErr] = useState('');
   const savingRef = useRef(false);
   const duplicate = selected && existingMovies.some(movie => sameMovieIdentity(movie, selected));
+  const currentMovie = selected && currentMovies.find(movie => sameMovieIdentity(movie, selected));
+  const needsOfficial = currentMovie && !duplicate && movieType !== 'official';
 
   async function handleSubmit() {
     if (savingRef.current) return;
     if (!selected) { setErr('Search for and select a movie first.'); return; }
     if (duplicate) { setErr(duplicateMovieError().message); return; }
+    if (needsOfficial) { setErr('Choose Official to publish this Movie Night selection.'); return; }
     savingRef.current = true;
     setSaving(true); setErr('');
     try {
@@ -675,9 +678,9 @@ function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
       });
       onAdd({
         id: row.id, title: row.title, year: row.year,
-        ratingScale: '', avgScore: null, poster: row.poster || null,
-        theme: '', month: row.shownMonth || '',
-        sessionTheme: movieType === 'official' ? sessionTheme : '', movieType,
+        ratingScale: row.rating_scale || '', avgScore: row.avg_score ?? null, poster: row.poster || null,
+        theme: row.rating_scale || '', month: row.shownMonth || '',
+        sessionTheme: row.session_theme || '', movieType: row.movieType,
         tmdbId: row.tmdb_id || null,
         trailerUrl: row.trailer_url || null,
       });
@@ -690,7 +693,7 @@ function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
       <div className="add-history-form-title">Add a Movie to History</div>
       <label className="form-label" style={{color:'var(--ink)'}}>Search</label>
       <MovieSearch value={search} onChange={value => { setSearch(value); setSelected(null); setErr(''); }}
-        onSelect={d => { setSelected(d); setSearch(d.title); setErr(''); }}
+        onSelect={d => { setSelected(d); setSearch(d.title); setErr(''); if (currentMovies.some(movie => sameMovieIdentity(movie, d))) setMovieType('official'); }}
         placeholder="Search TMDB..." />
       {selected && (
         <div className="add-movie-preview">
@@ -719,11 +722,12 @@ function AddHistoryMovieForm({ onAdd, onCancel, existingMovies = [] }) {
             placeholder="e.g. Difficult Moms, Heist, Gaslighting…" />
         </>
       )}
-      {(duplicate || err) && <div role="alert" style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{duplicate ? duplicateMovieError().message : err}</div>}
+      {currentMovie && !duplicate && <div role="status" style={{fontSize:'0.85rem',marginTop:8}}>Already selected for Movie Night. Add its existing entry to this month’s Movies without changing its ratings or lineup.</div>}
+      {(duplicate || needsOfficial || err) && <div role="alert" style={{color:'var(--red)',fontSize:'0.8rem',marginTop:8}}>{duplicate ? duplicateMovieError().message : needsOfficial ? 'Choose Official to publish this Movie Night selection.' : err}</div>}
       <div style={{display:'flex',gap:8,marginTop:12}}>
         <button className="home-save-btn" onClick={handleSubmit}
-          disabled={!selected || saving || !!duplicate} style={{flex:1,padding:'8px'}}>
-          {saving ? '...' : '+ Add to History'}
+          disabled={!selected || saving || !!duplicate || !!needsOfficial} style={{flex:1,padding:'8px'}}>
+          {saving ? '...' : currentMovie && !duplicate ? 'Show in this month’s Movies' : '+ Add to History'}
         </button>
         <button className="home-cancel-btn" onClick={onCancel}>Cancel</button>
       </div>
